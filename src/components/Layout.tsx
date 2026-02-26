@@ -1,19 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, BookmarkPlus, Heart, Sun, Moon, Languages } from 'lucide-react';
+import { Home, Search, BookmarkPlus, Heart, Settings } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { useTheme } from '@/lib/theme';
 
 const navItems = [
   { path: '/', icon: Home, labelKey: 'home' as const },
   { path: '/search', icon: Search, labelKey: 'search' as const },
   { path: '/watchlist', icon: BookmarkPlus, labelKey: 'watchlist' as const },
   { path: '/favourites', icon: Heart, labelKey: 'favourites' as const },
+  { path: '/settings', icon: Settings, labelKey: 'settings' as const },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
-  const { t, lang, setLang } = useI18n();
-  const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,21 +40,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setLang(lang === 'en' ? 'ua' : 'en')}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            {t('switchLanguage')}
-          </button>
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
-        </div>
+        <div />
       </header>
 
       {/* Mobile top bar */}
@@ -63,20 +48,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Link to="/" className="font-display text-lg text-foreground">
           CineList
         </Link>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setLang(lang === 'en' ? 'ua' : 'en')}
-            className="px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t('switchLanguage')}
-          </button>
-          <button
-            onClick={toggleTheme}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-          </button>
-        </div>
+        <div />
       </header>
 
       {/* Content */}

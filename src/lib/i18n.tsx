@@ -55,7 +55,16 @@ const translations = {
     // Theme
     lightMode: 'Light mode',
     darkMode: 'Dark mode',
-    // Language
+    // Settings
+    settings: 'Settings',
+    apiKey: 'API Key',
+    currentKey: 'Current key',
+    languageSetting: 'Language',
+    themeSetting: 'Theme',
+    appInfo: 'About',
+    appDescription: 'Your personal movie companion',
+    version: 'Version',
+    dataStorage: 'Storage',
     switchLanguage: 'UA',
   },
   ua: {
@@ -103,6 +112,15 @@ const translations = {
     startSearching: 'Почніть пошук, щоб додати фільми',
     lightMode: 'Світла тема',
     darkMode: 'Темна тема',
+    settings: 'Налаштування',
+    apiKey: 'API Ключ',
+    currentKey: 'Поточний ключ',
+    languageSetting: 'Мова',
+    themeSetting: 'Тема',
+    appInfo: 'Про додаток',
+    appDescription: 'Ваш персональний кіно-помічник',
+    version: 'Версія',
+    dataStorage: 'Сховище',
     switchLanguage: 'EN',
   },
 } as const;
