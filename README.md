@@ -1,11 +1,11 @@
-# 🎬 Kinofilm
+# 🎬 MyKino
 
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-**Kinofilm** is a modern, elegant, and lightning-fast movie discovery and tracking application. Built with a focus on aesthetics and user experience, it helps you find your next favourite film and keep track of everything you want to watch.
+**MyKino** is a modern, elegant, and lightning-fast movie discovery and tracking application. Built with a focus on aesthetics and user experience, it helps you find your next favourite film and keep track of everything you want to watch.
 
 ---
 
@@ -82,12 +82,12 @@ The project includes a multi-stage `Dockerfile` for easy deployment using Nginx.
 1. **Build the image**:
 
    ```bash
-   docker build -t kinofilm .
+   docker build -t mykino .
    ```
 
 2. **Run the container**:
    ```bash
-   docker run -d -p 8080:80 kinofilm
+   docker run -d -p 8080:80 mykino
    ```
    The app will be available at `http://localhost:8080`.
 

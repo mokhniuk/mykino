@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Top bar - desktop */}
       <header className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between px-6 glass">
         <Link to="/" className="font-display text-xl text-foreground">
-          Kinofilm
+          MyKino
         </Link>
         <nav className="flex items-center gap-1">
           {navItems.map((item) => {

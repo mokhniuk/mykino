@@ -72,7 +72,7 @@ export default function SettingsPage() {
             <h2 className="text-sm font-semibold">{t('appInfo')}</h2>
           </div>
           <div className="text-sm text-muted-foreground space-y-1">
-            <p><span className="text-foreground font-medium">Kinofilm</span> — {t('appDescription')}</p>
+            <p><span className="text-foreground font-medium">MyKino</span> — {t('appDescription')}</p>
             <p>{t('version')}: 1.0.0</p>
             <p>{t('dataStorage')}: IndexedDB</p>
             <p>
