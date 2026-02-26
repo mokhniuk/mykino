@@ -1,73 +1,117 @@
-# Welcome to your Lovable project
+# 🎬 Kinofilm
 
-## Project info
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**Kinofilm** is a modern, elegant, and lightning-fast movie discovery and tracking application. Built with a focus on aesthetics and user experience, it helps you find your next favourite film and keep track of everything you want to watch.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## ✨ Features
 
-**Use Lovable**
+- 🔍 **Powerful Search**: Discover movies and TV shows from the extensive OMDB database.
+- 📺 **Watchlist Management**: Save movies you're interested in for later viewing.
+- ❤️ **Favourites**: Curate a list of your all-time favourite films.
+- 🎲 **Smart Recommendations**:
+  - **Today's Pick**: A daily suggestion from your own watchlist.
+  - **Top Rated Shuffle**: Explore curated top 100 movies with a single click.
+- 🌓 **Dynamic Themes**: Beautiful dark and light modes that respect your system preferences.
+- 🌍 **Multi-language Support**: Fully localized interface in **English** and **Ukrainian**.
+- 📱 **Responsive Design**: Flawless experience across mobile, tablet, and desktop devices.
+- 💾 **Offline-first**: Uses IndexedDB (via `idb`) for local storage, ensuring your data is always accessible without a backend.
+- ⚡ **Lightning Fast**: Optimized with Vite and TanStack Query for a snappy, high-performance feel.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Tech Stack
 
-**Use your preferred IDE**
+- **Framework**: [React 18](https://reactjs.org/) with [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components**: [Radix UI](https://www.radix-ui.com/) & [Lucide Icons](https://lucide.dev/)
+- **State Management**: [TanStack Query (FKA React Query)](https://tanstack.com/query/latest)
+- **Routing**: [React Router 6](https://reactrouter.com/)
+- **Storage**: [IndexedDB (via idb)](https://github.com/jakearchibald/idb)
+- **API**: [OMDb API](http://www.omdbapi.com/)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🚀 Getting Started
 
-Follow these steps:
+### Prerequisites
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Bun](https://bun.sh/) or [npm](https://www.npmjs.com/)
+- An [OMDb API Key](http://www.omdbapi.com/apikey.aspx) (Free)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Installation
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. **Clone the repository**:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+   ```bash
+   git clone https://github.com/your-username/your-next-watch.git
+   cd your-next-watch
+   ```
+
+2. **Install dependencies**:
+
+   ```bash
+   bun install
+   # or
+   npm install
+   ```
+
+3. **Start the development server**:
+
+   ```bash
+   bun dev
+   # or
+   npm run dev
+   ```
+
+4. **Add your API Key**:
+   Open the app in your browser and enter your OMDb API key when prompted in the settings or setup screen.
+
+---
+
+## 🐳 Docker Deployment
+
+The project includes a multi-stage `Dockerfile` for easy deployment using Nginx.
+
+1. **Build the image**:
+
+   ```bash
+   docker build -t kinofilm .
+   ```
+
+2. **Run the container**:
+   ```bash
+   docker run -d -p 8080:80 kinofilm
+   ```
+   The app will be available at `http://localhost:8080`.
+
+---
+
+## 📖 Project Structure
+
+```text
+src/
+├── components/   # Reusable UI components
+├── hooks/        # Custom React hooks
+├── lib/          # Core utilities (i18n, db, theme, omdb api)
+├── pages/        # Application views/routes
+└── App.tsx       # Main application component
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📄 License
 
-**Use GitHub Codespaces**
+This project is open-source and available under the [MIT License](LICENSE).
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+<p align="center">
+  Built with ❤️ for movie lovers everywhere.
+</p>

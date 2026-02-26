@@ -1,23 +1,29 @@
 import { Link } from 'react-router-dom';
-import { BookmarkPlus, BookmarkCheck, Heart } from 'lucide-react';
+import { BookmarkPlus, BookmarkCheck, Heart, CheckCircle2 } from 'lucide-react';
 import type { MovieData } from '@/lib/db';
 
 interface MovieCardProps {
   movie: MovieData;
   inWatchlist?: boolean;
   inFavourites?: boolean;
+  isWatched?: boolean;
   onToggleWatchlist?: () => void;
   onToggleFavourite?: () => void;
+  onToggleWatched?: () => void;
   size?: 'sm' | 'md' | 'lg';
+  fluid?: boolean;
 }
 
 export default function MovieCard({
   movie,
   inWatchlist,
   inFavourites,
+  isWatched,
   onToggleWatchlist,
   onToggleFavourite,
+  onToggleWatched,
   size = 'md',
+  fluid = false,
 }: MovieCardProps) {
   const poster = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
 
@@ -27,8 +33,10 @@ export default function MovieCard({
     lg: 'w-44 sm:w-48',
   };
 
+  const widthClass = fluid ? 'w-full' : sizeClasses[size];
+
   return (
-    <div className={`${sizeClasses[size]} flex-shrink-0 group animate-fade-in`}>
+    <div className={`${widthClass} flex-shrink-0 group animate-fade-in`}>
       <Link to={`/movie/${movie.imdbID}`} className="block">
         <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-secondary mb-2">
           {poster ? (
@@ -43,8 +51,12 @@ export default function MovieCard({
               {movie.Title}
             </div>
           )}
-          {/* Overlay on hover */}
           <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors duration-300" />
+          {isWatched && (
+            <div className="absolute top-1.5 right-1.5 bg-background/80 rounded-full p-0.5">
+              <CheckCircle2 size={14} className="text-primary" />
+            </div>
+          )}
         </div>
       </Link>
 
@@ -56,8 +68,18 @@ export default function MovieCard({
           <p className="text-xs text-muted-foreground mt-0.5">{movie.Year}</p>
         </Link>
 
-        {(onToggleWatchlist || onToggleFavourite) && (
+        {(onToggleWatchlist || onToggleFavourite || onToggleWatched) && (
           <div className="flex gap-0.5 mt-0.5">
+            {onToggleWatched && (
+              <button
+                onClick={(e) => { e.preventDefault(); onToggleWatched(); }}
+                className={`p-1 rounded transition-colors ${
+                  isWatched ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <CheckCircle2 size={14} fill={isWatched ? 'currentColor' : 'none'} />
+              </button>
+            )}
             {onToggleWatchlist && (
               <button
                 onClick={(e) => { e.preventDefault(); onToggleWatchlist(); }}

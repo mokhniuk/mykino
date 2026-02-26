@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Top bar - desktop */}
       <header className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between px-6 glass">
         <Link to="/" className="font-display text-xl text-foreground">
-          CineList
+          Kinofilm
         </Link>
         <nav className="flex items-center gap-1">
           {navItems.map((item) => {
@@ -43,16 +43,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div />
       </header>
 
-      {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between px-4 glass">
-        <Link to="/" className="font-display text-lg text-foreground">
-          CineList
-        </Link>
-        <div />
-      </header>
-
       {/* Content */}
-      <main className="pt-14 md:pt-16 pb-20 md:pb-8">
+      <main className="md:pt-16 pb-20 md:pb-8">
         {children}
       </main>
 

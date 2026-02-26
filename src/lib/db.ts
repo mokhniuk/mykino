@@ -1,7 +1,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'movieapp';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface MovieData {
   imdbID: string;
@@ -33,18 +33,15 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('movies')) {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
           db.createObjectStore('movies', { keyPath: 'imdbID' });
-        }
-        if (!db.objectStoreNames.contains('watchlist')) {
           db.createObjectStore('watchlist', { keyPath: 'imdbID' });
-        }
-        if (!db.objectStoreNames.contains('favourites')) {
           db.createObjectStore('favourites', { keyPath: 'imdbID' });
-        }
-        if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore('watched', { keyPath: 'imdbID' });
         }
       },
     });
@@ -104,6 +101,28 @@ export async function removeFromFavourites(id: string) {
 export async function isInFavourites(id: string): Promise<boolean> {
   const db = await getDB();
   const item = await db.get('favourites', id);
+  return !!item;
+}
+
+// Watched
+export async function getWatched(): Promise<MovieData[]> {
+  const db = await getDB();
+  return db.getAll('watched');
+}
+
+export async function addToWatched(movie: MovieData) {
+  const db = await getDB();
+  await db.put('watched', movie);
+}
+
+export async function removeFromWatched(id: string) {
+  const db = await getDB();
+  await db.delete('watched', id);
+}
+
+export async function isWatched(id: string): Promise<boolean> {
+  const db = await getDB();
+  const item = await db.get('watched', id);
   return !!item;
 }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Heart, Tv } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import {
   getFavourites, removeFromFavourites,
@@ -8,10 +9,13 @@ import {
 } from '@/lib/db';
 import MovieCard from '@/components/MovieCard';
 
+type Tab = 'movie' | 'series';
+
 export default function FavouritesPage() {
   const { t } = useI18n();
   const [movies, setMovies] = useState<MovieData[]>([]);
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<Tab>('movie');
 
   useEffect(() => {
     getFavourites().then(async (list) => {
@@ -39,16 +43,41 @@ export default function FavouritesPage() {
     }
   };
 
+  const filtered = movies.filter((m) => (m.Type || 'movie') === tab);
+
+  const tabs: { value: Tab; label: string }[] = [
+    { value: 'movie', label: t('tabMovies') },
+    { value: 'series', label: t('tabSeries') },
+  ];
+
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
-      <h1 className="text-2xl md:text-3xl text-foreground pt-6 md:pt-10 mb-6">{t('favourites')}</h1>
+      <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
+        <h1 className="text-2xl md:text-3xl text-foreground">{t('favourites')}</h1>
+        <div className="flex gap-0.5 p-1 bg-secondary rounded-xl">
+          {tabs.map((tb) => (
+            <button
+              key={tb.value}
+              onClick={() => setTab(tb.value)}
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                tab === tb.value
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tb.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {movies.length > 0 ? (
+      {filtered.length > 0 ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
-          {movies.map((movie) => (
+          {filtered.map((movie) => (
             <MovieCard
               key={movie.imdbID}
               movie={movie}
+              fluid
               inWatchlist={watchlistIds.has(movie.imdbID)}
               inFavourites={true}
               onToggleWatchlist={() => toggleWatchlist(movie)}
@@ -57,10 +86,22 @@ export default function FavouritesPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-20">
-          <Heart size={32} className="text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">{t('emptyFavourites')}</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">{t('startSearching')}</p>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
+            {tab === 'series'
+              ? <Tv size={28} className="text-muted-foreground/40" />
+              : <Heart size={28} className="text-muted-foreground/40" />}
+          </div>
+          <h2 className="text-base font-semibold text-foreground mb-1.5">
+            {tab === 'series' ? t('emptyFavSeriesHere') : t('emptyFavMoviesHere')}
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-xs mb-6">{t('emptyHintFavourites')}</p>
+          <Link
+            to="/search"
+            className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            {t('discoverNow')}
+          </Link>
         </div>
       )}
     </div>
