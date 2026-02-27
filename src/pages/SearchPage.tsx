@@ -1,26 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Heart, Film } from 'lucide-react';
+import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies } from '@/lib/api';
 import {
   addToWatchlist, removeFromWatchlist, isInWatchlist,
-  addToFavourites, removeFromFavourites, isInFavourites,
   type MovieData,
 } from '@/lib/db';
 
 function SearchResultCard({
   movie,
   inWatchlist,
-  inFavourites,
   onToggleWatchlist,
-  onToggleFavourite,
 }: {
   movie: MovieData;
   inWatchlist: boolean;
-  inFavourites: boolean;
   onToggleWatchlist: () => void;
-  onToggleFavourite: () => void;
 }) {
   const poster = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
   const typeLabel = movie.Type === 'series' ? 'Series' : movie.Type === 'episode' ? 'Episode' : 'Movie';
@@ -47,27 +42,17 @@ function SearchResultCard({
         </div>
       </Link>
 
-      {/* Buttons — vertical stack */}
-      <div className="flex flex-col justify-center gap-0.5 px-1.5 flex-shrink-0">
+      {/* Button */}
+      <div className="flex items-center px-1.5 flex-shrink-0">
         <button
           onClick={(e) => { e.preventDefault(); onToggleWatchlist(); }}
-          className={`p-1.5 rounded-lg transition-colors ${
+          className={`p-2.5 rounded-lg transition-colors ${
             inWatchlist
               ? 'text-foreground bg-primary/10'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
           }`}
         >
-          {inWatchlist ? <BookmarkCheck size={15} /> : <BookmarkPlus size={15} />}
-        </button>
-        <button
-          onClick={(e) => { e.preventDefault(); onToggleFavourite(); }}
-          className={`p-1.5 rounded-lg transition-colors ${
-            inFavourites
-              ? 'text-destructive bg-destructive/10'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-          }`}
-        >
-          <Heart size={15} fill={inFavourites ? 'currentColor' : 'none'} />
+          {inWatchlist ? <BookmarkCheck size={20} /> : <BookmarkPlus size={20} />}
         </button>
       </div>
     </div>
@@ -82,7 +67,6 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
-  const [favIds, setFavIds] = useState<Set<string>>(new Set());
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) { setResults([]); return; }
@@ -93,13 +77,10 @@ export default function SearchPage() {
     if (data.Response === 'True' && data.Search) {
       setResults(data.Search);
       const wSet = new Set<string>();
-      const fSet = new Set<string>();
       for (const m of data.Search) {
         if (await isInWatchlist(m.imdbID)) wSet.add(m.imdbID);
-        if (await isInFavourites(m.imdbID)) fSet.add(m.imdbID);
       }
       setWatchlistIds(wSet);
-      setFavIds(fSet);
     } else {
       setResults([]);
       if (data.Error && data.Error !== 'No API key configured') setError(data.Error);
@@ -124,16 +105,6 @@ export default function SearchPage() {
     } else {
       await addToWatchlist(movie);
       setWatchlistIds((s) => new Set(s).add(movie.imdbID));
-    }
-  };
-
-  const toggleFav = async (movie: MovieData) => {
-    if (favIds.has(movie.imdbID)) {
-      await removeFromFavourites(movie.imdbID);
-      setFavIds((s) => { const n = new Set(s); n.delete(movie.imdbID); return n; });
-    } else {
-      await addToFavourites(movie);
-      setFavIds((s) => new Set(s).add(movie.imdbID));
     }
   };
 
@@ -164,9 +135,7 @@ export default function SearchPage() {
               key={movie.imdbID}
               movie={movie}
               inWatchlist={watchlistIds.has(movie.imdbID)}
-              inFavourites={favIds.has(movie.imdbID)}
               onToggleWatchlist={() => toggleWatchlist(movie)}
-              onToggleFavourite={() => toggleFav(movie)}
             />
           ))}
         </div>

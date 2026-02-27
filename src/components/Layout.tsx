@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, BookmarkPlus, Heart, Settings } from 'lucide-react';
+import { Home, Search, BookmarkPlus, CheckCircle2, Settings } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 const navItems = [
   { path: '/', icon: Home, labelKey: 'home' as const },
   { path: '/search', icon: Search, labelKey: 'search' as const },
   { path: '/watchlist', icon: BookmarkPlus, labelKey: 'watchlist' as const },
-  { path: '/favourites', icon: Heart, labelKey: 'favourites' as const },
+  { path: '/watched', icon: CheckCircle2, labelKey: 'watched' as const },
   { path: '/settings', icon: Settings, labelKey: 'settings' as const },
 ];
 

@@ -9,7 +9,7 @@ import Layout from "@/components/Layout";
 import Index from "./pages/Index";
 import SearchPage from "./pages/SearchPage";
 import WatchlistPage from "./pages/WatchlistPage";
-import FavouritesPage from "./pages/FavouritesPage";
+import WatchedPage from "./pages/WatchedPage";
 import MovieDetailsPage from "./pages/MovieDetailsPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -29,7 +29,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/watchlist" element={<WatchlistPage />} />
-                <Route path="/favourites" element={<FavouritesPage />} />
+                <Route path="/watched" element={<WatchedPage />} />
                 <Route path="/movie/:id" element={<MovieDetailsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<NotFound />} />

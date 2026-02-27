@@ -73,11 +73,11 @@ export default function MovieCard({
             {onToggleWatched && (
               <button
                 onClick={(e) => { e.preventDefault(); onToggleWatched(); }}
-                className={`p-1 rounded transition-colors ${
+                className={`p-1.5 rounded transition-colors ${
                   isWatched ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <CheckCircle2 size={14} fill={isWatched ? 'currentColor' : 'none'} />
+                <CheckCircle2 size={18} fill={isWatched ? 'currentColor' : 'none'} />
               </button>
             )}
             {onToggleWatchlist && (

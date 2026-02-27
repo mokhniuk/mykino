@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, BookmarkPlus, BookmarkCheck, Heart, Star, Clock, CheckCircle2, Globe, ChevronDown,
+  ArrowLeft, BookmarkPlus, Star, Clock, CheckCircle2, Heart, Globe, ChevronDown,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { getMovieDetails, getWatchProviders, detectCountry, PROVIDER_LOGO_BASE, type WatchProviderResult } from '@/lib/api';
 import {
-  isInWatchlist, addToWatchlist, removeFromWatchlist,
+  isInWatchlist, addToWatchlist,
+  isWatched, addToWatched, removeFromWatched, removeFromWatchlist,
   isInFavourites, addToFavourites, removeFromFavourites,
-  isWatched, addToWatched, removeFromWatched,
   type MovieData,
 } from '@/lib/db';
 
@@ -19,8 +19,8 @@ export default function MovieDetailsPage() {
   const [movie, setMovie] = useState<MovieData | null>(null);
   const [loading, setLoading] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
-  const [inFavourites, setInFavourites] = useState(false);
   const [watched, setWatched] = useState(false);
+  const [inFavourites, setInFavourites] = useState(false);
   const [watchProvidersAll, setWatchProvidersAll] = useState<Record<string, WatchProviderResult> | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -44,13 +44,13 @@ export default function MovieDetailsPage() {
     Promise.all([
       getMovieDetails(id, lang),
       isInWatchlist(id),
-      isInFavourites(id),
       isWatched(id),
-    ]).then(([data, wl, fv, wd]) => {
+      isInFavourites(id),
+    ]).then(([data, wl, wd, fv]) => {
       setMovie(data);
       setInWatchlist(wl);
-      setInFavourites(fv);
       setWatched(wd);
+      setInFavourites(fv);
       setLoading(false);
       if (data) {
         getWatchProviders(id, data.Type).then(setWatchProvidersAll);
@@ -88,31 +88,32 @@ export default function MovieDetailsPage() {
     return null;
   };
 
-  const toggleWatchlist = async () => {
+  const handleAddToWatchlist = async () => {
     if (!movie) return;
-    if (inWatchlist) { await removeFromWatchlist(movie.imdbID); }
-    else { await addToWatchlist(movie); }
-    setInWatchlist(!inWatchlist);
+    await addToWatchlist(movie);
+    setInWatchlist(true);
   };
 
   const toggleFavourite = async () => {
     if (!movie) return;
-    if (inFavourites) { await removeFromFavourites(movie.imdbID); }
-    else { await addToFavourites(movie); }
-    setInFavourites(!inFavourites);
+    if (inFavourites) { await removeFromFavourites(movie.imdbID); setInFavourites(false); }
+    else { await addToFavourites(movie); setInFavourites(true); }
   };
 
-  const toggleWatched = async () => {
+  const handleMarkWatched = async () => {
     if (!movie) return;
-    if (watched) {
-      await removeFromWatched(movie.imdbID);
-      setWatched(false);
-    } else {
-      await addToWatched(movie);
-      await removeFromWatchlist(movie.imdbID);
-      setWatched(true);
-      setInWatchlist(false);
-    }
+    await addToWatched(movie);
+    await removeFromWatchlist(movie.imdbID);
+    setWatched(true);
+    setInWatchlist(false);
+  };
+
+  const handleUnwatch = async () => {
+    if (!movie) return;
+    await removeFromWatched(movie.imdbID);
+    await addToWatchlist(movie);
+    setWatched(false);
+    setInWatchlist(true);
   };
 
   if (loading) {
@@ -164,7 +165,7 @@ export default function MovieDetailsPage() {
         <div className="px-4 md:px-6">
           <div className="max-w-4xl mx-auto">
 
-            {/* Back button + watched toggle */}
+            {/* Back button + favourites */}
             <div className="mt-4 flex items-center justify-between">
               <button
                 onClick={() => navigate(-1)}
@@ -173,15 +174,12 @@ export default function MovieDetailsPage() {
                 <ArrowLeft size={20} />
               </button>
               <button
-                onClick={toggleWatched}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full glass text-sm font-medium transition-colors ${
-                  watched
-                    ? 'text-primary'
-                    : 'text-foreground hover:bg-secondary'
+                onClick={toggleFavourite}
+                className={`p-2 rounded-full glass transition-colors ${
+                  inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
                 }`}
               >
-                <CheckCircle2 size={18} fill={watched ? 'currentColor' : 'none'} />
-                <span>{watched ? t('watched') : t('markAsWatched')}</span>
+                <Heart size={20} fill={inFavourites ? 'currentColor' : 'none'} />
               </button>
             </div>
 
@@ -225,29 +223,32 @@ export default function MovieDetailsPage() {
         <div className="max-w-4xl mx-auto mt-10 md:mt-8 pb-8">
 
           {/* Actions */}
-          <div className="grid grid-cols-2 gap-2 md:flex mb-6">
-            <button
-              onClick={toggleWatchlist}
-              className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-2 py-3 md:px-4 md:py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                inWatchlist
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              }`}
-            >
-              <span className="flex-shrink-0">{inWatchlist ? <BookmarkCheck size={16} /> : <BookmarkPlus size={16} />}</span>
-              <span className="text-[11px] md:text-sm leading-tight text-center">{inWatchlist ? t('removeFromWatchlist') : t('addToWatchlist')}</span>
-            </button>
-            <button
-              onClick={toggleFavourite}
-              className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-2 py-3 md:px-4 md:py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                inFavourites
-                  ? 'bg-destructive text-destructive-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              }`}
-            >
-              <span className="flex-shrink-0"><Heart size={16} fill={inFavourites ? 'currentColor' : 'none'} /></span>
-              <span className="text-[11px] md:text-sm leading-tight text-center">{inFavourites ? t('removeFromFavourites') : t('addToFavourites')}</span>
-            </button>
+          <div className="mb-6">
+            {watched ? (
+              <button
+                onClick={handleUnwatch}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors"
+              >
+                <CheckCircle2 size={16} className="text-primary" />
+                {t('watchedSection')}
+              </button>
+            ) : inWatchlist ? (
+              <button
+                onClick={handleMarkWatched}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors"
+              >
+                <CheckCircle2 size={16} />
+                {t('markAsWatched')}
+              </button>
+            ) : (
+              <button
+                onClick={handleAddToWatchlist}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-sm font-medium transition-opacity"
+              >
+                <BookmarkPlus size={16} />
+                {t('addToWatchlist')}
+              </button>
+            )}
           </div>
 
           {/* Plot */}

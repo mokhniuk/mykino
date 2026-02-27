@@ -26,6 +26,7 @@ export interface MovieData {
   imdbVotes?: string;
   BoxOffice?: string;
   Production?: string;
+  addedAt?: number;
   [key: string]: unknown;
 }
 
@@ -64,12 +65,13 @@ export async function cacheMovie(movie: MovieData) {
 // Watchlist
 export async function getWatchlist(): Promise<MovieData[]> {
   const db = await getDB();
-  return db.getAll('watchlist');
+  const list = await db.getAll('watchlist');
+  return list.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
 }
 
 export async function addToWatchlist(movie: MovieData) {
   const db = await getDB();
-  await db.put('watchlist', movie);
+  await db.put('watchlist', { ...movie, addedAt: Date.now() });
 }
 
 export async function removeFromWatchlist(id: string) {
@@ -108,12 +110,13 @@ export async function isInFavourites(id: string): Promise<boolean> {
 // Watched
 export async function getWatched(): Promise<MovieData[]> {
   const db = await getDB();
-  return db.getAll('watched');
+  const list = await db.getAll('watched');
+  return list.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
 }
 
 export async function addToWatched(movie: MovieData) {
   const db = await getDB();
-  await db.put('watched', movie);
+  await db.put('watched', { ...movie, addedAt: Date.now() });
 }
 
 export async function removeFromWatched(id: string) {
