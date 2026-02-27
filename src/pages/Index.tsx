@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Sparkles, Film, Star, Shuffle, Trophy } from 'lucide-react';
+import { Search, Film, Star, Shuffle, Trophy } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { getWatchlist, getWatched, type MovieData } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
@@ -77,7 +77,17 @@ function RecoCard({ movie, loading }: { movie: MovieData | null; loading?: boole
   );
 }
 
-function Top100Challenge({ watchedMovies }: { watchedMovies: MovieData[] }) {
+function Top100Challenge({
+  watchedMovies,
+  topPickMovie,
+  topPickLoading,
+  onShuffle,
+}: {
+  watchedMovies: MovieData[];
+  topPickMovie: MovieData | null;
+  topPickLoading: boolean;
+  onShuffle: () => void;
+}) {
   const { t } = useI18n();
 
   const watchedIds = useMemo(
@@ -99,14 +109,29 @@ function Top100Challenge({ watchedMovies }: { watchedMovies: MovieData[] }) {
   return (
     <section className="pb-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Trophy size={16} className="text-primary" />
           <h2 className="text-lg text-foreground">{t('top100Challenge')}</h2>
         </div>
-        <span className="text-xs text-muted-foreground font-medium tabular-nums">
-          {revealedCount} / 100 {t('top100Unlocked')}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground font-medium tabular-nums">
+            {revealedCount} / 100 {t('top100Unlocked')}
+          </span>
+          <button
+            onClick={onShuffle}
+            disabled={topPickLoading}
+            className="flex items-center gap-1.5 text-xs text-primary hover:opacity-70 transition-opacity disabled:opacity-40"
+          >
+            <Shuffle size={13} />
+            {t('shuffle')}
+          </button>
+        </div>
+      </div>
+
+      {/* Random unwatched pick */}
+      <div className="mb-4">
+        <RecoCard movie={topPickMovie} loading={topPickLoading} />
       </div>
 
       {/* Progress bar */}
@@ -172,11 +197,9 @@ export default function Index() {
   const greeting = useGreeting();
   const [watchlist, setWatchlist] = useState<MovieData[]>([]);
   const [watchedMovies, setWatchedMovies] = useState<MovieData[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [topPickId, setTopPickId] = useState<string>('');
   const [topPickMovie, setTopPickMovie] = useState<MovieData | null>(null);
   const [topPickLoading, setTopPickLoading] = useState(false);
-  const [todaysPick, setTodaysPick] = useState<MovieData | null>(null);
   const [localizedWatchlist, setLocalizedWatchlist] = useState<MovieData[]>([]);
 
   useEffect(() => {
@@ -234,18 +257,6 @@ export default function Index() {
 
   useEffect(() => {
     let cancelled = false;
-    if (watchlist.length === 0) { setTodaysPick(null); return; }
-    const unwatched = watchlist.filter(m => !isWatched(m));
-    if (unwatched.length === 0) { setTodaysPick(null); return; }
-    const entry = unwatched[new Date().getDate() % unwatched.length];
-    getMovieDetails(entry.imdbID, lang).then(data => {
-      if (!cancelled) setTodaysPick(data ?? entry);
-    });
-    return () => { cancelled = true; };
-  }, [watchlist, lang, isWatched]);
-
-  useEffect(() => {
-    let cancelled = false;
     const unwatched = watchlist.filter(m => !isWatched(m));
     if (unwatched.length === 0) { setLocalizedWatchlist([]); return; }
     Promise.all(
@@ -269,7 +280,7 @@ export default function Index() {
 
       {/* Search bar */}
       <Link
-        to={`/search${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ''}`}
+        to="/search"
         className="block"
       >
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border hover:border-primary/30 transition-colors">
@@ -278,65 +289,33 @@ export default function Index() {
         </div>
       </Link>
 
-      {/* Today's pick */}
-      {todaysPick && (
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={16} className="text-primary" />
-            <h2 className="text-lg text-foreground">{t('todaysPick')}</h2>
-          </div>
-          <RecoCard movie={todaysPick} />
-        </section>
-      )}
-
-      {/* Top rated pick */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Star size={16} className="text-primary" />
-            <h2 className="text-lg text-foreground">{t('topRatedPick')}</h2>
-          </div>
-          <button
-            onClick={shuffleTopPick}
-            disabled={topPickLoading}
-            className="flex items-center gap-1.5 text-xs text-primary hover:opacity-70 transition-opacity disabled:opacity-40"
-          >
-            <Shuffle size={13} />
-            {t('shuffle')}
-          </button>
-        </div>
-        <RecoCard movie={topPickMovie} loading={topPickLoading} />
-      </section>
-
       {/* Watchlist preview */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Film size={16} className="text-primary" />
-            <h2 className="text-lg text-foreground">{t('fromYourWatchlist')}</h2>
-          </div>
-          {watchlist.length > 0 && (
+      {localizedWatchlist.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Film size={16} className="text-primary" />
+              <h2 className="text-lg text-foreground">{t('fromYourWatchlist')}</h2>
+            </div>
             <Link to="/watchlist" className="text-xs text-primary hover:underline">
               {t('watchlist')} →
             </Link>
-          )}
-        </div>
-        {watchlist.length > 0 ? (
+          </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             {localizedWatchlist.map((movie) => (
               <MovieCard key={movie.imdbID} movie={movie} size="sm" />
             ))}
           </div>
-        ) : (
-          <div className="text-center py-12 rounded-xl bg-secondary/50">
-            <p className="text-muted-foreground text-sm">{t('noWatchlistYet')}</p>
-            <p className="text-muted-foreground/60 text-xs mt-1">{t('addMoviesToWatchlist')}</p>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* Top 100 Challenge */}
-      <Top100Challenge watchedMovies={watchedMovies} />
+      {/* Top 100 Challenge (includes random pick) */}
+      <Top100Challenge
+        watchedMovies={watchedMovies}
+        topPickMovie={topPickMovie}
+        topPickLoading={topPickLoading}
+        onShuffle={shuffleTopPick}
+      />
     </div>
   );
 }
