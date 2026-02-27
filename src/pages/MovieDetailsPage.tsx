@@ -171,7 +171,7 @@ export default function MovieDetailsPage() {
                 onClick={() => navigate(-1)}
                 className="p-2 rounded-full glass text-foreground hover:bg-secondary transition-colors"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft size={24} />
               </button>
               <button
                 onClick={toggleFavourite}
@@ -179,15 +179,15 @@ export default function MovieDetailsPage() {
                   inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
                 }`}
               >
-                <Heart size={20} fill={inFavourites ? 'currentColor' : 'none'} />
+                <Heart size={24} fill={inFavourites ? 'currentColor' : 'none'} />
               </button>
             </div>
 
             {/* Spacer — pushes title to the bottom of the hero area */}
-            {poster && <div className="h-24 md:h-28" />}
+            {poster && <div className="h-20 md:h-20" />}
 
             {/* Poster thumbnail + title */}
-            <div className="flex gap-4 items-end">
+            <div className="flex gap-4 items-start">
               {poster && (
                 <img
                   src={poster}
@@ -198,16 +198,18 @@ export default function MovieDetailsPage() {
               )}
               <div className={`min-w-0 ${poster ? 'pb-2' : 'pt-6'}`}>
                 <h1 className="text-2xl md:text-3xl text-foreground leading-tight">{movie.Title}</h1>
-                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
-                  {movie.Year && <span>{movie.Year}</span>}
-                  {movie.Runtime && movie.Runtime !== 'N/A' && (
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} /> {movie.Runtime}
-                    </span>
-                  )}
+                <div className="flex flex-col items-start gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
+                  <p className="mb-2 flex items-center gap-3">
+                  {movie.Year && <span >{movie.Year}</span>}
                   {movie.imdbRating && movie.imdbRating !== 'N/A' && (
                     <span className="flex items-center gap-1 text-primary">
                       <Star size={12} fill="currentColor" /> {movie.imdbRating}
+                    </span>
+                  )}  
+                  </p>
+                  {movie.Runtime && movie.Runtime !== 'N/A' && (
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} /> {movie.Runtime}
                     </span>
                   )}
                 </div>

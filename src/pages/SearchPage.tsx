@@ -43,16 +43,16 @@ function SearchResultCard({
       </Link>
 
       {/* Button */}
-      <div className="flex items-center px-1.5 flex-shrink-0">
+      <div className="flex items-center  flex-shrink-0">
         <button
           onClick={(e) => { e.preventDefault(); onToggleWatchlist(); }}
-          className={`p-2.5 rounded-lg transition-colors ${
+          className={`p-2.5 h-full rounded-r-xl transition-colors ${
             inWatchlist
               ? 'text-foreground bg-primary/10'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
           }`}
         >
-          {inWatchlist ? <BookmarkCheck size={20} /> : <BookmarkPlus size={20} />}
+          {inWatchlist ? <BookmarkCheck size={24} /> : <BookmarkPlus size={24} />}
         </button>
       </div>
     </div>
@@ -118,7 +118,7 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('typeToSearch')}
-            className="flex-1 bg-transparent text-md text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             autoFocus
           />
           {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
