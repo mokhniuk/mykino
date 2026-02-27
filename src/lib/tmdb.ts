@@ -9,6 +9,7 @@ const API_KEY = import.meta.env.VITE_TMDB_API_KEY as string | undefined;
 const TMDB_LANG: Record<string, string> = {
   en: 'en-US',
   ua: 'uk-UA',
+  de: 'de-DE',
 };
 
 

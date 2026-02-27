@@ -26,17 +26,21 @@ export default function SettingsPage() {
             <h2 className="text-sm font-semibold">{t('languageSetting')}</h2>
           </div>
           <div className="flex gap-2">
-            {(['en', 'ua'] as const).map((l) => (
+            {([
+              { code: 'en', label: 'English' },
+              { code: 'ua', label: 'Українська' },
+              { code: 'de', label: 'Deutsch' },
+            ] as const).map(({ code, label }) => (
               <button
-                key={l}
-                onClick={() => setLang(l)}
+                key={code}
+                onClick={() => setLang(code)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  lang === l
+                  lang === code
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
                 }`}
               >
-                {l === 'en' ? 'English' : 'Українська'}
+                {label}
               </button>
             ))}
           </div>

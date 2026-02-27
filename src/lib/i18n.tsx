@@ -167,9 +167,87 @@ const translations = {
     dataStorage: 'Сховище',
     switchLanguage: 'EN',
   },
+  de: {
+    goodMorning: 'Guten Morgen',
+    goodAfternoon: 'Guten Tag',
+    goodEvening: 'Guten Abend',
+    readyToWatch: 'Bereit, etwas zu schauen?',
+    fromYourWatchlist: 'Aus deiner Merkliste',
+    searchForMovies: 'Filme suchen...',
+    noWatchlistYet: 'Deine Merkliste ist leer',
+    addMoviesToWatchlist: 'Suche nach Filmen und füge sie zur Merkliste hinzu',
+    todaysPick: 'Tipp des Tages',
+    topRatedPick: 'Top bewertet',
+    shuffle: 'Anderer',
+    top100Challenge: 'Top 100 Herausforderung',
+    top100Unlocked: 'freigeschaltet',
+    home: 'Startseite',
+    search: 'Suche',
+    watchlist: 'Merkliste',
+    favourites: 'Favoriten',
+    director: 'Regisseur',
+    actors: 'Schauspieler',
+    writer: 'Drehbuch',
+    genre: 'Genre',
+    runtime: 'Laufzeit',
+    released: 'Erscheinungsdatum',
+    rated: 'FSK',
+    language: 'Sprache',
+    country: 'Land',
+    awards: 'Auszeichnungen',
+    boxOffice: 'Einspielergebnis',
+    imdbRating: 'IMDb-Bewertung',
+    metascore: 'Metascore',
+    plot: 'Handlung',
+    whereToWatch: 'Wo schauen',
+    stream: 'Streamen',
+    rent: 'Leihen',
+    buy: 'Kaufen',
+    more: 'Mehr',
+    showLess: 'Weniger',
+    notAvailableInCountry: 'Nicht verfügbar in',
+    notInCountry: 'Nicht in',
+    changeCountry: 'Land ändern',
+    addToWatchlist: 'Zur Merkliste hinzufügen',
+    removeFromWatchlist: 'Von der Merkliste entfernen',
+    addToFavourites: 'Zu Favoriten hinzufügen',
+    removeFromFavourites: 'Aus Favoriten entfernen',
+    markAsWatched: 'Als gesehen markieren',
+    watched: 'Gesehen',
+    watchedSection: 'Bereits gesehen',
+    searchResults: 'Suchergebnisse',
+    noResults: 'Keine Ergebnisse gefunden',
+    typeToSearch: 'Suche nach Filmen, Serien und mehr...',
+    save: 'Speichern',
+    emptyWatchlist: 'Keine Filme in der Merkliste',
+    emptyFavourites: 'Noch keine Lieblingsfilme',
+    startSearching: 'Suche starten, um Filme hinzuzufügen',
+    tabMovies: 'Filme',
+    tabSeries: 'Serien',
+    emptyMoviesHere: 'Noch keine Filme gespeichert',
+    emptySeriesHere: 'Noch keine Serien gespeichert',
+    emptyHintWatchlist: 'Finde Filme und Serien, die du sehen möchtest, und speichere sie hier.',
+    emptyFavMoviesHere: 'Noch keine Lieblingsfilme',
+    emptyFavSeriesHere: 'Noch keine Lieblingsserien',
+    emptyHintFavourites: 'Entdecke Filme und Serien und speichere deine absoluten Favoriten hier.',
+    discoverNow: 'Jetzt entdecken',
+    searchEmptyTitle: 'Wonach ist dir der Sinn?',
+    searchEmptyBody: 'Millionen von Filmen, Serien, Dokumentationen und mehr.',
+    lightMode: 'Hell',
+    darkMode: 'Dunkel',
+    systemMode: 'System',
+    settings: 'Einstellungen',
+    languageSetting: 'Sprache',
+    themeSetting: 'Design',
+    appInfo: 'Über die App',
+    appDescription: 'Dein persönlicher Film-Begleiter',
+    version: 'Version',
+    dataStorage: 'Speicher',
+    switchLanguage: 'DE',
+  },
 } as const;
 
-type Lang = 'en' | 'ua';
+type Lang = 'en' | 'ua' | 'de';
 type TranslationKey = keyof typeof translations.en;
 
 interface I18nContextType {
@@ -186,7 +264,7 @@ const I18nContext = createContext<I18nContextType>({
 
 function getInitialLang(): Lang {
   const saved = localStorage.getItem('lang');
-  if (saved === 'en' || saved === 'ua') return saved;
+  if (saved === 'en' || saved === 'ua' || saved === 'de') return saved;
   return 'en';
 }
 
@@ -197,7 +275,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     // Only hit IndexedDB if localStorage doesn't already have the value
     if (!localStorage.getItem('lang')) {
       getSetting('lang').then((saved) => {
-        if (saved === 'en' || saved === 'ua') {
+        if (saved === 'en' || saved === 'ua' || saved === 'de') {
           setLangState(saved);
           localStorage.setItem('lang', saved);
         }
