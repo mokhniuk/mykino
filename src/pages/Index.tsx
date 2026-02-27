@@ -197,14 +197,19 @@ export default function Index() {
   const greeting = useGreeting();
   const [watchlist, setWatchlist] = useState<MovieData[]>([]);
   const [watchedMovies, setWatchedMovies] = useState<MovieData[]>([]);
+  const [dbReady, setDbReady] = useState(false);
   const [topPickId, setTopPickId] = useState<string>('');
   const [topPickMovie, setTopPickMovie] = useState<MovieData | null>(null);
-  const [topPickLoading, setTopPickLoading] = useState(false);
+  const [topPickLoading, setTopPickLoading] = useState(true);
   const [localizedWatchlist, setLocalizedWatchlist] = useState<MovieData[]>([]);
+  const [watchlistReady, setWatchlistReady] = useState(false);
 
   useEffect(() => {
-    getWatchlist().then(setWatchlist);
-    getWatched().then(setWatchedMovies);
+    Promise.all([getWatchlist(), getWatched()]).then(([wl, wd]) => {
+      setWatchlist(wl);
+      setWatchedMovies(wd);
+      setDbReady(true);
+    });
   }, []);
 
   const watchedIds = useMemo(
@@ -256,14 +261,24 @@ export default function Index() {
   }, [topPickId, lang]);
 
   useEffect(() => {
+    if (!dbReady) return;
     let cancelled = false;
     const unwatched = watchlist.filter(m => !isWatched(m));
-    if (unwatched.length === 0) { setLocalizedWatchlist([]); return; }
+    if (unwatched.length === 0) {
+      setLocalizedWatchlist([]);
+      setWatchlistReady(true);
+      return;
+    }
     Promise.all(
       unwatched.slice(0, 10).map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
-    ).then(results => { if (!cancelled) setLocalizedWatchlist(results); });
+    ).then(results => {
+      if (!cancelled) {
+        setLocalizedWatchlist(results);
+        setWatchlistReady(true);
+      }
+    });
     return () => { cancelled = true; };
-  }, [watchlist, lang, isWatched]);
+  }, [watchlist, lang, isWatched, dbReady]);
 
   const shuffleTopPick = useCallback(() => {
     if (unwatchedTop100.length === 0) return;
@@ -290,7 +305,22 @@ export default function Index() {
       </Link>
 
       {/* Watchlist preview */}
-      {localizedWatchlist.length > 0 && (
+      {!watchlistReady ? (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <div className="h-5 w-40 bg-secondary rounded-lg animate-pulse" />
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="w-28 flex-shrink-0">
+                <div className="aspect-[2/3] rounded-lg bg-secondary animate-pulse mb-2" />
+                <div className="h-2.5 bg-secondary rounded animate-pulse mb-1.5" />
+                <div className="h-2.5 w-2/3 bg-secondary rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : localizedWatchlist.length > 0 ? (
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -307,7 +337,7 @@ export default function Index() {
             ))}
           </div>
         </section>
-      )}
+      ) : null}
 
       {/* Top 100 Challenge (includes random pick) */}
       <Top100Challenge

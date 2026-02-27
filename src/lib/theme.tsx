@@ -24,16 +24,26 @@ function applyTheme(pref: ThemePreference) {
   document.documentElement.classList.toggle('dark', resolveTheme(pref) === 'dark');
 }
 
+function getInitialTheme(): ThemePreference {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+  return 'system';
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePreference>('system');
+  const [theme, setThemeState] = useState<ThemePreference>(getInitialTheme);
 
   useEffect(() => {
-    getSetting('theme').then((saved) => {
-      const pref: ThemePreference =
-        saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
-      setThemeState(pref);
-      applyTheme(pref);
-    });
+    applyTheme(theme);
+    if (!localStorage.getItem('theme')) {
+      getSetting('theme').then((saved) => {
+        const pref: ThemePreference =
+          saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+        setThemeState(pref);
+        applyTheme(pref);
+        localStorage.setItem('theme', pref);
+      });
+    }
   }, []);
 
   // Re-apply when OS preference changes (only relevant when theme === 'system')
@@ -53,6 +63,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(pref);
     applyTheme(pref);
     setSetting('theme', pref);
+    localStorage.setItem('theme', pref);
   };
 
   return (
