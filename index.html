@@ -12,6 +12,7 @@
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111111" />
     <!-- TODO: Set the document title to the name of your application -->
     <title>My Kino — Movie Recommendations</title>
     <meta name="description" content="Discover, track, and organize your favourite movies with My Kino." />
@@ -29,14 +30,7 @@
 
   <body>
     <div id="root"></div>
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (var r of registrations) r.unregister();
-        });
-      }
-    </script>
-    <script type="module" src="/src/main.tsx"></script>
+<script type="module" src="/src/main.tsx"></script>
     <script defer src="https://umami.mokhni.uk/script.js" data-website-id="36b2fed3-e325-4e17-b7e1-1fdcfdd3ef1c"></script>
   </body>
 </html>

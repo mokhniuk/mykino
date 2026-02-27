@@ -79,7 +79,7 @@ export default function SettingsPage() {
           </div>
           <div className="text-sm text-muted-foreground space-y-1">
             <p><span className="text-foreground font-medium">MyKino</span> — {t('appDescription')}</p>
-            <p>{t('version')}: 1.0.0</p>
+            <p>{t('version')}: 1.2.2</p>
             <p>{t('dataStorage')}: IndexedDB</p>
             <p>
               API:{' '}
