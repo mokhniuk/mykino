@@ -6,5 +6,5 @@
 // exports the same { searchMovies, getMovieDetails, SearchResult } shape.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { searchMovies, getMovieDetails } from './tmdb';
-export type { SearchResult } from './tmdb';
+export { searchMovies, getMovieDetails, getWatchProviders, detectCountry, PROVIDER_LOGO_BASE } from './tmdb';
+export type { SearchResult, WatchProviderResult, WatchProvider } from './tmdb';

@@ -2,6 +2,7 @@ import { cacheMovie, getCachedMovie, type MovieData } from './db';
 
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
+export const PROVIDER_LOGO_BASE = 'https://image.tmdb.org/t/p/w45';
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY as string | undefined;
 
 /** Maps app language codes to TMDB locale strings */
@@ -9,6 +10,7 @@ const TMDB_LANG: Record<string, string> = {
   en: 'en-US',
   ua: 'uk-UA',
 };
+
 
 // ─── Internal TMDB types ─────────────────────────────────────────────────────
 
@@ -32,6 +34,7 @@ interface TmdbCredits { cast: TmdbCastMember[]; crew: TmdbCrewMember[]; }
 interface TmdbMovieDetail {
   id: number;
   title: string;
+  original_title: string;
   release_date: string;
   poster_path: string | null;
   overview: string;
@@ -48,6 +51,7 @@ interface TmdbMovieDetail {
 interface TmdbTVDetail {
   id: number;
   name: string;
+  original_name: string;
   first_air_date: string;
   poster_path: string | null;
   overview: string;
@@ -64,6 +68,21 @@ interface TmdbTVDetail {
 interface TmdbFindResult {
   movie_results: Array<{ id: number }>;
   tv_results: Array<{ id: number }>;
+}
+
+// ─── Watch Provider types ─────────────────────────────────────────────────────
+
+export interface WatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+}
+
+export interface WatchProviderResult {
+  link?: string;
+  flatrate?: WatchProvider[];
+  rent?: WatchProvider[];
+  buy?: WatchProvider[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -94,6 +113,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
   return {
     imdbID: storeId,
     Title: data.title,
+    OriginalTitle: data.original_title !== data.title ? data.original_title : undefined,
     Year: data.release_date?.slice(0, 4) ?? '',
     Poster: posterUrl(data.poster_path),
     Type: 'movie',
@@ -122,6 +142,7 @@ function mapTVDetail(data: TmdbTVDetail, storeId: string): MovieData {
   return {
     imdbID: storeId,
     Title: data.name,
+    OriginalTitle: data.original_name !== data.name ? data.original_name : undefined,
     Year: data.first_air_date?.slice(0, 4) ?? '',
     Poster: posterUrl(data.poster_path),
     Type: 'series',
@@ -246,5 +267,53 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
     }
   } catch {
     return cached ?? null;
+  }
+}
+
+/** Returns all watch providers for a title, keyed by country code (e.g. "US", "UA"). */
+export async function getWatchProviders(
+  id: string,
+  type: string,
+): Promise<Record<string, WatchProviderResult> | null> {
+  if (!API_KEY) return null;
+
+  try {
+    let tmdbId = id;
+    let mediaType = type === 'series' ? 'tv' : 'movie';
+
+    if (id.startsWith('tt')) {
+      const found = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`);
+      if (found.movie_results.length > 0) {
+        tmdbId = String(found.movie_results[0].id);
+        mediaType = 'movie';
+      } else if (found.tv_results.length > 0) {
+        tmdbId = String(found.tv_results[0].id);
+        mediaType = 'tv';
+      } else {
+        return null;
+      }
+    }
+
+    const data = await tmdbFetch<{ results: Record<string, WatchProviderResult> }>(
+      `/${mediaType}/${tmdbId}/watch/providers`
+    );
+    return data.results ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Detects the user's country code via IP geolocation. Cached in sessionStorage. */
+export async function detectCountry(): Promise<string> {
+  const cached = sessionStorage.getItem('detectedCountry');
+  if (cached) return cached;
+  try {
+    const res = await fetch('https://api.country.is/');
+    const data = await res.json() as { country?: string };
+    const code = data.country ?? 'US';
+    sessionStorage.setItem('detectedCountry', code);
+    return code;
+  } catch {
+    return 'US';
   }
 }

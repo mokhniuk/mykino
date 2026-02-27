@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Sparkles, Film, Star, Shuffle } from 'lucide-react';
+import { Search, Sparkles, Film, Star, Shuffle, Trophy } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { getWatchlist, type MovieData } from '@/lib/db';
+import { getWatchlist, getWatched, type MovieData } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
 import { TOP_100_MOVIES } from '@/lib/top100';
 import MovieCard from '@/components/MovieCard';
@@ -15,10 +15,9 @@ function useGreeting() {
   return t('goodEvening');
 }
 
-function randomIndex(exclude?: number) {
-  let idx: number;
-  do { idx = Math.floor(Math.random() * TOP_100_MOVIES.length); } while (idx === exclude);
-  return idx;
+function pickRandom<T>(arr: T[], exclude?: T): T {
+  const pool = arr.length > 1 ? arr.filter(x => x !== exclude) : arr;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function RecoCard({ movie, loading }: { movie: MovieData | null; loading?: boolean }) {
@@ -51,7 +50,6 @@ function RecoCard({ movie, loading }: { movie: MovieData | null; loading?: boole
 
       {/* Info */}
       <div className="flex-1 px-4 py-4 min-w-0 flex flex-col overflow-hidden">
-        {/* Genre tags */}
         {genres.length > 0 && (
           <div className="flex gap-1.5 mb-2">
             {genres.map(g => (
@@ -61,11 +59,7 @@ function RecoCard({ movie, loading }: { movie: MovieData | null; loading?: boole
             ))}
           </div>
         )}
-
-        {/* Title */}
         <p className="font-bold text-foreground text-lg leading-snug line-clamp-2 mb-1.5">{movie.Title}</p>
-
-        {/* Year + Rating */}
         <div className="flex items-center gap-3 text-xs text-muted-foreground mb-auto">
           {movie.Year && <span>{movie.Year}</span>}
           {movie.imdbRating && movie.imdbRating !== 'N/A' && (
@@ -75,8 +69,6 @@ function RecoCard({ movie, loading }: { movie: MovieData | null; loading?: boole
             </span>
           )}
         </div>
-
-        {/* Plot */}
         {movie.Plot && movie.Plot !== 'N/A' && (
           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed mt-2">{movie.Plot}</p>
         )}
@@ -85,38 +77,187 @@ function RecoCard({ movie, loading }: { movie: MovieData | null; loading?: boole
   );
 }
 
+function Top100Challenge({ watchedMovies }: { watchedMovies: MovieData[] }) {
+  const { t } = useI18n();
+
+  const watchedIds = useMemo(
+    () => new Set(watchedMovies.map(m => m.imdbID)),
+    [watchedMovies]
+  );
+  const watchedTitles = useMemo(
+    () => new Set(watchedMovies.map(m => m.Title.toLowerCase())),
+    [watchedMovies]
+  );
+
+  const revealedCount = useMemo(
+    () => TOP_100_MOVIES.filter(m =>
+      watchedIds.has(m.imdbID) || watchedTitles.has(m.Title.toLowerCase())
+    ).length,
+    [watchedIds, watchedTitles]
+  );
+
+  return (
+    <section className="pb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Trophy size={16} className="text-primary" />
+          <h2 className="text-lg text-foreground">{t('top100Challenge')}</h2>
+        </div>
+        <span className="text-xs text-muted-foreground font-medium tabular-nums">
+          {revealedCount} / 100 {t('top100Unlocked')}
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full h-1 bg-secondary rounded-full mb-4 overflow-hidden">
+        <div
+          className="h-full bg-primary rounded-full transition-all duration-700"
+          style={{ width: `${revealedCount}%` }}
+        />
+      </div>
+
+      {/* Grid */}
+      <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5">
+        {TOP_100_MOVIES.map((movie, index) => {
+          const watchedItem = watchedMovies.find(w =>
+            w.imdbID === movie.imdbID || w.Title.toLowerCase() === movie.Title.toLowerCase()
+          );
+          const isRevealed = !!watchedItem;
+          const poster = watchedItem?.Poster && watchedItem.Poster !== 'N/A' ? watchedItem.Poster : null;
+
+          return (
+            <Link key={movie.imdbID} to={`/movie/${movie.imdbID}`} className="block">
+              <div className="aspect-[2/3] rounded-lg overflow-hidden relative group">
+                {isRevealed ? (
+                  <>
+                    {poster ? (
+                      <img
+                        src={poster}
+                        alt={movie.Title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <Film size={12} className="text-muted-foreground/40" />
+                      </div>
+                    )}
+                    {/* Rank badge */}
+                    <span className="absolute top-1 left-1 text-[8px] font-bold bg-black/60 text-white rounded px-1 py-0.5 leading-none tabular-nums">
+                      {index + 1}
+                    </span>
+                    {/* Hover tint */}
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </>
+                ) : (
+                  <div className="w-full h-full bg-secondary hover:bg-muted transition-colors flex flex-col items-center justify-center gap-1 border border-border/40">
+                    <span className="text-[11px] font-bold text-muted-foreground/50 tabular-nums leading-none">
+                      {index + 1}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground/25 leading-none">?</span>
+                  </div>
+                )}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function Index() {
   const { t, lang } = useI18n();
   const greeting = useGreeting();
   const [watchlist, setWatchlist] = useState<MovieData[]>([]);
+  const [watchedMovies, setWatchedMovies] = useState<MovieData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [topPickIdx, setTopPickIdx] = useState(() => randomIndex());
+  const [topPickId, setTopPickId] = useState<string>('');
   const [topPickMovie, setTopPickMovie] = useState<MovieData | null>(null);
   const [topPickLoading, setTopPickLoading] = useState(false);
+  const [todaysPick, setTodaysPick] = useState<MovieData | null>(null);
+  const [localizedWatchlist, setLocalizedWatchlist] = useState<MovieData[]>([]);
 
   useEffect(() => {
     getWatchlist().then(setWatchlist);
+    getWatched().then(setWatchedMovies);
   }, []);
 
+  const watchedIds = useMemo(
+    () => new Set(watchedMovies.map(m => m.imdbID)),
+    [watchedMovies]
+  );
+
+  // Also index by title (including OriginalTitle) to catch tt↔TMDB-ID mismatches
+  const watchedTitles = useMemo(
+    () => new Set([
+      ...watchedMovies.map(m => m.Title.toLowerCase()),
+      ...watchedMovies.flatMap(m => m.OriginalTitle ? [(m.OriginalTitle as string).toLowerCase()] : []),
+    ]),
+    [watchedMovies]
+  );
+
+  const isWatched = useCallback(
+    (m: { imdbID: string; Title: string }) =>
+      watchedIds.has(m.imdbID) || watchedTitles.has(m.Title.toLowerCase()),
+    [watchedIds, watchedTitles]
+  );
+
+  const unwatchedTop100 = useMemo(
+    () => TOP_100_MOVIES.filter(m => !isWatched(m)),
+    [isWatched]
+  );
+
+  // Pick initial / re-pick when the current selection becomes watched
   useEffect(() => {
-    const entry = TOP_100_MOVIES[topPickIdx];
+    if (unwatchedTop100.length === 0) return;
+    if (!topPickId || !unwatchedTop100.find(m => m.imdbID === topPickId)) {
+      setTopPickId(pickRandom(unwatchedTop100).imdbID);
+    }
+  }, [unwatchedTop100, topPickId]);
+
+  useEffect(() => {
+    if (!topPickId) return;
+    const entry = TOP_100_MOVIES.find(m => m.imdbID === topPickId);
+    if (!entry) return;
+    let cancelled = false;
     setTopPickMovie(null);
     setTopPickLoading(true);
     getMovieDetails(entry.imdbID, lang).then((data) => {
+      if (cancelled) return;
       setTopPickMovie(data ?? { imdbID: entry.imdbID, Title: entry.Title, Year: entry.Year, Poster: 'N/A', Type: 'movie' });
       setTopPickLoading(false);
     });
-  }, [topPickIdx, lang]);
+    return () => { cancelled = true; };
+  }, [topPickId, lang]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (watchlist.length === 0) { setTodaysPick(null); return; }
+    const unwatched = watchlist.filter(m => !isWatched(m));
+    if (unwatched.length === 0) { setTodaysPick(null); return; }
+    const entry = unwatched[new Date().getDate() % unwatched.length];
+    getMovieDetails(entry.imdbID, lang).then(data => {
+      if (!cancelled) setTodaysPick(data ?? entry);
+    });
+    return () => { cancelled = true; };
+  }, [watchlist, lang, isWatched]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unwatched = watchlist.filter(m => !isWatched(m));
+    if (unwatched.length === 0) { setLocalizedWatchlist([]); return; }
+    Promise.all(
+      unwatched.slice(0, 10).map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
+    ).then(results => { if (!cancelled) setLocalizedWatchlist(results); });
+    return () => { cancelled = true; };
+  }, [watchlist, lang, isWatched]);
 
   const shuffleTopPick = useCallback(() => {
-    setTopPickIdx((i) => randomIndex(i));
-  }, []);
-
-  const todaysPick = useMemo(() => {
-    if (watchlist.length === 0) return null;
-    const dayIndex = new Date().getDate() % watchlist.length;
-    return watchlist[dayIndex];
-  }, [watchlist]);
+    if (unwatchedTop100.length === 0) return;
+    setTopPickId(prev => pickRandom(unwatchedTop100, unwatchedTop100.find(m => m.imdbID === prev)).imdbID);
+  }, [unwatchedTop100]);
 
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto space-y-8 animate-fade-in">
@@ -182,7 +323,7 @@ export default function Index() {
         </div>
         {watchlist.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {watchlist.slice(0, 10).map((movie) => (
+            {localizedWatchlist.map((movie) => (
               <MovieCard key={movie.imdbID} movie={movie} size="sm" />
             ))}
           </div>
@@ -193,6 +334,9 @@ export default function Index() {
           </div>
         )}
       </section>
+
+      {/* Top 100 Challenge */}
+      <Top100Challenge watchedMovies={watchedMovies} />
     </div>
   );
 }

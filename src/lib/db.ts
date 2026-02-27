@@ -6,6 +6,7 @@ const DB_VERSION = 2;
 export interface MovieData {
   imdbID: string;
   Title: string;
+  OriginalTitle?: string;
   Year: string;
   Poster: string;
   Type: string;

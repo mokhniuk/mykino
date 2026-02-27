@@ -16,6 +16,8 @@ const translations = {
     todaysPick: "Today's pick",
     topRatedPick: 'Top rated',
     shuffle: 'Shuffle',
+    top100Challenge: 'Top 100 Challenge',
+    top100Unlocked: 'unlocked',
     // Nav
     home: 'Home',
     search: 'Search',
@@ -36,6 +38,15 @@ const translations = {
     imdbRating: 'IMDb Rating',
     metascore: 'Metascore',
     plot: 'Plot',
+    whereToWatch: 'Where to Watch',
+    stream: 'Stream',
+    rent: 'Rent',
+    buy: 'Buy',
+    more: 'More',
+    showLess: 'Show less',
+    notAvailableInCountry: 'Not available in',
+    notInCountry: 'Not in',
+    changeCountry: 'Change country',
     addToWatchlist: 'Add to Watchlist',
     removeFromWatchlist: 'Remove from Watchlist',
     addToFavourites: 'Add to Favourites',
@@ -90,6 +101,8 @@ const translations = {
     todaysPick: 'Вибір дня',
     topRatedPick: 'Топ рейтингу',
     shuffle: 'Інший',
+    top100Challenge: 'Топ 100 Виклик',
+    top100Unlocked: 'відкрито',
     home: 'Головна',
     search: 'Пошук',
     watchlist: 'Список',
@@ -108,6 +121,15 @@ const translations = {
     imdbRating: 'Рейтинг IMDb',
     metascore: 'Metascore',
     plot: 'Сюжет',
+    whereToWatch: 'Де дивитися',
+    stream: 'Стрімінг',
+    rent: 'Оренда',
+    buy: 'Купити',
+    more: 'Ще',
+    showLess: 'Згорнути',
+    notAvailableInCountry: 'Недоступно в',
+    notInCountry: 'Не в',
+    changeCountry: 'Змінити країну',
     addToWatchlist: 'Додати до списку',
     removeFromWatchlist: 'Видалити зі списку',
     addToFavourites: 'Додати до улюблених',
@@ -162,18 +184,31 @@ const I18nContext = createContext<I18nContextType>({
   setLang: () => {},
 });
 
+function getInitialLang(): Lang {
+  const saved = localStorage.getItem('lang');
+  if (saved === 'en' || saved === 'ua') return saved;
+  return 'en';
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('en');
+  const [lang, setLangState] = useState<Lang>(getInitialLang);
 
   useEffect(() => {
-    getSetting('lang').then((saved) => {
-      if (saved === 'en' || saved === 'ua') setLangState(saved);
-    });
+    // Only hit IndexedDB if localStorage doesn't already have the value
+    if (!localStorage.getItem('lang')) {
+      getSetting('lang').then((saved) => {
+        if (saved === 'en' || saved === 'ua') {
+          setLangState(saved);
+          localStorage.setItem('lang', saved);
+        }
+      });
+    }
   }, []);
 
   const setLang = useCallback((newLang: Lang) => {
     setLangState(newLang);
     setSetting('lang', newLang);
+    localStorage.setItem('lang', newLang);
   }, []);
 
   const t = useCallback(
