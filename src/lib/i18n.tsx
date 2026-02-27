@@ -91,6 +91,8 @@ const translations = {
     appDescription: 'Your personal movie companion',
     version: 'Version',
     dataStorage: 'Storage',
+    author: 'Author',
+    statistics: 'Statistics',
     switchLanguage: 'UA',
   },
   ua: {
@@ -173,6 +175,8 @@ const translations = {
     appDescription: 'Ваш персональний кіно-помічник',
     version: 'Версія',
     dataStorage: 'Сховище',
+    author: 'Автор',
+    statistics: 'Статистика',
     switchLanguage: 'EN',
   },
   de: {
@@ -255,6 +259,8 @@ const translations = {
     appDescription: 'Dein persönlicher Film-Begleiter',
     version: 'Version',
     dataStorage: 'Speicher',
+    author: 'Autor',
+    statistics: 'Statistiken',
     switchLanguage: 'DE',
   },
 } as const;

@@ -111,20 +111,17 @@ function Top100Challenge({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Trophy size={16} className="text-primary" />
-          <h2 className="text-lg text-foreground">{t('top100Challenge')}</h2>
+          <Trophy size={24} className="text-primary" />
+          <h2 className="text-2xl text-foreground">{t('top100Challenge')}</h2>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground font-medium tabular-nums">
-            {revealedCount} / 100 {t('top100Unlocked')}
-          </span>
           <button
             onClick={onShuffle}
             disabled={topPickLoading}
             className="flex items-center gap-1.5 text-xs text-primary hover:opacity-70 transition-opacity disabled:opacity-40"
           >
-            <Shuffle size={13} />
-            {t('shuffle')}
+            <Shuffle size={24} />
+            {/* {t('shuffle')}   */}
           </button>
         </div>
       </div>
@@ -135,6 +132,11 @@ function Top100Challenge({
       </div>
 
       {/* Progress bar */}
+
+      <p className="text-md text-muted-foreground font-medium tabular-nums mb-2">
+        {revealedCount} / 100 
+        {t('top100Unlocked')}
+      </p>
       <div className="w-full h-1 bg-secondary rounded-full mb-4 overflow-hidden">
         <div
           className="h-full bg-primary rounded-full transition-all duration-700"
@@ -324,8 +326,8 @@ export default function Index() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Film size={16} className="text-primary" />
-              <h2 className="text-lg text-foreground">{t('fromYourWatchlist')}</h2>
+              <Film size={24} className="text-primary" />
+              <h2 className="text-2xl text-foreground">{t('fromYourWatchlist')}</h2>
             </div>
             <Link to="/watchlist" className="text-xs text-primary hover:underline">
               {t('watchlist')} →

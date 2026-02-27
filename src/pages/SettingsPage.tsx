@@ -1,4 +1,5 @@
-import { Globe, Palette, Info } from 'lucide-react';
+import React from 'react';
+import { Globe, Palette, Info, Sun, Moon, Monitor } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 
@@ -6,10 +7,10 @@ export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
 
-  const themeOptions: { value: ThemePreference; label: string }[] = [
-    { value: 'light', label: t('lightMode') },
-    { value: 'system', label: t('systemMode') },
-    { value: 'dark', label: t('darkMode') },
+  const themeOptions: { value: ThemePreference; label: string; icon: React.ReactNode }[] = [
+    { value: 'light', label: t('lightMode'), icon: <Sun size={15} /> },
+    { value: 'system', label: t('systemMode'), icon: <Monitor size={15} /> },
+    { value: 'dark', label: t('darkMode'), icon: <Moon size={15} /> },
   ];
 
   return (
@@ -57,12 +58,13 @@ export default function SettingsPage() {
               <button
                 key={opt.value}
                 onClick={() => setTheme(opt.value)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   theme === opt.value
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
                 }`}
               >
+                {opt.icon}
                 {opt.label}
               </button>
             ))}
@@ -81,13 +83,20 @@ export default function SettingsPage() {
             <p>{t('dataStorage')}: IndexedDB</p>
             <p>
               API:{' '}
-              <a
-                href="https://www.themoviedb.org/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
+              <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 TMDB
+              </a>
+            </p>
+            <p>
+              {t('author')}:{' '}
+              <a href="https://mokhniuk.online" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Oleg Mokhniuk
+              </a>
+            </p>
+            <p>
+              {t('statistics')}:{' '}
+              <a href="https://umami.mokhni.uk/share/fH4J4yX37j8uuyU7" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Umami
               </a>
             </p>
           </div>
