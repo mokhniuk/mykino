@@ -34,7 +34,7 @@ export default function WatchlistPage() {
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
         <h1 className="text-2xl md:text-3xl text-foreground">{t('watchlist')}</h1>
         <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-          <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-sm font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
+          <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

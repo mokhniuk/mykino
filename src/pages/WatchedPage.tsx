@@ -40,14 +40,14 @@ export default function WatchedPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFavOnly((v) => !v)}
-            className={`p-1.5 rounded-xl transition-colors ${
+            className={`w-auto h-auto p-2.5 rounded-xl transition-colors ${
               favOnly ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground hover:text-foreground'
             }`}
           >
             <Heart size={16} fill={favOnly ? 'currentColor' : 'none'} />
           </button>
           <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-            <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-sm font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
+            <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

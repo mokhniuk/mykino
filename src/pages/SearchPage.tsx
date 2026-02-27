@@ -118,7 +118,7 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('typeToSearch')}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="flex-1 bg-transparent text-md text-foreground placeholder:text-muted-foreground focus:outline-none"
             autoFocus
           />
           {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
