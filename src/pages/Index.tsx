@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Film, Star, Shuffle, Trophy, ChevronRight, Heart, ThumbsUp } from 'lucide-react';
+import { Search, Film, Star, Shuffle, Trophy, ChevronRight, Heart, ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { getWatchlist, getWatched, getFavourites, type MovieData } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import type { RecoSection } from '@/lib/recommendations';
+import { SECTION_SLUGS } from '@/lib/recommendations';
 import { TOP_100_MOVIES } from '@/lib/top100';
 import MovieCard from '@/components/MovieCard';
 
@@ -195,6 +197,45 @@ function Top100Challenge({
   );
 }
 
+const SECTION_ICONS: Record<RecoSection['id'], React.ReactNode> = {
+  becauseLiked: <ThumbsUp size={24} className="text-primary" />,
+  byGenre: <Layers size={24} className="text-primary" />,
+  nowPlaying: <Clapperboard size={24} className="text-primary" />,
+  trending: <TrendingUp size={24} className="text-primary" />,
+  popular: <Flame size={24} className="text-primary" />,
+  hiddenGems: <Gem size={24} className="text-primary" />,
+};
+
+type SectionTitleKey = 'sectionBecauseLiked' | 'sectionByGenre' | 'sectionNowPlaying' | 'sectionTrending' | 'sectionPopular' | 'sectionHiddenGems';
+
+const SECTION_TITLE_KEYS: Record<RecoSection['id'], SectionTitleKey> = {
+  becauseLiked: 'sectionBecauseLiked',
+  byGenre: 'sectionByGenre',
+  nowPlaying: 'sectionNowPlaying',
+  trending: 'sectionTrending',
+  popular: 'sectionPopular',
+  hiddenGems: 'sectionHiddenGems',
+};
+
+function RecoSectionHeader({ section }: { section: RecoSection }) {
+  const { t } = useI18n();
+  const titleKey = SECTION_TITLE_KEYS[section.id];
+  const title = section.id === 'becauseLiked' && section.seedTitle
+    ? `${t(titleKey)} ${section.seedTitle}`
+    : t(titleKey);
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2">
+        {SECTION_ICONS[section.id]}
+        <h2 className="text-2xl text-foreground font-semibold leading-tight">{title}</h2>
+      </div>
+      <Link to={`/section/${SECTION_SLUGS[section.id]}`} className="text-xs text-primary inline-flex items-baseline">
+        <ChevronRight size={32} className="mt-2" />
+      </Link>
+    </div>
+  );
+}
+
 export default function Index() {
   const { t, lang } = useI18n();
   const greeting = useGreeting();
@@ -208,7 +249,7 @@ export default function Index() {
   const [watchlistReady, setWatchlistReady] = useState(false);
   const [localizedFavourites, setLocalizedFavourites] = useState<MovieData[]>([]);
   const [favouritesReady, setFavouritesReady] = useState(false);
-  const { recommendations: allRecommendations, isLoading: recoLoading } = useRecommendations();
+  const { sections: recoSections, isLoading: recoLoading } = useRecommendations();
 
   useEffect(() => {
     Promise.all([getWatchlist(), getWatched()]).then(([wl, wd]) => {
@@ -368,7 +409,7 @@ export default function Index() {
         </section>
       ) : null}
 
-      {/* For You — Personalized Recommendations */}
+      {/* Personalized recommendation sections */}
       {recoLoading ? (
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -384,27 +425,16 @@ export default function Index() {
             ))}
           </div>
         </section>
-      ) : allRecommendations.length > 0 ? (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <ThumbsUp size={24} className="text-primary" />
-              <div className="flex flex-col">
-                <h2 className="text-2xl text-foreground font-semibold leading-tight">{t('forYou')}</h2>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{t('forYouBody')}</p>
-              </div>
-            </div>
-            <Link to="/for-you" className="text-xs text-primary inline-flex items-baseline">
-              <ChevronRight size={32} className="mt-2" />
-            </Link>
-          </div>
+      ) : recoSections.map(section => (
+        <section key={section.id}>
+          <RecoSectionHeader section={section} />
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {allRecommendations.slice(0, 10).map((movie) => (
+            {section.movies.slice(0, 10).map((movie) => (
               <MovieCard key={movie.imdbID} movie={movie} size="sm" />
             ))}
           </div>
         </section>
-      ) : null}
+      ))}
 
       {/* Something Familiar */}
       {!favouritesReady ? (

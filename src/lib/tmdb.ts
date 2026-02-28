@@ -39,6 +39,7 @@ interface TmdbMovieDetail {
   id: number;
   title: string;
   original_title: string;
+  original_language: string;
   release_date: string;
   poster_path: string | null;
   overview: string;
@@ -47,7 +48,7 @@ interface TmdbMovieDetail {
   vote_average: number;
   vote_count: number;
   spoken_languages: { english_name: string }[];
-  production_countries: { name: string }[];
+  production_countries: { name: string; iso_3166_1: string }[];
   revenue: number;
   credits: TmdbCredits;
   videos?: { results: TmdbVideo[] };
@@ -57,6 +58,7 @@ interface TmdbTVDetail {
   id: number;
   name: string;
   original_name: string;
+  original_language: string;
   first_air_date: string;
   poster_path: string | null;
   overview: string;
@@ -65,7 +67,7 @@ interface TmdbTVDetail {
   vote_average: number;
   vote_count: number;
   spoken_languages: { english_name: string }[];
-  production_countries: { name: string }[];
+  production_countries: { name: string; iso_3166_1: string }[];
   number_of_seasons: number;
   credits: TmdbCredits;
   videos?: { results: TmdbVideo[] };
@@ -155,6 +157,9 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
     Released: data.release_date || undefined,
     BoxOffice: data.revenue ? `$${data.revenue.toLocaleString()}` : undefined,
     TrailerKey: getBestTrailer(data.videos),
+    genre_ids: data.genres?.map(g => g.id),
+    original_language: data.original_language,
+    origin_country: data.production_countries?.map(c => c.iso_3166_1),
   };
 }
 
@@ -186,6 +191,9 @@ function mapTVDetail(data: TmdbTVDetail, storeId: string): MovieData {
     Country: data.production_countries?.map(c => c.name).join(', ') || undefined,
     Released: data.first_air_date || undefined,
     TrailerKey: getBestTrailer(data.videos),
+    genre_ids: data.genres?.map(g => g.id),
+    original_language: data.original_language,
+    origin_country: data.production_countries?.map(c => c.iso_3166_1),
   };
 }
 
@@ -475,12 +483,12 @@ export async function getLanguages(lang = 'en'): Promise<{ iso_639_1: string, en
   }
 }
 
-export async function getTrending(lang = 'en'): Promise<MovieData[]> {
+export async function getTrending(lang = 'en', page = 1): Promise<MovieData[]> {
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {
     const [movieData, tvData] = await Promise.all([
-      tmdbFetch<{ results: TmdbSearchItem[] }>('/trending/movie/week', tmdbLang),
-      tmdbFetch<{ results: TmdbSearchItem[] }>('/trending/tv/week', tmdbLang),
+      tmdbFetch<{ results: TmdbSearchItem[] }>(`/trending/movie/week?page=${page}`, tmdbLang),
+      tmdbFetch<{ results: TmdbSearchItem[] }>(`/trending/tv/week?page=${page}`, tmdbLang),
     ]);
     return [
       ...movieData.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie')),
@@ -491,7 +499,7 @@ export async function getTrending(lang = 'en'): Promise<MovieData[]> {
   }
 }
 
-export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'movie', lang = 'en'): Promise<MovieData[]> {
+export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'movie', lang = 'en', page = 1): Promise<MovieData[]> {
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {
     // We need to find the TMDB ID first if we only have imdbID
@@ -506,10 +514,59 @@ export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'mov
     }
 
     const data = await tmdbFetch<{ results: TmdbSearchItem[] }>(
-      `/${actualType}/${tmdbId}/recommendations`,
+      `/${actualType}/${tmdbId}/recommendations?page=${page}`,
       tmdbLang
     );
     return data.results.map(item => mapTmdbItemToMovieData(item, actualType));
+  } catch {
+    return [];
+  }
+}
+
+export async function getSimilar(id: string, type: 'movie' | 'tv' = 'movie', lang = 'en', page = 1): Promise<MovieData[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    let tmdbId = id.replace(/^(m-|tv-)/, '');
+    const actualType = id.startsWith('tv-') ? 'tv' : id.startsWith('m-') ? 'movie' : type;
+
+    if (id.startsWith('tt')) {
+      const findRes = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`);
+      const results = actualType === 'movie' ? findRes.movie_results : findRes.tv_results;
+      if (results.length === 0) return [];
+      tmdbId = String(results[0].id);
+    }
+
+    const data = await tmdbFetch<{ results: TmdbSearchItem[] }>(
+      `/${actualType}/${tmdbId}/similar?page=${page}`,
+      tmdbLang
+    );
+    return data.results.map(item => mapTmdbItemToMovieData(item, actualType));
+  } catch {
+    return [];
+  }
+}
+
+export async function getNowPlaying(lang = 'en', page = 1): Promise<MovieData[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    const data = await tmdbFetch<{ results: TmdbSearchItem[] }>(`/movie/now_playing?page=${page}`, tmdbLang);
+    return data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie'));
+  } catch {
+    return [];
+  }
+}
+
+export async function getPopular(lang = 'en', page = 1): Promise<MovieData[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    const [movieData, tvData] = await Promise.all([
+      tmdbFetch<{ results: TmdbSearchItem[] }>(`/movie/popular?page=${page}`, tmdbLang),
+      tmdbFetch<{ results: TmdbSearchItem[] }>(`/tv/popular?page=${page}`, tmdbLang),
+    ]);
+    return [
+      ...movieData.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie')),
+      ...tvData.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'tv' }, 'tv')),
+    ];
   } catch {
     return [];
   }
@@ -523,6 +580,9 @@ export async function discoverMovies(options: {
   without_country?: string;
   language?: string;
   without_language?: string;
+  vote_average_gte?: number;
+  vote_count_gte?: number;
+  vote_count_lte?: number;
   page?: number;
   lang?: string;
   sort_by?: string;
@@ -536,6 +596,9 @@ export async function discoverMovies(options: {
     without_country,
     language,
     without_language,
+    vote_average_gte,
+    vote_count_gte,
+    vote_count_lte,
     page = 1,
     lang = 'en',
     sort_by = 'popularity.desc'
@@ -550,12 +613,16 @@ export async function discoverMovies(options: {
     const withoutCountryParam = without_country ? `&without_origin_country=${without_country}` : '';
     const langParam = language && language !== 'all' ? `&with_original_language=${language}` : '';
     const withoutLangParam = without_language ? `&without_original_language=${without_language}` : '';
+    const voteAvgGteParam = vote_average_gte !== undefined ? `&vote_average.gte=${vote_average_gte}` : '';
+    const voteCountGteParam = vote_count_gte !== undefined ? `&vote_count.gte=${vote_count_gte}` : '';
+    const voteCountLteParam = vote_count_lte !== undefined ? `&vote_count.lte=${vote_count_lte}` : '';
+    const ratingParams = `${voteAvgGteParam}${voteCountGteParam}${voteCountLteParam}`;
 
     const yearQuery = year && year !== 'all' ? `&primary_release_year=${year}` : '';
     const tvYearQuery = year && year !== 'all' ? `&first_air_date_year=${year}` : '';
 
-    const movieUrl = `/discover/movie?${commonParams}${genreParam}${withoutGenreParam}${countryParam}${withoutCountryParam}${langParam}${withoutLangParam}${yearQuery}`;
-    const tvUrl = `/discover/tv?${commonParams}${genreParam}${withoutGenreParam}${countryParam}${withoutCountryParam}${langParam}${withoutLangParam}${tvYearQuery}`;
+    const movieUrl = `/discover/movie?${commonParams}${genreParam}${withoutGenreParam}${countryParam}${withoutCountryParam}${langParam}${withoutLangParam}${yearQuery}${ratingParams}`;
+    const tvUrl = `/discover/tv?${commonParams}${genreParam}${withoutGenreParam}${countryParam}${withoutCountryParam}${langParam}${withoutLangParam}${tvYearQuery}${ratingParams}`;
 
     const [movieData, tvData] = await Promise.all([
       tmdbFetch<{ results: TmdbSearchItem[]; total_results: number; total_pages: number }>(movieUrl, tmdbLang),

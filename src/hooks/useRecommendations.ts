@@ -1,51 +1,57 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { getPersonalizedRecommendations, clearRecommendationsCache } from '@/lib/recommendations';
-import { getWatched, getWatchlist } from '@/lib/db';
+import { useEffect, useRef } from 'react';
+import { getHomeSections, clearRecommendationsCache, type RecoSection } from '@/lib/recommendations';
+import { getWatched, getFavourites } from '@/lib/db';
 import { useI18n } from '@/lib/i18n';
 
 export function useRecommendations() {
   const { lang } = useI18n();
   const queryClient = useQueryClient();
+  const prevCountsRef = useRef<{ watched: number; favourites: number } | null>(null);
 
-  const { data: rawRecommendations, isLoading: recoLoading, isFetching } = useQuery({
+  const { data: sections = [], isLoading, isFetching } = useQuery<RecoSection[]>({
     queryKey: ['recommendations', lang],
-    queryFn: () => getPersonalizedRecommendations(lang),
+    queryFn: () => getHomeSections(lang),
     staleTime: Infinity,
   });
 
-  // staleTime matches session length — data stays fresh until explicitly invalidated
-  // (MovieDetailsPage invalidates on watched/watchlist changes)
-  const { data: watched, isLoading: watchedLoading } = useQuery({
+  const { data: watched } = useQuery({
     queryKey: ['watched'],
     queryFn: getWatched,
     staleTime: 60 * 60 * 1000,
   });
 
-  const { data: watchlist, isLoading: watchlistLoading } = useQuery({
-    queryKey: ['watchlist'],
-    queryFn: getWatchlist,
+  const { data: favourites } = useQuery({
+    queryKey: ['favourites'],
+    queryFn: getFavourites,
     staleTime: 60 * 60 * 1000,
   });
 
-  // Hold isLoading true until all three queries have data so the UI never
-  // shows an unfiltered list that then shrinks when watched/watchlist arrive.
-  const isLoading = recoLoading || watchedLoading || watchlistLoading;
+  // Auto-invalidate when watched or favourites count changes after initial load
+  useEffect(() => {
+    const watchedCount = watched?.length ?? 0;
+    const favouritesCount = favourites?.length ?? 0;
 
-  const recommendations = useMemo(() => {
-    if (!rawRecommendations) return [];
-    const excludedIds = new Set([
-      ...(watched ?? []).map(m => m.imdbID),
-      ...(watchlist ?? []).map(m => m.imdbID),
-    ]);
-    if (!excludedIds.size) return rawRecommendations;
-    return rawRecommendations.filter(m => !excludedIds.has(m.imdbID));
-  }, [rawRecommendations, watched, watchlist]);
+    if (prevCountsRef.current === null) {
+      prevCountsRef.current = { watched: watchedCount, favourites: favouritesCount };
+      return;
+    }
 
-  const refresh = () => {
-    clearRecommendationsCache(lang);
+    if (
+      watchedCount !== prevCountsRef.current.watched ||
+      favouritesCount !== prevCountsRef.current.favourites
+    ) {
+      prevCountsRef.current = { watched: watchedCount, favourites: favouritesCount };
+      clearRecommendationsCache(lang).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['recommendations', lang] });
+      });
+    }
+  }, [watched, favourites, lang, queryClient]);
+
+  const refresh = async () => {
+    await clearRecommendationsCache(lang);
     queryClient.invalidateQueries({ queryKey: ['recommendations', lang] });
   };
 
-  return { recommendations, isLoading, isFetching, refresh };
+  return { sections, isLoading, isFetching, refresh };
 }

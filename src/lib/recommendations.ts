@@ -1,119 +1,288 @@
-import { getContentPreferences, getWatched, getFavourites, type MovieData } from './db';
-import { discoverMovies, getRecommendations, getTrending } from './api';
+import { getContentPreferences, getWatched, getWatchlist, getFavourites, getSetting, setSetting, type MovieData } from './db';
+import { discoverMovies, getRecommendations, getTrending, getNowPlaying, getPopular, getSimilar } from './api';
+import { getOrBuildTasteProfile, invalidateTasteProfile, type TasteProfile } from './tasteProfile';
 
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+const FETCH_PAGES = 5; // pages fetched per source on first build
 
-function getCached(key: string): MovieData[] | null {
-    try {
-        const raw = sessionStorage.getItem(key);
-        if (!raw) return null;
-        const { data, cachedAt } = JSON.parse(raw) as { data: MovieData[]; cachedAt: number };
-        if (Date.now() - cachedAt > CACHE_TTL) {
-            sessionStorage.removeItem(key);
-            return null;
-        }
-        return data;
-    } catch {
-        return null;
-    }
+/** Fetches FETCH_PAGES pages in parallel, tolerating individual page failures. */
+async function fetchPages(fetcher: (page: number) => Promise<MovieData[]>): Promise<MovieData[]> {
+  const results = await Promise.allSettled(
+    Array.from({ length: FETCH_PAGES }, (_, i) => fetcher(i + 1))
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<MovieData[]> => r.status === 'fulfilled')
+    .flatMap(r => r.value);
 }
 
-function setCached(key: string, data: MovieData[]) {
-    try {
-        sessionStorage.setItem(key, JSON.stringify({ data, cachedAt: Date.now() }));
-    } catch {
-        // sessionStorage might be full or disabled
-    }
+export interface RecoSection {
+  id: 'becauseLiked' | 'byGenre' | 'nowPlaying' | 'trending' | 'popular' | 'hiddenGems';
+  seedTitle?: string; // for "Because you liked X"
+  movies: MovieData[];
 }
 
-export function clearRecommendationsCache(lang = 'en') {
-    sessionStorage.removeItem(`reco_${lang}`);
+export const SECTION_SLUGS: Record<RecoSection['id'], string> = {
+  becauseLiked: 'because-liked',
+  byGenre:      'by-genre',
+  nowPlaying:   'now-playing',
+  trending:     'trending',
+  popular:      'popular',
+  hiddenGems:   'hidden-gems',
+};
+
+export const SLUG_TO_SECTION_ID: Record<string, RecoSection['id']> = Object.fromEntries(
+  (Object.entries(SECTION_SLUGS) as [RecoSection['id'], string][]).map(([id, slug]) => [slug, id])
+);
+
+interface CachedSections {
+  sections: RecoSection[];
+  cachedAt: number;
 }
 
-export async function getPersonalizedRecommendations(lang = 'en'): Promise<MovieData[]> {
-    const cacheKey = `reco_${lang}`;
-    const cached = getCached(cacheKey);
-    if (cached) return cached;
+async function getSectionCache(lang: string): Promise<RecoSection[] | null> {
+  const raw = await getSetting(`reco_sections_${lang}`);
+  if (!raw) return null;
+  try {
+    const { sections, cachedAt } = JSON.parse(raw) as CachedSections;
+    if (Date.now() - cachedAt > CACHE_TTL) return null;
+    return sections;
+  } catch {
+    return null;
+  }
+}
 
-    const [prefs, watched, favourites] = await Promise.all([
-        getContentPreferences(),
-        getWatched(),
-        getFavourites(),
-    ]);
+async function setSectionCache(lang: string, sections: RecoSection[]): Promise<void> {
+  await setSetting(`reco_sections_${lang}`, JSON.stringify({ sections, cachedAt: Date.now() }));
+}
 
-    const watchedIds = new Set(watched.map(m => m.imdbID));
-    const dislikedGenreSet = new Set(prefs.disliked_genres);
-    const dislikedCountrySet = new Set(prefs.disliked_countries);
-    const dislikedLanguageSet = new Set(prefs.disliked_languages);
+export async function clearRecommendationsCache(lang?: string): Promise<void> {
+  if (lang) {
+    await setSetting(`reco_sections_${lang}`, '');
+  } else {
+    await Promise.all(['en', 'ua', 'de'].map(l => setSetting(`reco_sections_${l}`, '')));
+  }
+  await invalidateTasteProfile();
+}
 
-    const withoutGenres = prefs.disliked_genres.length > 0 ? prefs.disliked_genres.join(',') : undefined;
+async function getDailySeed(favourites: MovieData[]): Promise<MovieData | null> {
+  if (favourites.length === 0) return null;
 
-    const requests: Promise<MovieData[]>[] = [];
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-    // 1. Trending this week — always included as the "what's popular now" signal
-    requests.push(getTrending(lang));
+  const [savedDate, savedId] = await Promise.all([
+    getSetting('daily_seed_date'),
+    getSetting('daily_seed_id'),
+  ]);
 
-    // 2. Native TMDB recommendations from most-recently-added favourites / watched
-    const seeds = (favourites.length > 0 ? favourites : watched)
-        .slice()
-        .sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))
-        .slice(0, 3);
+  if (savedDate === today && savedId) {
+    const existing = favourites.find(f => f.imdbID === savedId);
+    if (existing) return existing;
+  }
 
-    for (const seed of seeds) {
-        requests.push(
-            getRecommendations(seed.imdbID, seed.Type === 'series' ? 'tv' : 'movie', lang)
-        );
+  // Pool: 3 most-recently-added + 2 highest-rated favourites
+  const byRecent = [...favourites]
+    .sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))
+    .slice(0, 3);
+  const byRating = [...favourites]
+    .sort((a, b) => parseFloat(b.imdbRating ?? '0') - parseFloat(a.imdbRating ?? '0'))
+    .slice(0, 2);
+
+  const poolMap = new Map<string, MovieData>();
+  for (const m of [...byRecent, ...byRating]) poolMap.set(m.imdbID, m);
+  const pool = Array.from(poolMap.values());
+
+  // Deterministic pick based on today's date
+  const dateHash = Array.from(today).reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const seed = pool[dateHash % pool.length];
+
+  await Promise.all([
+    setSetting('daily_seed_date', today),
+    setSetting('daily_seed_id', seed.imdbID),
+  ]);
+
+  return seed;
+}
+
+function scoreMovie(movie: MovieData, profile: TasteProfile): number {
+  let score = 0;
+
+  const [topGenre, ...otherGenres] = profile.topGenres;
+  if (topGenre !== undefined && movie.genre_ids?.includes(topGenre)) score += 5;
+  if (otherGenres.length > 0 && movie.genre_ids?.some(id => otherGenres.includes(id))) score += 3;
+
+  const [topLang, ...otherLangs] = profile.topLanguages;
+  if (topLang && movie.original_language === topLang) score += 3;
+  if (otherLangs.length > 0 && otherLangs.includes(movie.original_language ?? '')) score += 1;
+
+  if (profile.topCountries.length > 0 && movie.origin_country?.some(c => profile.topCountries.includes(c))) score += 2;
+
+  const [topDecade] = profile.topDecades;
+  if (topDecade) {
+    const year = parseInt(movie.Year, 10);
+    if (!isNaN(year)) {
+      const movieDecade = `${Math.floor(year / 10) * 10}s`;
+      if (movieDecade === topDecade) score += 2;
     }
+  }
 
-    // 3. Genre discover — OR logic (pipe separator), no country/language restriction
-    if (prefs.liked_genres.length > 0) {
-        requests.push(
-            discoverMovies({
-                genre: prefs.liked_genres.join('|'),
-                without_genres: withoutGenres,
-                lang,
-                sort_by: 'popularity.desc',
-            }).then(r => r.Search ?? [])
-        );
+  const rating = parseFloat(movie.imdbRating ?? '0');
+  if (rating >= 7.0) score += 2;
+  else if (rating >= 6.0) score += 1;
+
+  return score;
+}
+
+function dedupeByImdbID(movies: MovieData[]): MovieData[] {
+  return Array.from(new Map(movies.map(m => [m.imdbID, m])).values());
+}
+
+function filterAndScore(
+  movies: MovieData[],
+  excludeIds: Set<string>,
+  dislikedGenres: Set<number>,
+  dislikedCountries: Set<string>,
+  dislikedLanguages: Set<string>,
+  profile: TasteProfile,
+  limit = 100,
+): MovieData[] {
+  return movies
+    .filter(m => {
+      if (excludeIds.has(m.imdbID)) return false;
+      if (m.genre_ids?.some(id => dislikedGenres.has(id))) return false;
+      if (m.origin_country?.some(c => dislikedCountries.has(c))) return false;
+      if (m.original_language && dislikedLanguages.has(m.original_language)) return false;
+      return true;
+    })
+    .map(m => ({ movie: m, score: scoreMovie(m, profile) }))
+    .sort((a, b) => b.score - a.score)
+    .map(({ movie }) => movie)
+    .slice(0, limit);
+}
+
+export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
+  const cached = await getSectionCache(lang);
+  if (cached) return cached;
+
+  const [prefs, watched, watchlist, favourites] = await Promise.all([
+    getContentPreferences(),
+    getWatched(),
+    getWatchlist(),
+    getFavourites(),
+  ]);
+
+  const excludeIds = new Set([
+    ...watched.map(m => m.imdbID),
+    ...watchlist.map(m => m.imdbID),
+  ]);
+
+  const dislikedGenres = new Set(prefs.disliked_genres);
+  const dislikedCountries = new Set(prefs.disliked_countries);
+  const dislikedLanguages = new Set(prefs.disliked_languages);
+
+  const [profile, dailySeed] = await Promise.all([
+    getOrBuildTasteProfile(),
+    getDailySeed(favourites),
+  ]);
+
+  // Top genres: from profile, fall back to content preferences
+  const topGenres = profile.topGenres.length > 0 ? profile.topGenres : prefs.liked_genres;
+
+  const seedId = dailySeed?.imdbID;
+  const seedType = dailySeed?.Type === 'series' ? 'tv' : 'movie';
+
+  // Parallel fetch all sources — 5 pages each for rich results
+  const [
+    seedRecs,
+    seedSimilar,
+    genreDiscover,
+    nowPlayingMovies,
+    trendingMovies,
+    popularMovies,
+    hiddenGemsMovies,
+  ] = await Promise.all([
+    seedId
+      ? fetchPages(p => getRecommendations(seedId, seedType, lang, p))
+      : Promise.resolve([]),
+    seedId
+      ? fetchPages(p => getSimilar(seedId, seedType, lang, p))
+      : Promise.resolve([]),
+    topGenres.length > 0
+      ? fetchPages(p => discoverMovies({
+          genre: topGenres.slice(0, 3).join('|'),
+          vote_average_gte: 6.5,
+          vote_count_gte: 200,
+          sort_by: 'popularity.desc',
+          lang,
+          page: p,
+        }).then(r => r.Search ?? []))
+      : Promise.resolve([]),
+    fetchPages(p => getNowPlaying(lang, p)),
+    fetchPages(p => getTrending(lang, p)),
+    fetchPages(p => getPopular(lang, p)),
+    fetchPages(p => discoverMovies({
+      vote_average_gte: 7.5,
+      vote_count_gte: 100,
+      vote_count_lte: 5000,
+      sort_by: 'vote_average.desc',
+      lang,
+      page: p,
+    }).then(r => r.Search ?? [])),
+  ]);
+
+  const filter = (movies: MovieData[], limit = 100) =>
+    filterAndScore(
+      dedupeByImdbID(movies),
+      excludeIds,
+      dislikedGenres,
+      dislikedCountries,
+      dislikedLanguages,
+      profile,
+      limit,
+    );
+
+  const sections: RecoSection[] = [];
+
+  // "Because you liked X"
+  if (dailySeed && (seedRecs.length > 0 || seedSimilar.length > 0)) {
+    const combined = dedupeByImdbID([...seedRecs, ...seedSimilar]);
+    const filtered = filter(combined);
+    if (filtered.length > 0) {
+      sections.push({ id: 'becauseLiked', seedTitle: dailySeed.Title, movies: filtered });
     }
+  }
 
-    // 4. Per-liked-country discover — separate call each (OR logic), capped at 3
-    for (const country of prefs.liked_countries.slice(0, 3)) {
-        requests.push(
-            discoverMovies({ country, without_genres: withoutGenres, lang, sort_by: 'popularity.desc' })
-                .then(r => r.Search ?? [])
-        );
+  // "By Genre"
+  if (topGenres.length > 0) {
+    const filtered = filter(genreDiscover);
+    if (filtered.length > 0) {
+      sections.push({ id: 'byGenre', movies: filtered });
     }
+  }
 
-    // 5. Per-liked-language discover — separate call each (OR logic), capped at 3
-    for (const language of prefs.liked_languages.slice(0, 3)) {
-        requests.push(
-            discoverMovies({ language, without_genres: withoutGenres, lang, sort_by: 'popularity.desc' })
-                .then(r => r.Search ?? [])
-        );
-    }
+  // "Now Playing"
+  const nowPlayingFiltered = filter(nowPlayingMovies);
+  if (nowPlayingFiltered.length > 0) {
+    sections.push({ id: 'nowPlaying', movies: nowPlayingFiltered });
+  }
 
-    const allResults = (await Promise.all(requests)).flat();
+  // "Trending"
+  const trendingFiltered = filter(trendingMovies);
+  if (trendingFiltered.length > 0) {
+    sections.push({ id: 'trending', movies: trendingFiltered });
+  }
 
-    // Post-filter: remove watched + anything matching any disliked genre, country, or language
-    const filtered = allResults.filter(m => {
-        if (watchedIds.has(m.imdbID)) return false;
-        if (m.genre_ids?.some(id => dislikedGenreSet.has(id))) return false;
-        if (m.origin_country?.some(c => dislikedCountrySet.has(c))) return false;
-        if (m.original_language && dislikedLanguageSet.has(m.original_language)) return false;
-        return true;
-    });
+  // "Popular"
+  const popularFiltered = filter(popularMovies);
+  if (popularFiltered.length > 0) {
+    sections.push({ id: 'popular', movies: popularFiltered });
+  }
 
-    // Deduplicate by ID
-    const unique = Array.from(new Map(filtered.map(m => [m.imdbID, m])).values());
+  // "Hidden Gems"
+  const hiddenGemsFiltered = filter(hiddenGemsMovies);
+  if (hiddenGemsFiltered.length > 0) {
+    sections.push({ id: 'hiddenGems', movies: hiddenGemsFiltered });
+  }
 
-    // Fisher-Yates shuffle
-    for (let i = unique.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [unique[i], unique[j]] = [unique[j], unique[i]];
-    }
-
-    const result = unique.slice(0, 100);
-    setCached(cacheKey, result);
-    return result;
+  await setSectionCache(lang, sections);
+  return sections;
 }
