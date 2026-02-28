@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Film, Star, Shuffle, Trophy, ChevronRight, Sparkles, Heart, ThumbsUp } from 'lucide-react';
+import { Search, Film, Star, Shuffle, Trophy, ChevronRight, Heart, ThumbsUp } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { getWatchlist, getWatched, getFavourites, type MovieData } from '@/lib/db';
-import { getMovieDetails, discoverMovies } from '@/lib/api';
-import { getPersonalizedRecommendations } from '@/lib/recommendations';
+import { getMovieDetails } from '@/lib/api';
+import { useRecommendations } from '@/hooks/useRecommendations';
 import { TOP_100_MOVIES } from '@/lib/top100';
 import MovieCard from '@/components/MovieCard';
 
@@ -206,12 +206,9 @@ export default function Index() {
   const [topPickLoading, setTopPickLoading] = useState(true);
   const [localizedWatchlist, setLocalizedWatchlist] = useState<MovieData[]>([]);
   const [watchlistReady, setWatchlistReady] = useState(false);
-  const [discoverResults, setDiscoverResults] = useState<MovieData[]>([]);
-  const [discoverReady, setDiscoverReady] = useState(false);
   const [localizedFavourites, setLocalizedFavourites] = useState<MovieData[]>([]);
   const [favouritesReady, setFavouritesReady] = useState(false);
-  const [recommendations, setRecommendations] = useState<MovieData[]>([]);
-  const [recoReady, setRecoReady] = useState(false);
+  const { recommendations: allRecommendations, isLoading: recoLoading } = useRecommendations();
 
   useEffect(() => {
     Promise.all([getWatchlist(), getWatched()]).then(([wl, wd]) => {
@@ -289,22 +286,6 @@ export default function Index() {
     return () => { cancelled = true; };
   }, [watchlist, lang, isWatched, dbReady]);
 
-  // Something New — discover movies from a genre the user enjoys
-  useEffect(() => {
-    if (!dbReady) return;
-    let cancelled = false;
-    const allGenreIds = [...watchedMovies, ...watchlist].flatMap(m => m.genre_ids ?? []);
-    const genre = allGenreIds.length > 0 ? allGenreIds[Math.floor(Math.random() * allGenreIds.length)] : null;
-    const watchlistIds = new Set(watchlist.map(m => m.imdbID));
-    discoverMovies({ genre, lang, page: 1 }).then(res => {
-      if (cancelled) return;
-      const filtered = (res.Search ?? []).filter(m => !watchedIds.has(m.imdbID) && !watchlistIds.has(m.imdbID));
-      setDiscoverResults(filtered.slice(0, 10));
-      setDiscoverReady(true);
-    });
-    return () => { cancelled = true; };
-  }, [dbReady, lang, watchedMovies, watchlist]);
-
   // Something Familiar — user's favourite movies, localized
   useEffect(() => {
     if (!dbReady) return;
@@ -327,18 +308,6 @@ export default function Index() {
     });
     return () => { cancelled = true; };
   }, [dbReady, lang]);
-
-  // Recommendations — For You
-  useEffect(() => {
-    if (!dbReady) return;
-    let cancelled = false;
-    getPersonalizedRecommendations(lang).then(res => {
-      if (cancelled) return;
-      setRecommendations(res.slice(0, 10));
-      setRecoReady(true);
-    });
-    return () => { cancelled = true; };
-  }, [dbReady, lang, watchedMovies, watchlist]);
 
   const shuffleTopPick = useCallback(() => {
     if (unwatchedTop100.length === 0) return;
@@ -399,43 +368,8 @@ export default function Index() {
         </section>
       ) : null}
 
-      {/* Something New */}
-      {!discoverReady ? (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="h-5 w-40 bg-secondary rounded-lg animate-pulse" />
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="w-28 flex-shrink-0">
-                <div className="aspect-[2/3] rounded-lg bg-secondary animate-pulse mb-2" />
-                <div className="h-2.5 bg-secondary rounded animate-pulse mb-1.5" />
-                <div className="h-2.5 w-2/3 bg-secondary rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : discoverResults.length > 0 ? (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles size={24} className="text-primary" />
-              <h2 className="text-2xl text-foreground">{t('somethingNew')}</h2>
-            </div>
-            <Link to="/something-new" className="text-xs text-primary inline-flex items-baseline">
-              <ChevronRight size={32} className="mt-2" />
-            </Link>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {discoverResults.map((movie) => (
-              <MovieCard key={movie.imdbID} movie={movie} size="sm" />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {/* For You — Personalized Recommendations */}
-      {!recoReady ? (
+      {recoLoading ? (
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="h-5 w-40 bg-secondary rounded-lg animate-pulse" />
@@ -450,7 +384,7 @@ export default function Index() {
             ))}
           </div>
         </section>
-      ) : recommendations.length > 0 ? (
+      ) : allRecommendations.length > 0 ? (
         <section>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -465,7 +399,7 @@ export default function Index() {
             </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {recommendations.map((movie) => (
+            {allRecommendations.slice(0, 10).map((movie) => (
               <MovieCard key={movie.imdbID} movie={movie} size="sm" />
             ))}
           </div>

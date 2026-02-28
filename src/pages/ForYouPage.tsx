@@ -1,36 +1,32 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ThumbsUp } from 'lucide-react';
+import { ThumbsUp, RefreshCw } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { getPersonalizedRecommendations } from '@/lib/recommendations';
-import { type MovieData } from '@/lib/db';
+import { useRecommendations } from '@/hooks/useRecommendations';
 import MovieCard from '@/components/MovieCard';
 
 export default function ForYouPage() {
-  const { t, lang } = useI18n();
-  const [movies, setMovies] = useState<MovieData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getPersonalizedRecommendations(lang).then(results => {
-      if (cancelled) return;
-      setMovies(results);
-      setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [lang]);
+  const { t } = useI18n();
+  const { recommendations, isLoading, isFetching, refresh } = useRecommendations();
 
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
-      <div className="flex items-center gap-3 pt-6 md:pt-10 mb-2">
-        <ThumbsUp size={24} className="text-primary" />
-        <h1 className="text-2xl md:text-3xl text-foreground">{t('forYou')}</h1>
+      <div className="flex items-center justify-between pt-6 md:pt-10 mb-2">
+        <div className="flex items-center gap-3">
+          <ThumbsUp size={24} className="text-primary" />
+          <h1 className="text-2xl md:text-3xl text-foreground">{t('forYou')}</h1>
+        </div>
+        <button
+          onClick={refresh}
+          disabled={isFetching}
+          className="flex items-center gap-1.5 text-sm text-primary hover:opacity-70 transition-opacity disabled:opacity-40"
+        >
+          <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
+          {t('refresh')}
+        </button>
       </div>
       <p className="text-sm text-muted-foreground mb-6">{t('forYouBody')}</p>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
           {[...Array(20)].map((_, i) => (
             <div key={i} className="flex flex-col gap-2">
@@ -40,9 +36,9 @@ export default function ForYouPage() {
             </div>
           ))}
         </div>
-      ) : movies.length > 0 ? (
+      ) : recommendations.length > 0 ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
-          {movies.map(movie => (
+          {recommendations.map(movie => (
             <MovieCard key={movie.imdbID} movie={movie} fluid />
           ))}
         </div>

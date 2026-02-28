@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, BookmarkPlus, BookmarkCheck, Star, Clock, CheckCircle2, Heart, Globe, ChevronDown,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ export default function MovieDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t, lang } = useI18n();
+  const queryClient = useQueryClient();
   const [movie, setMovie] = useState<MovieData | null>(null);
   const [loading, setLoading] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
@@ -106,6 +108,7 @@ export default function MovieDetailsPage() {
     await removeFromWatchlist(movie.imdbID);
     setWatched(true);
     setInWatchlist(false);
+    queryClient.invalidateQueries({ queryKey: ['watched'] });
   };
 
   const handleUnwatch = async () => {
@@ -114,6 +117,7 @@ export default function MovieDetailsPage() {
     await addToWatchlist(movie);
     setWatched(false);
     setInWatchlist(true);
+    queryClient.invalidateQueries({ queryKey: ['watched'] });
   };
 
   if (loading) {

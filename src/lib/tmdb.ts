@@ -466,6 +466,22 @@ export async function getLanguages(lang = 'en'): Promise<{ iso_639_1: string, en
   }
 }
 
+export async function getTrending(lang = 'en'): Promise<MovieData[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    const [movieData, tvData] = await Promise.all([
+      tmdbFetch<{ results: TmdbSearchItem[] }>('/trending/movie/week', tmdbLang),
+      tmdbFetch<{ results: TmdbSearchItem[] }>('/trending/tv/week', tmdbLang),
+    ]);
+    return [
+      ...movieData.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie')),
+      ...tvData.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'tv' }, 'tv')),
+    ];
+  } catch {
+    return [];
+  }
+}
+
 export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'movie', lang = 'en'): Promise<MovieData[]> {
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {
