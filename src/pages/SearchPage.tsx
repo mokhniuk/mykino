@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { searchMovies, getGenres, getCountries } from '@/lib/api';
+import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
 import {
   addToWatchlist, removeFromWatchlist, isInWatchlist,
   type MovieData,
@@ -75,12 +75,21 @@ export default function SearchPage() {
   const [error, setError] = useState('');
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
-  // Filter state
+  // Filter & Pagination state
   const [genres, setGenres] = useState<{ id: number, name: string }[]>([]);
   const [countries, setCountries] = useState<{ code: string, name: string }[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
+
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isDiscovery, setIsDiscovery] = useState(false);
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  // Derive years list (last 100 years)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
 
   // Fetch metadata
   useEffect(() => {
@@ -101,39 +110,75 @@ export default function SearchPage() {
     });
   }, [lang]);
 
-  const doSearch = useCallback(async (q: string) => {
-    if (!q.trim()) { setResults([]); return; }
+  const hasActiveFilters = selectedGenre !== null || selectedYear !== 'all' || selectedCountry !== 'all';
+
+  const fetchData = useCallback(async (q: string, p: number, append = false) => {
     setLoading(true);
     setError('');
-    const data = await searchMovies(q, 1, lang);
+
+    let data;
+    const discovery = !q.trim() && hasActiveFilters;
+    setIsDiscovery(discovery);
+
+    if (discovery) {
+      data = await discoverMovies({
+        genre: selectedGenre,
+        year: selectedYear,
+        country: selectedCountry,
+        page: p,
+        lang
+      });
+    } else if (q.trim()) {
+      data = await searchMovies(q, p, lang);
+    } else {
+      setResults([]);
+      setHasMore(false);
+      setLoading(false);
+      return;
+    }
+
     setLoading(false);
     if (data.Response === 'True' && data.Search) {
-      setResults(data.Search);
-      const wSet = new Set<string>();
+      setResults(prev => append ? [...prev, ...data.Search!] : data.Search!);
+      setHasMore(data.Search.length >= 20); // Basic check for more results
+
+      const wSet = new Set(append ? watchlistIds : []);
       for (const m of data.Search) {
         if (await isInWatchlist(m.imdbID)) wSet.add(m.imdbID);
       }
       setWatchlistIds(wSet);
     } else {
-      setResults([]);
+      if (!append) setResults([]);
+      setHasMore(false);
       if (data.Error && data.Error !== 'No API key configured') setError(data.Error);
     }
-  }, [lang]);
+  }, [lang, selectedGenre, selectedYear, selectedCountry, watchlistIds, hasActiveFilters]);
 
-  const isFirstRender = useRef(true);
-
+  // Handle Search/Filter changes
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      if (query) doSearch(query);
-      return;
-    }
+    setPage(1);
     const timer = setTimeout(() => {
       setParams(query ? { q: query } : {}, { replace: true });
-      doSearch(query);
+      fetchData(query, 1);
     }, 400);
     return () => clearTimeout(timer);
-  }, [query, doSearch, setParams]);
+  }, [query, selectedGenre, selectedYear, selectedCountry, fetchData, setParams]);
+
+  // Infinite Scroll Observer
+  useEffect(() => {
+    if (!observerRef.current || !hasMore || loading) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        const nextPage = page + 1;
+        setPage(nextPage);
+        fetchData(query, nextPage, true);
+      }
+    }, { threshold: 0.1 });
+
+    observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loading, page, query, fetchData]);
 
   const toggleWatchlist = async (movie: MovieData) => {
     if (watchlistIds.has(movie.imdbID)) {
@@ -151,19 +196,8 @@ export default function SearchPage() {
     setSelectedCountry('all');
   };
 
-  const hasActiveFilters = selectedGenre !== null || selectedYear !== 'all' || selectedCountry !== 'all';
-
-  const filteredResults = results.filter(movie => {
-    const matchesGenre = !selectedGenre || movie.genre_ids?.includes(selectedGenre);
-    const matchesYear = selectedYear === 'all' || movie.Year === selectedYear;
-    const matchesCountry = selectedCountry === 'all' || movie.origin_country?.includes(selectedCountry);
-    return matchesGenre && matchesYear && matchesCountry;
-  });
-
-  const years = Array.from(new Set(results.map(r => r.Year))).filter(Boolean).sort((a, b) => b.localeCompare(a));
-
   return (
-    <div className="px-4 md:px-6 max-w-2xl mx-auto space-y-4 animate-fade-in">
+    <div className="px-4 md:px-6 max-w-2xl mx-auto space-y-4 animate-fade-in pb-10">
       <div className="pt-4 md:pt-8 space-y-4">
         {/* Search Input */}
         <form onSubmit={(e) => e.preventDefault()}>
@@ -256,12 +290,14 @@ export default function SearchPage() {
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {filteredResults.length > 0 && (
+      {results.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs text-muted-foreground pb-1">{t('searchResults')}</p>
-          {filteredResults.map((movie) => (
+          <p className="text-xs text-muted-foreground pb-1">
+            {isDiscovery ? t('popularResults') : t('searchResults')}
+          </p>
+          {results.map((movie) => (
             <SearchResultCard
-              key={movie.imdbID}
+              key={`${movie.imdbID}-${movie.Type}`}
               movie={movie}
               inWatchlist={watchlistIds.has(movie.imdbID)}
               onToggleWatchlist={() => toggleWatchlist(movie)}
@@ -270,8 +306,13 @@ export default function SearchPage() {
         </div>
       )}
 
+      {/* Infinite Scroll Trigger */}
+      <div ref={observerRef} className="h-20 flex items-center justify-center">
+        {loading && <Loader2 size={24} className="text-muted-foreground/40 animate-spin" />}
+      </div>
+
       {/* Empty States */}
-      {!loading && filteredResults.length === 0 && query && (
+      {!loading && results.length === 0 && (query || hasActiveFilters) && (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <X size={28} className="text-muted-foreground/40" />
@@ -281,7 +322,7 @@ export default function SearchPage() {
         </div>
       )}
 
-      {!loading && !query && (
+      {!loading && !query && !hasActiveFilters && (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <SearchIcon size={28} className="text-muted-foreground/40" />
@@ -293,3 +334,4 @@ export default function SearchPage() {
     </div>
   );
 }
+

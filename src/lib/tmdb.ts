@@ -436,3 +436,63 @@ export async function getCountries(lang = 'en'): Promise<{ iso_3166_1: string, e
     return [];
   }
 }
+
+export async function discoverMovies(options: {
+  genre?: number | null;
+  year?: string;
+  country?: string;
+  page?: number;
+  lang?: string;
+}): Promise<SearchResult & { totalPages?: number }> {
+  if (!API_KEY) return { Response: 'False', Error: 'VITE_TMDB_API_KEY is not configured' };
+  const { genre, year, country, page = 1, lang = 'en' } = options;
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+
+  try {
+    const commonParams = `&page=${page}&include_adult=false&sort_by=popularity.desc`;
+    const genreParam = genre ? `&with_genres=${genre}` : '';
+    const countryParam = country && country !== 'all' ? `&with_origin_country=${country}` : '';
+
+    const movieUrl = `/discover/movie?${commonParams}${genreParam}${countryParam}${year && year !== 'all' ? `&primary_release_year=${year}` : ''}`;
+    const tvUrl = `/discover/tv?${commonParams}${genreParam}${countryParam}${year && year !== 'all' ? `&first_air_date_year=${year}` : ''}`;
+
+    const [movieData, tvData] = await Promise.all([
+      tmdbFetch<{ results: TmdbSearchItem[]; total_results: number; total_pages: number }>(movieUrl, tmdbLang),
+      tmdbFetch<{ results: TmdbSearchItem[]; total_results: number; total_pages: number }>(tvUrl, tmdbLang)
+    ]);
+
+    const allResults = [
+      ...movieData.results.map(r => ({ ...r, media_type: 'movie' as const })),
+      ...tvData.results.map(r => ({ ...r, media_type: 'tv' as const }))
+    ].sort((a, b) => b.vote_average - a.vote_average); // Sorting by rating since they are already requested as popular
+
+    const movies: MovieData[] = allResults.map(r => {
+      const isTV = r.media_type === 'tv';
+      return {
+        imdbID: String(r.id),
+        Title: isTV ? (r.name ?? '') : (r.title ?? ''),
+        Year: (isTV ? r.first_air_date : r.release_date)?.slice(0, 4) ?? '',
+        Poster: posterUrl(r.poster_path),
+        Type: isTV ? 'series' : 'movie',
+        imdbRating: r.vote_average ? r.vote_average.toFixed(1) : undefined,
+        Plot: r.overview || undefined,
+        genre_ids: r.genre_ids,
+        origin_country: r.origin_country,
+      };
+    });
+
+    for (const movie of movies) {
+      const existing = await getCachedMovie(movie.imdbID);
+      if (!existing) await cacheMovie({ ...movie, _lang: lang });
+    }
+
+    return {
+      Response: 'True',
+      Search: movies,
+      totalResults: String(movieData.total_results + tvData.total_results),
+      totalPages: Math.max(movieData.total_pages, tvData.total_pages)
+    };
+  } catch (err) {
+    return { Response: 'False', Error: String(err) };
+  }
+}
