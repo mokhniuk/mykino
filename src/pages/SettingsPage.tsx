@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, ThumbsUp, ThumbsDown, Plus, X, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences } from '@/lib/db';
 import { triggerSWUpdate } from '@/lib/sw-update';
+import { clearRecommendationsCache } from '@/lib/recommendations';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,6 +18,7 @@ import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
 export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
 
@@ -109,6 +112,8 @@ export default function SettingsPage() {
   const updatePrefs = async (newPrefs: ContentPreferences) => {
     setPrefs(newPrefs);
     await setContentPreferences(newPrefs);
+    clearRecommendationsCache(lang);
+    queryClient.invalidateQueries({ queryKey: ['recommendations', lang] });
   };
 
   const toggleItem = (category: keyof ContentPreferences, id: string | number, type: 'liked' | 'disliked') => {
