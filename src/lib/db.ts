@@ -33,6 +33,15 @@ export interface MovieData {
   [key: string]: unknown;
 }
 
+export interface ContentPreferences {
+  liked_genres: number[];
+  disliked_genres: number[];
+  liked_countries: string[];
+  disliked_countries: string[];
+  liked_languages: string[];
+  disliked_languages: string[];
+}
+
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function getDB() {
@@ -166,4 +175,33 @@ export async function getSetting(key: string): Promise<string | undefined> {
 export async function setSetting(key: string, value: string) {
   const db = await getDB();
   await db.put('settings', { key, value });
+}
+
+// Content Preferences
+export async function getContentPreferences(): Promise<ContentPreferences> {
+  const val = await getSetting('content_preferences');
+  if (!val) return {
+    liked_genres: [],
+    disliked_genres: [],
+    liked_countries: [],
+    disliked_countries: [],
+    liked_languages: [],
+    disliked_languages: [],
+  };
+  try {
+    return JSON.parse(val);
+  } catch {
+    return {
+      liked_genres: [],
+      disliked_genres: [],
+      liked_countries: [],
+      disliked_countries: [],
+      liked_languages: [],
+      disliked_languages: [],
+    };
+  }
+}
+
+export async function setContentPreferences(prefs: ContentPreferences) {
+  await setSetting('content_preferences', JSON.stringify(prefs));
 }

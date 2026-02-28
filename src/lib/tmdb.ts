@@ -184,6 +184,21 @@ function mapTVDetail(data: TmdbTVDetail, storeId: string): MovieData {
   };
 }
 
+function mapTmdbItemToMovieData(item: TmdbSearchItem, type: 'movie' | 'tv' | 'series' = 'movie'): MovieData {
+  const isTV = type === 'tv' || type === 'series' || item.media_type === 'tv';
+  return {
+    imdbID: String(item.id),
+    Title: isTV ? (item.name ?? '') : (item.title ?? ''),
+    Year: (isTV ? item.first_air_date : item.release_date)?.slice(0, 4) ?? '',
+    Poster: posterUrl(item.poster_path),
+    Type: isTV ? 'series' : 'movie',
+    imdbRating: item.vote_average ? item.vote_average.toFixed(1) : undefined,
+    Plot: item.overview || undefined,
+    genre_ids: item.genre_ids,
+    origin_country: item.origin_country,
+  };
+}
+
 async function tmdbFetch<T>(path: string, lang?: string): Promise<T> {
   const sep = path.includes('?') ? '&' : '?';
   const langParam = lang ? `&language=${lang}` : '';
@@ -437,24 +452,81 @@ export async function getCountries(lang = 'en'): Promise<{ iso_3166_1: string, e
   }
 }
 
+export async function getLanguages(lang = 'en'): Promise<{ iso_639_1: string, english_name: string, name: string }[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    return await tmdbFetch<{ iso_639_1: string, english_name: string, name: string }[]>(
+      '/configuration/languages',
+      tmdbLang
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'movie', lang = 'en'): Promise<MovieData[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    // We need to find the TMDB ID first if we only have imdbID
+    let tmdbId = id;
+    if (id.startsWith('tt')) {
+      const findRes = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`);
+      const results = type === 'movie' ? findRes.movie_results : findRes.tv_results;
+      if (results.length === 0) return [];
+      tmdbId = String(results[0].id);
+    }
+
+    const data = await tmdbFetch<{ results: TmdbSearchItem[] }>(
+      `/${type}/${tmdbId}/recommendations`,
+      tmdbLang
+    );
+    return data.results.map(item => mapTmdbItemToMovieData(item, type));
+  } catch {
+    return [];
+  }
+}
+
 export async function discoverMovies(options: {
-  genre?: number | null;
+  genre?: number | string | null;
+  without_genres?: string;
   year?: string;
   country?: string;
+  without_country?: string;
+  language?: string;
+  without_language?: string;
   page?: number;
   lang?: string;
+  sort_by?: string;
 }): Promise<SearchResult & { totalPages?: number }> {
   if (!API_KEY) return { Response: 'False', Error: 'VITE_TMDB_API_KEY is not configured' };
-  const { genre, year, country, page = 1, lang = 'en' } = options;
+  const {
+    genre,
+    without_genres,
+    year,
+    country,
+    without_country,
+    language,
+    without_language,
+    page = 1,
+    lang = 'en',
+    sort_by = 'popularity.desc'
+  } = options;
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
 
   try {
-    const commonParams = `&page=${page}&include_adult=false&sort_by=popularity.desc`;
+    const commonParams = `&page=${page}&include_adult=false&sort_by=${sort_by}`;
     const genreParam = genre ? `&with_genres=${genre}` : '';
+    const withoutGenreParam = without_genres ? `&without_genres=${without_genres}` : '';
     const countryParam = country && country !== 'all' ? `&with_origin_country=${country}` : '';
+    const withoutCountryParam = without_country ? `&without_origin_country=${without_country}` : '';
+    const langParam = language && language !== 'all' ? `&with_original_language=${language}` : '';
+    const withoutLangParam = without_language ? `&without_original_language=${without_language}` : '';
 
-    const movieUrl = `/discover/movie?${commonParams}${genreParam}${countryParam}${year && year !== 'all' ? `&primary_release_year=${year}` : ''}`;
-    const tvUrl = `/discover/tv?${commonParams}${genreParam}${countryParam}${year && year !== 'all' ? `&first_air_date_year=${year}` : ''}`;
+    const yearQuery = year && year !== 'all' ? `&primary_release_year=${year}` : '';
+    const tvYearQuery = year && year !== 'all' ? `&first_air_date_year=${year}` : '';
+
+    const movieUrl = `/discover/movie?${commonParams}${genreParam}${withoutGenreParam}${countryParam}${withoutCountryParam}${langParam}${withoutLangParam}${yearQuery}`;
+    const tvUrl = `/discover/tv?${commonParams}${genreParam}${withoutGenreParam}${countryParam}${withoutCountryParam}${langParam}${withoutLangParam}${tvYearQuery}`;
 
     const [movieData, tvData] = await Promise.all([
       tmdbFetch<{ results: TmdbSearchItem[]; total_results: number; total_pages: number }>(movieUrl, tmdbLang),
@@ -464,22 +536,9 @@ export async function discoverMovies(options: {
     const allResults = [
       ...movieData.results.map(r => ({ ...r, media_type: 'movie' as const })),
       ...tvData.results.map(r => ({ ...r, media_type: 'tv' as const }))
-    ].sort((a, b) => b.vote_average - a.vote_average); // Sorting by rating since they are already requested as popular
+    ].sort((a, b) => b.vote_average - a.vote_average);
 
-    const movies: MovieData[] = allResults.map(r => {
-      const isTV = r.media_type === 'tv';
-      return {
-        imdbID: String(r.id),
-        Title: isTV ? (r.name ?? '') : (r.title ?? ''),
-        Year: (isTV ? r.first_air_date : r.release_date)?.slice(0, 4) ?? '',
-        Poster: posterUrl(r.poster_path),
-        Type: isTV ? 'series' : 'movie',
-        imdbRating: r.vote_average ? r.vote_average.toFixed(1) : undefined,
-        Plot: r.overview || undefined,
-        genre_ids: r.genre_ids,
-        origin_country: r.origin_country,
-      };
-    });
+    const movies: MovieData[] = allResults.map(r => mapTmdbItemToMovieData(r, r.media_type));
 
     for (const movie of movies) {
       const existing = await getCachedMovie(movie.imdbID);
