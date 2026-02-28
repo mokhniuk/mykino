@@ -145,24 +145,27 @@ export async function isWatched(id: string): Promise<boolean> {
 
 // Export / Import
 export async function exportAllData() {
-  const [watchlist, watched, favourites] = await Promise.all([
+  const [watchlist, watched, favourites, settings] = await Promise.all([
     getWatchlist(),
     getWatched(),
     getFavourites(),
+    getDB().then(db => db.getAll('settings')),
   ]);
-  return { version: 1, exportedAt: Date.now(), watchlist, watched, favourites };
+  return { version: 1, exportedAt: Date.now(), watchlist, watched, favourites, settings };
 }
 
 export async function importAllData(data: {
   watchlist?: MovieData[];
   watched?: MovieData[];
   favourites?: MovieData[];
+  settings?: { key: string; value: string }[];
 }) {
   const db = await getDB();
-  const tx = db.transaction(['watchlist', 'watched', 'favourites'], 'readwrite');
+  const tx = db.transaction(['watchlist', 'watched', 'favourites', 'settings'], 'readwrite');
   for (const m of data.watchlist ?? []) tx.objectStore('watchlist').put(m);
   for (const m of data.watched ?? []) tx.objectStore('watched').put(m);
   for (const m of data.favourites ?? []) tx.objectStore('favourites').put(m);
+  for (const s of data.settings ?? []) tx.objectStore('settings').put(s);
   await tx.done;
 }
 

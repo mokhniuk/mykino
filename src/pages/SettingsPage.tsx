@@ -97,8 +97,17 @@ export default function SettingsPage() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      if (!data.watchlist && !data.watched && !data.favourites) throw new Error();
+      if (!data.watchlist && !data.watched && !data.favourites && !data.settings) throw new Error();
       await importAllData(data);
+
+      if (data.settings && Array.isArray(data.settings)) {
+        const langSetting = data.settings.find((s: any) => s.key === 'lang');
+        if (langSetting?.value) setLang(langSetting.value);
+
+        const themeSetting = data.settings.find((s: any) => s.key === 'theme');
+        if (themeSetting?.value) setTheme(themeSetting.value);
+      }
+
       toast.success(t('importSuccess'));
       loadPreferences();
     } catch {
