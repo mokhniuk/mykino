@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
 
 export default function SettingsPage() {
@@ -175,6 +177,8 @@ export default function SettingsPage() {
                     items={genres}
                     onSelect={(id, type) => toggleItem(type === 'liked' ? 'liked_genres' : 'disliked_genres', id, type)}
                     placeholder={t('selectGenre')}
+                    likedIds={new Set(prefs?.liked_genres ?? [])}
+                    dislikedIds={new Set(prefs?.disliked_genres ?? [])}
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -195,6 +199,8 @@ export default function SettingsPage() {
                     items={countries}
                     onSelect={(id, type) => toggleItem(type === 'liked' ? 'liked_countries' : 'disliked_countries', id, type)}
                     placeholder={t('selectCountry')}
+                    likedIds={new Set(prefs?.liked_countries ?? [])}
+                    dislikedIds={new Set(prefs?.disliked_countries ?? [])}
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -215,6 +221,8 @@ export default function SettingsPage() {
                     items={languages}
                     onSelect={(id, type) => toggleItem(type === 'liked' ? 'liked_languages' : 'disliked_languages', id, type)}
                     placeholder={t('selectLanguage')}
+                    likedIds={new Set(prefs?.liked_languages ?? [])}
+                    dislikedIds={new Set(prefs?.disliked_languages ?? [])}
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -383,58 +391,147 @@ function PreferenceBadge({ id, label, type, onRemove }: { id: string | number, l
   );
 }
 
-function CategoryPicker({ items, onSelect, placeholder }: { items: { id: string | number, label: string }[], onSelect: (id: string | number, type: 'liked' | 'disliked') => void, placeholder: string }) {
+function CategoryPicker({ items, onSelect, placeholder, likedIds, dislikedIds }: {
+  items: { id: string | number, label: string }[],
+  onSelect: (id: string | number, type: 'liked' | 'disliked') => void,
+  placeholder: string,
+  likedIds: Set<string | number>,
+  dislikedIds: Set<string | number>,
+}) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const isMobile = useIsMobile();
   const { t } = useI18n();
 
+  const sorted = [...items].sort((a, b) => {
+    const aLiked = likedIds.has(a.id) ? 0 : dislikedIds.has(a.id) ? 1 : 2;
+    const bLiked = likedIds.has(b.id) ? 0 : dislikedIds.has(b.id) ? 1 : 2;
+    return aLiked - bLiked;
+  });
+
+  const filtered = search
+    ? sorted.filter(item => item.label.toLowerCase().includes(search.toLowerCase()))
+    : sorted;
+
+  const handleSelect = (id: string | number, type: 'liked' | 'disliked') => {
+    onSelect(id, type);
+    setOpen(false);
+    setSearch('');
+  };
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (!v) setSearch('');
+  };
+
+  const trigger = (
+    <Button variant="outline" size="sm" className="h-7 px-2 gap-1.5 text-[10px] uppercase tracking-wider font-bold">
+      <Plus size={12} />
+      {t('include')} / {t('exclude')}
+    </Button>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={handleOpenChange}>
+        <SheetTrigger asChild>{trigger}</SheetTrigger>
+        <SheetContent side="bottom" className="h-[75vh] flex flex-col p-0">
+          <SheetHeader className="px-4 pt-5 pb-3 border-b border-border">
+            <SheetTitle className="text-base text-left">{placeholder}</SheetTitle>
+          </SheetHeader>
+          <div className="px-4 py-3 border-b border-border">
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={placeholder}
+              className="w-full px-3 py-2.5 rounded-xl bg-secondary text-sm outline-none placeholder:text-muted-foreground"
+              autoFocus
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">No results found.</p>
+            ) : filtered.map(item => {
+              const isLiked = likedIds.has(item.id);
+              const isDisliked = dislikedIds.has(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between px-4 py-3 border-b border-border/40 ${isLiked ? 'bg-primary/5' : isDisliked ? 'bg-destructive/5' : ''}`}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
+                    {isLiked && <ThumbsUp size={12} className="text-primary shrink-0" />}
+                    {isDisliked && <ThumbsDown size={12} className="text-destructive shrink-0" />}
+                    <span className="text-sm font-medium truncate">{item.label}</span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleSelect(item.id, 'liked')}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold active:scale-95 transition-transform ${isLiked ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary'}`}
+                    >
+                      <ThumbsUp size={13} />
+                      {t('include')}
+                    </button>
+                    <button
+                      onClick={() => handleSelect(item.id, 'disliked')}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold active:scale-95 transition-transform ${isDisliked ? 'bg-destructive text-destructive-foreground' : 'bg-destructive/10 text-destructive'}`}
+                    >
+                      <ThumbsDown size={13} />
+                      {t('exclude')}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-7 px-2 gap-1.5 text-[10px] uppercase tracking-wider font-bold">
-          <Plus size={12} />
-          {t('include')} / {t('exclude')}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="p-0 w-[200px]" align="end">
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent className="p-0 w-[260px]" align="end">
         <Command>
           <CommandInput placeholder={placeholder} />
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup>
-              {items.map((item) => (
-                <CommandItem
-                  key={item.id}
-                  value={String(item.label)}
-                  onSelect={() => { }}
-                  className="flex items-center justify-between group"
-                >
-                  <span className="flex-1 truncate mr-2">{item.label}</span>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(item.id, 'liked');
-                        setOpen(false);
-                      }}
-                      className="p-1 hover:bg-primary hover:text-primary-foreground rounded transition-colors"
-                      title={t('include')}
-                    >
-                      <ThumbsUp size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(item.id, 'disliked');
-                        setOpen(false);
-                      }}
-                      className="p-1 hover:bg-destructive hover:text-destructive-foreground rounded transition-colors"
-                      title={t('exclude')}
-                    >
-                      <ThumbsDown size={12} />
-                    </button>
-                  </div>
-                </CommandItem>
-              ))}
+              {filtered.map((item) => {
+                const isLiked = likedIds.has(item.id);
+                const isDisliked = dislikedIds.has(item.id);
+                return (
+                  <CommandItem
+                    key={item.id}
+                    value={String(item.label)}
+                    onSelect={() => { }}
+                    className={`flex items-center justify-between ${isLiked ? 'bg-primary/5' : isDisliked ? 'bg-destructive/5' : ''}`}
+                  >
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-2">
+                      {isLiked && <ThumbsUp size={11} className="text-primary shrink-0" />}
+                      {isDisliked && <ThumbsDown size={11} className="text-destructive shrink-0" />}
+                      <span className="truncate text-sm">{item.label}</span>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleSelect(item.id, 'liked'); }}
+                        className={`p-1.5 rounded-lg transition-colors ${isLiked ? 'bg-primary text-primary-foreground' : 'hover:bg-primary hover:text-primary-foreground'}`}
+                        title={t('include')}
+                      >
+                        <ThumbsUp size={13} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleSelect(item.id, 'disliked'); }}
+                        className={`p-1.5 rounded-lg transition-colors ${isDisliked ? 'bg-destructive text-destructive-foreground' : 'hover:bg-destructive hover:text-destructive-foreground'}`}
+                        title={t('exclude')}
+                      >
+                        <ThumbsDown size={13} />
+                      </button>
+                    </div>
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </CommandList>
         </Command>

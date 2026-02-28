@@ -36,37 +36,61 @@ export function useTmdbMetadata() {
 
     const localizedCountries = useMemo(() => {
         if (!countriesQuery.data) return [];
-        const countryNames = new Intl.DisplayNames([currentLocale], { type: 'region' });
-        return countriesQuery.data.map(country => {
-            try {
-                const localizedName = countryNames.of(country.iso_3166_1);
-                return {
-                    id: country.iso_3166_1,
-                    label: localizedName || country.english_name
-                };
-            } catch {
-                return { id: country.iso_3166_1, label: country.english_name };
-            }
-        }).sort((a, b) => a.label.localeCompare(b.label, currentLocale));
+        // fallback:'none' returns undefined for unrecognised codes instead of the raw code
+        const countryNames = new Intl.DisplayNames([currentLocale], { type: 'region', fallback: 'none' });
+        const seenIds = new Set<string>();
+        const seenLabels = new Set<string>();
+        return countriesQuery.data
+            .map(country => {
+                try {
+                    const localized = countryNames.of(country.iso_3166_1);
+                    return { id: country.iso_3166_1, label: localized || country.english_name };
+                } catch {
+                    return { id: country.iso_3166_1, label: country.english_name };
+                }
+            })
+            .filter(c => {
+                // Deduplicate by id AND by label — deprecated codes (e.g. CS/RS → Serbia) share a display name
+                if (seenIds.has(c.id)) return false;
+                seenIds.add(c.id);
+                const key = c.label.toLowerCase();
+                if (seenLabels.has(key)) return false;
+                seenLabels.add(key);
+                return true;
+            })
+            .sort((a, b) => a.label.localeCompare(b.label, currentLocale));
     }, [countriesQuery.data, currentLocale]);
 
     const localizedLanguages = useMemo(() => {
         if (!languagesQuery.data) return [];
-        const languageNames = new Intl.DisplayNames([currentLocale], { type: 'language' });
-        return languagesQuery.data.map(language => {
-            try {
-                let localizedName = languageNames.of(language.iso_639_1);
-                if (localizedName) {
-                    localizedName = localizedName.charAt(0).toUpperCase() + localizedName.slice(1);
+        // fallback:'none' → undefined for unknown codes, prevents raw codes like "mo"/"sh" leaking through
+        const languageNames = new Intl.DisplayNames([currentLocale], { type: 'language', fallback: 'none' });
+        const seenIds = new Set<string>();
+        const seenLabels = new Set<string>();
+        return languagesQuery.data
+            .map(language => {
+                try {
+                    const localized = languageNames.of(language.iso_639_1);
+                    const label = localized
+                        ? localized.charAt(0).toUpperCase() + localized.slice(1)
+                        : language.english_name;
+                    return { id: language.iso_639_1, label };
+                } catch {
+                    return { id: language.iso_639_1, label: language.english_name };
                 }
-                return {
-                    id: language.iso_639_1,
-                    label: localizedName || language.english_name
-                };
-            } catch {
-                return { id: language.iso_639_1, label: language.english_name };
-            }
-        }).sort((a, b) => a.label.localeCompare(b.label, currentLocale));
+            })
+            .filter(l => {
+                // Drop anything that is still a raw ISO code abbreviation (2–3 lowercase letters)
+                if (/^[a-z]{2,3}$/.test(l.label)) return false;
+                // Deduplicate by id and label
+                if (seenIds.has(l.id)) return false;
+                seenIds.add(l.id);
+                const key = l.label.toLowerCase();
+                if (seenLabels.has(key)) return false;
+                seenLabels.add(key);
+                return true;
+            })
+            .sort((a, b) => a.label.localeCompare(b.label, currentLocale));
     }, [languagesQuery.data, currentLocale]);
 
     const localizedGenres = useMemo(() => {
