@@ -11,15 +11,17 @@
 
 ## ✨ Features
 
-- 🔍 **Powerful Search**: Discover movies and TV shows from the extensive OMDB database.
+- 🔍 **Powerful Search**: Discover movies and TV shows from the extensive TMDB database.
+- 📱 **PWA Support**: Install MyKino on your home screen for a native app-like experience.
 - 📺 **Watchlist Management**: Save movies you're interested in for later viewing.
 - ❤️ **Favourites**: Curate a list of your all-time favourite films.
 - 🎲 **Smart Recommendations**:
   - **Today's Pick**: A daily suggestion from your own watchlist.
   - **Top Rated Shuffle**: Explore curated top 100 movies with a single click.
 - 🌓 **Dynamic Themes**: Beautiful dark and light modes that respect your system preferences.
-- 🌍 **Multi-language Support**: Fully localized interface in **English** and **Ukrainian**.
-- 📱 **Responsive Design**: Flawless experience across mobile, tablet, and desktop devices.
+- 🌍 **Multi-language Support**: Fully localized interface in **English**, **Ukrainian**, and **German**.
+- 🖼️ **Localized Content**: Movie information and covers are displayed in your preferred language.
+- 💻 **Responsive Design**: Flawless experience across mobile, tablet, and desktop devices.
 - 💾 **Offline-first**: Uses IndexedDB (via `idb`) for local storage, ensuring your data is always accessible without a backend.
 - ⚡ **Lightning Fast**: Optimized with Vite and TanStack Query for a snappy, high-performance feel.
 
@@ -33,7 +35,7 @@
 - **State Management**: [TanStack Query (FKA React Query)](https://tanstack.com/query/latest)
 - **Routing**: [React Router 6](https://reactrouter.com/)
 - **Storage**: [IndexedDB (via idb)](https://github.com/jakearchibald/idb)
-- **API**: [OMDb API](http://www.omdbapi.com/)
+- **API**: [TMDB API](https://developer.themoviedb.org/docs/getting-started)
 
 ---
 
@@ -43,15 +45,14 @@
 
 - [Node.js](https://nodejs.org/) (v18 or higher)
 - [Bun](https://bun.sh/) or [npm](https://www.npmjs.com/)
-- An [OMDb API Key](http://www.omdbapi.com/apikey.aspx) (Free)
 
 ### Installation
 
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/your-username/your-next-watch.git
-   cd your-next-watch
+   git clone https://github.com/mokhniuk/mykino.git
+   cd mykino
    ```
 
 2. **Install dependencies**:
@@ -69,9 +70,6 @@
    # or
    npm run dev
    ```
-
-4. **Add your API Key**:
-   Open the app in your browser and enter your OMDb API key when prompted in the settings or setup screen.
 
 ---
 
@@ -99,7 +97,7 @@ The project includes a multi-stage `Dockerfile` for easy deployment using Nginx.
 src/
 ├── components/   # Reusable UI components
 ├── hooks/        # Custom React hooks
-├── lib/          # Core utilities (i18n, db, theme, omdb api)
+├── lib/          # Core utilities (i18n, db, theme, tmdb api)
 ├── pages/        # Application views/routes
 └── App.tsx       # Main application component
 ```
