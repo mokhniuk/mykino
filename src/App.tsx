@@ -12,6 +12,9 @@ import WatchlistPage from "./pages/WatchlistPage";
 import WatchedPage from "./pages/WatchedPage";
 import MovieDetailsPage from "./pages/MovieDetailsPage";
 import SettingsPage from "./pages/SettingsPage";
+import FavouritesPage from "./pages/FavouritesPage";
+import ForYouPage from "./pages/ForYouPage";
+import SomethingNewPage from "./pages/SomethingNewPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +35,9 @@ const App = () => (
                 <Route path="/watched" element={<WatchedPage />} />
                 <Route path="/movie/:id" element={<MovieDetailsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/favourites" element={<FavouritesPage />} />
+                <Route path="/for-you" element={<ForYouPage />} />
+                <Route path="/something-new" element={<SomethingNewPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>

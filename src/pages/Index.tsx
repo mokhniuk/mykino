@@ -334,7 +334,7 @@ export default function Index() {
     let cancelled = false;
     getPersonalizedRecommendations(lang).then(res => {
       if (cancelled) return;
-      setRecommendations(res);
+      setRecommendations(res.slice(0, 10));
       setRecoReady(true);
     });
     return () => { cancelled = true; };
@@ -422,7 +422,7 @@ export default function Index() {
               <Sparkles size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('somethingNew')}</h2>
             </div>
-            <Link to="/search" className="text-xs text-primary inline-flex items-baseline">
+            <Link to="/something-new" className="text-xs text-primary inline-flex items-baseline">
               <ChevronRight size={32} className="mt-2" />
             </Link>
           </div>
@@ -460,7 +460,7 @@ export default function Index() {
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{t('forYouBody')}</p>
               </div>
             </div>
-            <Link to="/search" className="text-xs text-primary inline-flex items-baseline">
+            <Link to="/for-you" className="text-xs text-primary inline-flex items-baseline">
               <ChevronRight size={32} className="mt-2" />
             </Link>
           </div>

@@ -141,6 +141,7 @@ const translations = {
     disliked: 'Disliked',
     exclude: 'Exclude',
     include: 'Include',
+    emptyForYouHint: 'Add movies to your favourites or watchlist to get personalized recommendations.',
   },
   ua: {
     goodMorning: 'Доброго ранку',
@@ -272,6 +273,7 @@ const translations = {
     disliked: 'Не подобається',
     exclude: 'Виключити',
     include: 'Включити',
+    emptyForYouHint: 'Додайте фільми до улюблених або списку перегляду, щоб отримати персональні рекомендації.',
   },
   de: {
     goodMorning: 'Guten Morgen',
@@ -403,6 +405,7 @@ const translations = {
     disliked: 'Gefällt mir nicht',
     exclude: 'Ausschließen',
     include: 'Einschließen',
+    emptyForYouHint: 'Füge Filme zu deinen Favoriten oder der Merkliste hinzu, um personalisierte Empfehlungen zu erhalten.',
   },
 } as const;
 
