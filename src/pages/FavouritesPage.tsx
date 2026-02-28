@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Tv } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import {
   getFavourites, removeFromFavourites,
@@ -9,47 +9,55 @@ import {
 } from '@/lib/db';
 import { getMovieDetails } from '@/lib/tmdb';
 import MovieCard from '@/components/MovieCard';
+import { useState } from 'react';
 
 type Tab = 'movie' | 'series';
 
+type FavouritesData = { movies: MovieData[]; watchlistIds: string[] };
+
 export default function FavouritesPage() {
   const { t, lang } = useI18n();
-  const [movies, setMovies] = useState<MovieData[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('movie');
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoaded(false);
-    getFavourites().then(async (list) => {
-      const localized = await Promise.all(
-        list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
-      );
-      if (cancelled) return;
-      setMovies(localized);
-      setLoaded(true);
-      const wSet = new Set<string>();
-      for (const m of list) {
-        if (await isInWatchlist(m.imdbID)) wSet.add(m.imdbID);
-      }
-      if (!cancelled) setWatchlistIds(wSet);
-    });
-    return () => { cancelled = true; };
-  }, [lang]);
+  const { data, isLoading } = useQuery<FavouritesData>({
+    queryKey: ['favourites', lang],
+    queryFn: async () => {
+      const list = await getFavourites();
+      const [movies, watchlistChecks] = await Promise.all([
+        Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m))),
+        Promise.all(list.map(m => isInWatchlist(m.imdbID))),
+      ]);
+      return {
+        movies,
+        watchlistIds: list.filter((_, i) => watchlistChecks[i]).map(m => m.imdbID),
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const movies = data?.movies ?? [];
+  const watchlistIdSet = new Set(data?.watchlistIds ?? []);
 
   const handleRemove = async (id: string) => {
     await removeFromFavourites(id);
-    setMovies((m) => m.filter((x) => x.imdbID !== id));
+    queryClient.setQueryData<FavouritesData>(['favourites', lang], prev =>
+      prev ? { ...prev, movies: prev.movies.filter(m => m.imdbID !== id) } : prev
+    );
+    queryClient.invalidateQueries({ queryKey: ['favourites'] });
   };
 
   const toggleWatchlist = async (movie: MovieData) => {
-    if (watchlistIds.has(movie.imdbID)) {
+    if (watchlistIdSet.has(movie.imdbID)) {
       await removeFromWatchlist(movie.imdbID);
-      setWatchlistIds((s) => { const n = new Set(s); n.delete(movie.imdbID); return n; });
+      queryClient.setQueryData<FavouritesData>(['favourites', lang], prev =>
+        prev ? { ...prev, watchlistIds: prev.watchlistIds.filter(id => id !== movie.imdbID) } : prev
+      );
     } else {
       await addToWatchlist(movie);
-      setWatchlistIds((s) => new Set(s).add(movie.imdbID));
+      queryClient.setQueryData<FavouritesData>(['favourites', lang], prev =>
+        prev ? { ...prev, watchlistIds: [...prev.watchlistIds, movie.imdbID] } : prev
+      );
     }
   };
 
@@ -65,7 +73,7 @@ export default function FavouritesPage() {
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
         <div className="flex items-baseline gap-2">
           <h1 className="text-2xl md:text-3xl text-foreground">{t('favourites')}</h1>
-          {loaded && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
+          {!isLoading && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
         </div>
         <div className="flex gap-0.5 p-1 bg-secondary rounded-xl">
           {tabs.map((tb) => (
@@ -84,7 +92,7 @@ export default function FavouritesPage() {
         </div>
       </div>
 
-      {!loaded ? (
+      {isLoading ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
           {[...Array(12)].map((_, i) => (
             <div key={i} className="flex flex-col gap-2">
@@ -101,7 +109,7 @@ export default function FavouritesPage() {
               key={movie.imdbID}
               movie={movie}
               fluid
-              inWatchlist={watchlistIds.has(movie.imdbID)}
+              inWatchlist={watchlistIdSet.has(movie.imdbID)}
               inFavourites={true}
               onToggleWatchlist={() => toggleWatchlist(movie)}
               onToggleFavourite={() => handleRemove(movie.imdbID)}

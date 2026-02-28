@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Film } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import {
   getWatchlist, removeFromWatchlist,
@@ -15,26 +16,25 @@ type Filter = 'all' | 'movie' | 'series';
 
 export default function WatchlistPage() {
   const { t, lang } = useI18n();
-  const [movies, setMovies] = useState<MovieData[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoaded(false);
-    getWatchlist().then(async (list) => {
-      const localized = await Promise.all(
-        list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
-      );
-      if (!cancelled) { setMovies(localized); setLoaded(true); }
-    });
-    return () => { cancelled = true; };
-  }, [lang]);
+  const { data: movies = [], isLoading } = useQuery<MovieData[]>({
+    queryKey: ['watchlist', lang],
+    queryFn: async () => {
+      const list = await getWatchlist();
+      return Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m)));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleMarkWatched = async (movie: MovieData) => {
     await addToWatched(movie);
     await removeFromWatchlist(movie.imdbID);
-    setMovies((m) => m.filter((x) => x.imdbID !== movie.imdbID));
+    queryClient.setQueryData<MovieData[]>(['watchlist', lang], prev =>
+      (prev ?? []).filter(m => m.imdbID !== movie.imdbID)
+    );
+    queryClient.invalidateQueries({ queryKey: ['watched'] });
   };
 
   const filtered = filter === 'all' ? movies : movies.filter((m) => (m.Type || 'movie') === filter);
@@ -44,7 +44,7 @@ export default function WatchlistPage() {
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
         <div className="flex items-baseline gap-2">
           <h1 className="text-2xl md:text-3xl text-foreground">{t('watchlist')}</h1>
-          {loaded && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
+          {!isLoading && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
         </div>
         <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
           <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
@@ -58,7 +58,7 @@ export default function WatchlistPage() {
         </Select>
       </div>
 
-      {!loaded ? (
+      {isLoading ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
           {[...Array(12)].map((_, i) => (
             <div key={i} className="flex flex-col gap-2">

@@ -1,4 +1,4 @@
-import { getContentPreferences, getWatched, getWatchlist, getFavourites, getSetting, setSetting, type MovieData } from './db';
+import { getWatched, getWatchlist, getFavourites, getSetting, setSetting, type MovieData } from './db';
 import { discoverMovies, getRecommendations, getTrending, getNowPlaying, getPopular, getSimilar } from './api';
 import { getOrBuildTasteProfile, invalidateTasteProfile, type TasteProfile } from './tasteProfile';
 
@@ -140,20 +140,11 @@ function dedupeByImdbID(movies: MovieData[]): MovieData[] {
 function filterAndScore(
   movies: MovieData[],
   excludeIds: Set<string>,
-  dislikedGenres: Set<number>,
-  dislikedCountries: Set<string>,
-  dislikedLanguages: Set<string>,
   profile: TasteProfile,
   limit = 100,
 ): MovieData[] {
   return movies
-    .filter(m => {
-      if (excludeIds.has(m.imdbID)) return false;
-      if (m.genre_ids?.some(id => dislikedGenres.has(id))) return false;
-      if (m.origin_country?.some(c => dislikedCountries.has(c))) return false;
-      if (m.original_language && dislikedLanguages.has(m.original_language)) return false;
-      return true;
-    })
+    .filter(m => !excludeIds.has(m.imdbID))
     .map(m => ({ movie: m, score: scoreMovie(m, profile) }))
     .sort((a, b) => b.score - a.score)
     .map(({ movie }) => movie)
@@ -164,8 +155,7 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
   const cached = await getSectionCache(lang);
   if (cached) return cached;
 
-  const [prefs, watched, watchlist, favourites] = await Promise.all([
-    getContentPreferences(),
+  const [watched, watchlist, favourites] = await Promise.all([
     getWatched(),
     getWatchlist(),
     getFavourites(),
@@ -176,17 +166,12 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
     ...watchlist.map(m => m.imdbID),
   ]);
 
-  const dislikedGenres = new Set(prefs.disliked_genres);
-  const dislikedCountries = new Set(prefs.disliked_countries);
-  const dislikedLanguages = new Set(prefs.disliked_languages);
-
   const [profile, dailySeed] = await Promise.all([
     getOrBuildTasteProfile(),
     getDailySeed(favourites),
   ]);
 
-  // Top genres: from profile, fall back to content preferences
-  const topGenres = profile.topGenres.length > 0 ? profile.topGenres : prefs.liked_genres;
+  const topGenres = profile.topGenres;
 
   const seedId = dailySeed?.imdbID;
   const seedType = dailySeed?.Type === 'series' ? 'tv' : 'movie';
@@ -234,9 +219,6 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
     filterAndScore(
       dedupeByImdbID(movies),
       excludeIds,
-      dislikedGenres,
-      dislikedCountries,
-      dislikedLanguages,
       profile,
       limit,
     );
@@ -299,8 +281,7 @@ export async function loadMoreForSection(
   nextPage: number,
   alreadyShownIds: Set<string>,
 ): Promise<{ movies: MovieData[]; nextPage: number }> {
-  const [prefs, watched, watchlist, profile] = await Promise.all([
-    getContentPreferences(),
+  const [watched, watchlist, profile] = await Promise.all([
     getWatched(),
     getWatchlist(),
     getOrBuildTasteProfile(),
@@ -312,10 +293,7 @@ export async function loadMoreForSection(
     ...alreadyShownIds,
   ]);
 
-  const dislikedGenres = new Set(prefs.disliked_genres);
-  const dislikedCountries = new Set(prefs.disliked_countries);
-  const dislikedLanguages = new Set(prefs.disliked_languages);
-  const topGenres = profile.topGenres.length > 0 ? profile.topGenres : prefs.liked_genres;
+  const topGenres = profile.topGenres;
 
   const pageNums = Array.from({ length: LOAD_MORE_PAGES }, (_, i) => nextPage + i);
 
@@ -402,9 +380,6 @@ export async function loadMoreForSection(
   const movies = filterAndScore(
     dedupeByImdbID(rawMovies),
     excludeIds,
-    dislikedGenres,
-    dislikedCountries,
-    dislikedLanguages,
     profile,
   );
 

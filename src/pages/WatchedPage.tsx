@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Heart } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import {
   getWatched, isInFavourites,
@@ -12,43 +13,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 type Filter = 'all' | 'movie' | 'series';
 
+type WatchedData = { movies: MovieData[]; favIds: string[] };
+
 export default function WatchedPage() {
   const { t, lang } = useI18n();
-  const [movies, setMovies] = useState<MovieData[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [favIds, setFavIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<Filter>('all');
   const [favOnly, setFavOnly] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoaded(false);
-    getWatched().then(async (list) => {
-      const localized = await Promise.all(
-        list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
-      );
-      if (cancelled) return;
-      setMovies(localized);
-      setLoaded(true);
-      const fSet = new Set<string>();
-      for (const m of list) {
-        if (await isInFavourites(m.imdbID)) fSet.add(m.imdbID);
-      }
-      if (!cancelled) setFavIds(fSet);
-    });
-    return () => { cancelled = true; };
-  }, [lang]);
+  const { data, isLoading } = useQuery<WatchedData>({
+    queryKey: ['watched', lang],
+    queryFn: async () => {
+      const list = await getWatched();
+      const [movies, favChecks] = await Promise.all([
+        Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m))),
+        Promise.all(list.map(m => isInFavourites(m.imdbID))),
+      ]);
+      return {
+        movies,
+        favIds: list.filter((_, i) => favChecks[i]).map(m => m.imdbID),
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const movies = data?.movies ?? [];
+  const favIdSet = new Set(data?.favIds ?? []);
 
   const filtered = movies
     .filter((m) => filter === 'all' || (m.Type || 'movie') === filter)
-    .filter((m) => !favOnly || favIds.has(m.imdbID));
+    .filter((m) => !favOnly || favIdSet.has(m.imdbID));
 
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
         <div className="flex items-baseline gap-2">
           <h1 className="text-2xl md:text-3xl text-foreground">{t('watchedSection')}</h1>
-          {loaded && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
+          {!isLoading && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -71,7 +71,7 @@ export default function WatchedPage() {
         </div>
       </div>
 
-      {!loaded ? (
+      {isLoading ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
           {[...Array(12)].map((_, i) => (
             <div key={i} className="flex flex-col gap-2">

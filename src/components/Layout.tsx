@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { Home, Search, BookmarkPlus, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
@@ -15,11 +15,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigationType = useNavigationType();
   const { t } = useI18n();
+  const prevPathnameRef = useRef(location.pathname);
 
   useEffect(() => {
-    if (navigationType !== 'POP') {
-      window.scrollTo(0, 0);
-    }
+    const prev = prevPathnameRef.current;
+    prevPathnameRef.current = location.pathname;
+    // Skip scroll-to-top only when going back from a movie details page
+    if (navigationType === 'POP' && prev.startsWith('/movie/')) return;
+    window.scrollTo(0, 0);
   }, [location.pathname, navigationType]);
 
   const { pathname } = location;
