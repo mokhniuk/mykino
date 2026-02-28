@@ -2,11 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { searchMovies } from '@/lib/api';
+import { searchMovies, getGenres, getCountries } from '@/lib/api';
 import {
   addToWatchlist, removeFromWatchlist, isInWatchlist,
   type MovieData,
 } from '@/lib/db';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 function SearchResultCard({
   movie,
@@ -67,6 +75,32 @@ export default function SearchPage() {
   const [error, setError] = useState('');
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
+  // Filter state
+  const [genres, setGenres] = useState<{ id: number, name: string }[]>([]);
+  const [countries, setCountries] = useState<{ code: string, name: string }[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedCountry, setSelectedCountry] = useState<string>('all');
+
+  // Fetch metadata
+  useEffect(() => {
+    Promise.all([
+      getGenres(lang),
+      getCountries(lang)
+    ]).then(([genreData, countryData]) => {
+      const allGenres = [...genreData.movie, ...genreData.tv];
+      const uniqueGenres = Array.from(new Map(allGenres.map(g => [g.id, g])).values())
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setGenres(uniqueGenres);
+
+      const mappedCountries = countryData.map(c => ({
+        code: c.iso_3166_1,
+        name: c.native_name || c.english_name
+      })).sort((a, b) => a.name.localeCompare(b.name));
+      setCountries(mappedCountries);
+    });
+  }, [lang]);
+
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) { setResults([]); return; }
     setLoading(true);
@@ -111,39 +145,121 @@ export default function SearchPage() {
     }
   };
 
+  const clearFilters = () => {
+    setSelectedGenre(null);
+    setSelectedYear('all');
+    setSelectedCountry('all');
+  };
+
+  const hasActiveFilters = selectedGenre !== null || selectedYear !== 'all' || selectedCountry !== 'all';
+
+  const filteredResults = results.filter(movie => {
+    const matchesGenre = !selectedGenre || movie.genre_ids?.includes(selectedGenre);
+    const matchesYear = selectedYear === 'all' || movie.Year === selectedYear;
+    const matchesCountry = selectedCountry === 'all' || movie.origin_country?.includes(selectedCountry);
+    return matchesGenre && matchesYear && matchesCountry;
+  });
+
+  const years = Array.from(new Set(results.map(r => r.Year))).filter(Boolean).sort((a, b) => b.localeCompare(a));
+
   return (
     <div className="px-4 md:px-6 max-w-2xl mx-auto space-y-4 animate-fade-in">
-      <form onSubmit={(e) => e.preventDefault()} className="pt-4 md:pt-8">
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
-          <SearchIcon size={18} className="text-muted-foreground" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('typeToSearch')}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-            autoFocus
-          />
-          {query && !loading && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-md hover:bg-secondary-foreground/10"
-              aria-label="Clear search"
-            >
-              <X size={16} />
-            </button>
-          )}
-          {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
+      <div className="pt-4 md:pt-8 space-y-4">
+        {/* Search Input */}
+        <form onSubmit={(e) => e.preventDefault()}>
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
+            <SearchIcon size={18} className="text-muted-foreground" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('typeToSearch')}
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              autoFocus
+            />
+            {query && !loading && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-md hover:bg-secondary-foreground/10"
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
+            {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
+          </div>
+        </form>
+
+        {/* Filters Grid/Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {/* Genre Filter */}
+          <Select
+            value={selectedGenre?.toString() || "all"}
+            onValueChange={(val) => setSelectedGenre(val === "all" ? null : Number(val))}
+          >
+            <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
+              <SelectValue placeholder={t('filterGenre')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('anyGenre')}</SelectItem>
+              {genres.map(g => (
+                <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Year Filter */}
+          <Select
+            value={selectedYear}
+            onValueChange={setSelectedYear}
+          >
+            <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
+              <SelectValue placeholder={t('filterYear')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('allYears')}</SelectItem>
+              {years.map(y => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Country Filter */}
+          <Select
+            value={selectedCountry}
+            onValueChange={setSelectedCountry}
+          >
+            <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
+              <SelectValue placeholder={t('filterCountry')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('anyCountry')}</SelectItem>
+              {countries.map(c => (
+                <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Clear Filters */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            disabled={!hasActiveFilters}
+            className={`h-9 text-xs transition-opacity ${hasActiveFilters ? 'opacity-100' : 'opacity-0'}`}
+          >
+            {t('clearFilters')}
+          </Button>
         </div>
-      </form>
+      </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {results.length > 0 && (
+      {filteredResults.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground pb-1">{t('searchResults')}</p>
-          {results.map((movie) => (
+          {filteredResults.map((movie) => (
             <SearchResultCard
               key={movie.imdbID}
               movie={movie}
@@ -154,8 +270,19 @@ export default function SearchPage() {
         </div>
       )}
 
-      {!loading && results.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
+      {/* Empty States */}
+      {!loading && filteredResults.length === 0 && query && (
+        <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
+            <X size={28} className="text-muted-foreground/40" />
+          </div>
+          <h2 className="text-base font-semibold text-foreground mb-1.5">{t('noResults')}</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">{t('searchEmptyBody')}</p>
+        </div>
+      )}
+
+      {!loading && !query && (
+        <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <SearchIcon size={28} className="text-muted-foreground/40" />
           </div>

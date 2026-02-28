@@ -27,6 +27,8 @@ export interface MovieData {
   BoxOffice?: string;
   Production?: string;
   TrailerKey?: string;
+  genre_ids?: number[];
+  origin_country?: string[];
   addedAt?: number;
   [key: string]: unknown;
 }

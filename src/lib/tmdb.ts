@@ -25,6 +25,8 @@ interface TmdbSearchItem {
   poster_path: string | null;
   vote_average: number;
   overview: string;
+  genre_ids?: number[];
+  origin_country?: string[];
 }
 
 interface TmdbGenre { id: number; name: string; }
@@ -220,6 +222,8 @@ export async function searchMovies(query: string, page = 1, lang = 'en'): Promis
           Type: isTV ? 'series' : 'movie',
           imdbRating: r.vote_average ? r.vote_average.toFixed(1) : undefined,
           Plot: r.overview || undefined,
+          genre_ids: r.genre_ids,
+          origin_country: r.origin_country,
         };
       });
 
@@ -402,5 +406,33 @@ export async function detectCountry(): Promise<string> {
     return code;
   } catch {
     return 'US';
+  }
+}
+
+export async function getGenres(lang = 'en'): Promise<Record<string, { id: number, name: string }[]>> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    const [movieGenres, tvGenres] = await Promise.all([
+      tmdbFetch<{ genres: TmdbGenre[] }>('/genre/movie/list', tmdbLang),
+      tmdbFetch<{ genres: TmdbGenre[] }>('/genre/tv/list', tmdbLang)
+    ]);
+    return {
+      movie: movieGenres.genres,
+      tv: tvGenres.genres
+    };
+  } catch {
+    return { movie: [], tv: [] };
+  }
+}
+
+export async function getCountries(lang = 'en'): Promise<{ iso_3166_1: string, english_name: string, native_name: string }[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    return await tmdbFetch<{ iso_3166_1: string, english_name: string, native_name: string }[]>(
+      '/configuration/countries',
+      tmdbLang
+    );
+  } catch {
+    return [];
   }
 }
