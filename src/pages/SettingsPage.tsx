@@ -113,7 +113,7 @@ export default function SettingsPage() {
     setPrefs(newPrefs);
     await setContentPreferences(newPrefs);
     clearRecommendationsCache(lang);
-    queryClient.invalidateQueries({ queryKey: ['recommendations', lang] });
+    queryClient.removeQueries({ queryKey: ['recommendations', lang] });
   };
 
   const toggleItem = (category: keyof ContentPreferences, id: string | number, type: 'liked' | 'disliked') => {
