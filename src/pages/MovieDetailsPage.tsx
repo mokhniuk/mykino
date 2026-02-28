@@ -94,6 +94,7 @@ export default function MovieDetailsPage() {
     if (!movie) return;
     await addToWatchlist(movie);
     setInWatchlist(true);
+    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
   };
 
   const toggleFavourite = async () => {
@@ -109,6 +110,7 @@ export default function MovieDetailsPage() {
     setWatched(true);
     setInWatchlist(false);
     queryClient.invalidateQueries({ queryKey: ['watched'] });
+    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
   };
 
   const handleUnwatch = async () => {
@@ -118,6 +120,7 @@ export default function MovieDetailsPage() {
     setWatched(false);
     setInWatchlist(true);
     queryClient.invalidateQueries({ queryKey: ['watched'] });
+    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
   };
 
   if (loading) {
@@ -232,7 +235,7 @@ export default function MovieDetailsPage() {
             {/* Action Buttons (shown when not watched) */}
             <div className={`flex gap-3 w-full transition-all duration-500 ${watched ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
               <button
-                onClick={inWatchlist ? () => removeFromWatchlist(movie.imdbID).then(() => setInWatchlist(false)) : handleAddToWatchlist}
+                onClick={inWatchlist ? () => removeFromWatchlist(movie.imdbID).then(() => { setInWatchlist(false); queryClient.invalidateQueries({ queryKey: ['watchlist'] }); }) : handleAddToWatchlist}
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
                   ? 'w-[42px] bg-secondary text-primary'
                   : 'flex-1 bg-primary text-primary-foreground hover:opacity-90'

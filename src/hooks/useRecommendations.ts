@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { getPersonalizedRecommendations, clearRecommendationsCache } from '@/lib/recommendations';
-import { getWatched } from '@/lib/db';
+import { getWatched, getWatchlist } from '@/lib/db';
 import { useI18n } from '@/lib/i18n';
 
 export function useRecommendations() {
@@ -20,12 +20,21 @@ export function useRecommendations() {
     staleTime: 0,
   });
 
+  const { data: watchlist } = useQuery({
+    queryKey: ['watchlist'],
+    queryFn: getWatchlist,
+    staleTime: 0,
+  });
+
   const recommendations = useMemo(() => {
     if (!rawRecommendations) return [];
-    if (!watched?.length) return rawRecommendations;
-    const watchedIds = new Set(watched.map(m => m.imdbID));
-    return rawRecommendations.filter(m => !watchedIds.has(m.imdbID));
-  }, [rawRecommendations, watched]);
+    const excludedIds = new Set([
+      ...(watched ?? []).map(m => m.imdbID),
+      ...(watchlist ?? []).map(m => m.imdbID),
+    ]);
+    if (!excludedIds.size) return rawRecommendations;
+    return rawRecommendations.filter(m => !excludedIds.has(m.imdbID));
+  }, [rawRecommendations, watched, watchlist]);
 
   const refresh = () => {
     clearRecommendationsCache(lang);
