@@ -68,11 +68,10 @@ export default function SettingsPage() {
               <button
                 key={code}
                 onClick={() => setLang(code)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  lang === code
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${lang === code
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
-                }`}
+                  }`}
               >
                 {label}
               </button>
@@ -91,11 +90,10 @@ export default function SettingsPage() {
               <button
                 key={opt.value}
                 onClick={() => setTheme(opt.value)}
-                className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  theme === opt.value
+                className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${theme === opt.value
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
-                }`}
+                  }`}
               >
                 {opt.icon}
                 {opt.label}
@@ -139,7 +137,7 @@ export default function SettingsPage() {
           </div>
           <div className="text-sm text-muted-foreground space-y-1">
             <p><span className="text-foreground font-medium">MyKino</span> — {t('appDescription')}</p>
-            <p>{t('version')}: 1.3.3</p>
+            <p>{t('version')}: 1.4.0</p>
             <p>{t('dataStorage')}: IndexedDB</p>
             <p>
               API:{' '}
