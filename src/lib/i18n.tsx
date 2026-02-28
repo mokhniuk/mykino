@@ -116,6 +116,8 @@ const translations = {
     importDesc: 'Merge lists from a JSON backup',
     importSuccess: 'Data imported successfully',
     importError: 'Invalid backup file',
+    somethingNew: 'Something new',
+    somethingFamiliar: 'Something familiar',
   },
   ua: {
     goodMorning: 'Доброго ранку',
@@ -222,6 +224,8 @@ const translations = {
     importDesc: 'Об\'єднати списки з JSON-резервної копії',
     importSuccess: 'Дані успішно імпортовано',
     importError: 'Невірний файл резервної копії',
+    somethingNew: 'Щось нове',
+    somethingFamiliar: 'Щось знайоме',
   },
   de: {
     goodMorning: 'Guten Morgen',
@@ -328,6 +332,8 @@ const translations = {
     importDesc: 'Listen aus einem JSON-Backup zusammenführen',
     importSuccess: 'Daten erfolgreich importiert',
     importError: 'Ungültige Backup-Datei',
+    somethingNew: 'Etwas Neues',
+    somethingFamiliar: 'Etwas Vertrautes',
   },
 } as const;
 
