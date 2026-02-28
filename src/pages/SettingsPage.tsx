@@ -54,16 +54,11 @@ export default function SettingsPage() {
   }, []);
 
   const handleUpdate = () => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const registration of registrations) {
-          registration.unregister();
-        }
-        window.location.reload();
-      });
-    } else {
-      window.location.reload();
-    }
+    // The new SW is already active (skipWaiting + autoUpdate).
+    // Just navigate to root so the SW serves fresh content from the new precache.
+    // Do NOT unregister — that would bypass the SW and let the browser fetch
+    // stale/missing old-hash assets directly, causing a 404.
+    window.location.replace('/');
   };
 
   const isStandalone = useMemo(() =>
