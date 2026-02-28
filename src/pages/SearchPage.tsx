@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film } from 'lucide-react';
+import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies } from '@/lib/api';
 import {
@@ -46,11 +46,10 @@ function SearchResultCard({
       <div className="flex items-center  flex-shrink-0">
         <button
           onClick={(e) => { e.preventDefault(); onToggleWatchlist(); }}
-          className={`p-2.5 h-full rounded-r-xl transition-colors ${
-            inWatchlist
-              ? 'text-foreground bg-primary/10'
-              : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-          }`}
+          className={`p-2.5 h-full rounded-r-xl transition-colors ${inWatchlist
+            ? 'text-foreground bg-primary/10'
+            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+            }`}
         >
           {inWatchlist ? <BookmarkCheck size={24} /> : <BookmarkPlus size={24} />}
         </button>
@@ -118,13 +117,23 @@ export default function SearchPage() {
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
           <SearchIcon size={18} className="text-muted-foreground" />
           <input
-            type="text"
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('typeToSearch')}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             autoFocus
           />
+          {query && !loading && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-md hover:bg-secondary-foreground/10"
+              aria-label="Clear search"
+            >
+              <X size={16} />
+            </button>
+          )}
           {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
         </div>
       </form>
