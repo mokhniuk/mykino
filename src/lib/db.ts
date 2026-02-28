@@ -29,6 +29,7 @@ export interface MovieData {
   TrailerKey?: string;
   genre_ids?: number[];
   origin_country?: string[];
+  original_language?: string;
   addedAt?: number;
   [key: string]: unknown;
 }

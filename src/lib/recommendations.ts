@@ -9,70 +9,81 @@ export async function getPersonalizedRecommendations(lang = 'en'): Promise<Movie
     ]);
 
     const watchedIds = new Set(watched.map(m => m.imdbID));
-    const favouriteIds = new Set(favourites.map(m => m.imdbID));
-
-    // 1. Get native recommendations based on favourites or recent watched
-    const seeds = favourites.length > 0
-        ? favourites.sort(() => 0.5 - Math.random()).slice(0, 2)
-        : watched.sort(() => 0.5 - Math.random()).slice(0, 1);
-
-    const nativePromises = seeds.map(m => getRecommendations(m.imdbID, m.Type === 'series' ? 'tv' : 'movie', lang));
-    const nativeResultsSets = await Promise.all(nativePromises);
-    const nativeResults = nativeResultsSets.flat();
-
-    // 2. Use Discover as the primary preference engine
-    const genreIds = prefs.liked_genres.length > 0 ? prefs.liked_genres.join(',') : undefined;
-    const withoutGenreIds = prefs.disliked_genres.length > 0 ? prefs.disliked_genres.join(',') : undefined;
-    const country = prefs.liked_countries.length > 0 ? prefs.liked_countries[0] : undefined;
-    const withoutCountry = prefs.disliked_countries.length > 0 ? prefs.disliked_countries[0] : undefined;
-    const language = prefs.liked_languages.length > 0 ? prefs.liked_languages[0] : undefined;
-    const withoutLanguage = prefs.disliked_languages.length > 0 ? prefs.disliked_languages[0] : undefined;
-
-    const discoverResults = await discoverMovies({
-        genre: genreIds,
-        without_genres: withoutGenreIds,
-        country: country,
-        without_country: withoutCountry,
-        language: language,
-        without_language: withoutLanguage,
-        lang,
-        page: 1,
-        sort_by: 'popularity.desc'
-    });
-
-    const discoverItems = discoverResults.Search || [];
-
-    // Mix and filter
-    // We want to prioritize native recommendations but also respect dislikes
     const dislikedGenreSet = new Set(prefs.disliked_genres);
+    const dislikedCountrySet = new Set(prefs.disliked_countries);
+    const dislikedLanguageSet = new Set(prefs.disliked_languages);
 
-    let combined = [...nativeResults, ...discoverItems];
+    // Dislikes are hard constraints — passed to every discover call
+    const withoutGenres = prefs.disliked_genres.length > 0 ? prefs.disliked_genres.join(',') : undefined;
 
-    // Filter: Not watched, not disliked (if genre info is available)
-    const finalResults = combined.filter(m => {
+    const requests: Promise<MovieData[]>[] = [];
+
+    // 1. Native TMDB recommendations — seeded by most-recently-added favourites/watched
+    const seeds = (favourites.length > 0 ? favourites : watched)
+        .slice()
+        .sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))
+        .slice(0, 3);
+
+    for (const seed of seeds) {
+        requests.push(
+            getRecommendations(seed.imdbID, seed.Type === 'series' ? 'tv' : 'movie', lang)
+        );
+    }
+
+    // 2. Genre discover — OR logic (pipe separator), no country/language restriction
+    if (prefs.liked_genres.length > 0) {
+        requests.push(
+            discoverMovies({
+                genre: prefs.liked_genres.join('|'),
+                without_genres: withoutGenres,
+                lang,
+                sort_by: 'popularity.desc'
+            }).then(r => r.Search ?? [])
+        );
+    }
+
+    // 3. Per-liked-country discover — separate call each (OR logic), capped at 3
+    for (const country of prefs.liked_countries.slice(0, 3)) {
+        requests.push(
+            discoverMovies({ country, without_genres: withoutGenres, lang, sort_by: 'popularity.desc' })
+                .then(r => r.Search ?? [])
+        );
+    }
+
+    // 4. Per-liked-language discover — separate call each (OR logic), capped at 3
+    for (const language of prefs.liked_languages.slice(0, 3)) {
+        requests.push(
+            discoverMovies({ language, without_genres: withoutGenres, lang, sort_by: 'popularity.desc' })
+                .then(r => r.Search ?? [])
+        );
+    }
+
+    // 5. Fallback if no preferences and no history at all
+    if (requests.length === 0) {
+        requests.push(
+            discoverMovies({ lang, sort_by: 'popularity.desc' }).then(r => r.Search ?? [])
+        );
+    }
+
+    const allResults = (await Promise.all(requests)).flat();
+
+    // Post-filter: remove watched + anything matching any disliked genre, country, or language
+    const filtered = allResults.filter(m => {
         if (watchedIds.has(m.imdbID)) return false;
-
-        // If it has genre_ids, check against dislikes
-        if (m.genre_ids && m.genre_ids.some(id => dislikedGenreSet.has(id))) return false;
-
+        if (m.genre_ids?.some(id => dislikedGenreSet.has(id))) return false;
+        if (m.origin_country?.some(c => dislikedCountrySet.has(c))) return false;
+        if (m.original_language && dislikedLanguageSet.has(m.original_language)) return false;
         return true;
     });
 
-    // De-duplicate by ID
-    const unique = Array.from(new Map(finalResults.map(m => [m.imdbID, m])).values());
+    // Deduplicate by ID
+    const unique = Array.from(new Map(filtered.map(m => [m.imdbID, m])).values());
 
-    // If we have very few results, try a broader discover (top 100 movies or just liked genres)
-    if (unique.length < 5 && genreIds) {
-        const broader = await discoverMovies({
-            genre: genreIds,
-            without_genres: withoutGenreIds,
-            lang,
-            page: 1
-        });
-        const broaderFiltered = (broader.Search || []).filter(m => !watchedIds.has(m.imdbID));
-        unique.push(...broaderFiltered);
+    // Fisher-Yates shuffle (unbiased)
+    for (let i = unique.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [unique[i], unique[j]] = [unique[j], unique[i]];
     }
 
-    // Final shuffle and take 20
-    return unique.sort(() => 0.5 - Math.random()).slice(0, 20);
+    return unique.slice(0, 20);
 }

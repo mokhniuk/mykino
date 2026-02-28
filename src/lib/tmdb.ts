@@ -27,6 +27,7 @@ interface TmdbSearchItem {
   overview: string;
   genre_ids?: number[];
   origin_country?: string[];
+  original_language?: string;
 }
 
 interface TmdbGenre { id: number; name: string; }
@@ -196,6 +197,7 @@ function mapTmdbItemToMovieData(item: TmdbSearchItem, type: 'movie' | 'tv' | 'se
     Plot: item.overview || undefined,
     genre_ids: item.genre_ids,
     origin_country: item.origin_country,
+    original_language: item.original_language,
   };
 }
 
