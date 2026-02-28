@@ -8,23 +8,29 @@ export function useRecommendations() {
   const { lang } = useI18n();
   const queryClient = useQueryClient();
 
-  const { data: rawRecommendations, isLoading, isFetching } = useQuery({
+  const { data: rawRecommendations, isLoading: recoLoading, isFetching } = useQuery({
     queryKey: ['recommendations', lang],
     queryFn: () => getPersonalizedRecommendations(lang),
     staleTime: Infinity,
   });
 
-  const { data: watched } = useQuery({
+  // staleTime matches session length — data stays fresh until explicitly invalidated
+  // (MovieDetailsPage invalidates on watched/watchlist changes)
+  const { data: watched, isLoading: watchedLoading } = useQuery({
     queryKey: ['watched'],
     queryFn: getWatched,
-    staleTime: 0,
+    staleTime: 60 * 60 * 1000,
   });
 
-  const { data: watchlist } = useQuery({
+  const { data: watchlist, isLoading: watchlistLoading } = useQuery({
     queryKey: ['watchlist'],
     queryFn: getWatchlist,
-    staleTime: 0,
+    staleTime: 60 * 60 * 1000,
   });
+
+  // Hold isLoading true until all three queries have data so the UI never
+  // shows an unfiltered list that then shrinks when watched/watchlist arrive.
+  const isLoading = recoLoading || watchedLoading || watchlistLoading;
 
   const recommendations = useMemo(() => {
     if (!rawRecommendations) return [];

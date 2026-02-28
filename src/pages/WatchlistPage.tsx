@@ -58,7 +58,17 @@ export default function WatchlistPage() {
         </Select>
       </div>
 
-      {filtered.length > 0 ? (
+      {!loaded ? (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
+          {[...Array(12)].map((_, i) => (
+            <div key={i} className="flex flex-col gap-2">
+              <div className="aspect-[2/3] rounded-xl bg-secondary animate-pulse" />
+              <div className="h-2.5 bg-secondary rounded animate-pulse" />
+              <div className="h-2.5 w-2/3 bg-secondary rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
           {filtered.map((movie) => (
             <MovieCard
