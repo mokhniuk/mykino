@@ -7,19 +7,27 @@ import {
   addToWatched,
   type MovieData,
 } from '@/lib/db';
+import { getMovieDetails } from '@/lib/tmdb';
 import MovieCard from '@/components/MovieCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Filter = 'all' | 'movie' | 'series';
 
 export default function WatchlistPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [movies, setMovies] = useState<MovieData[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
 
   useEffect(() => {
-    getWatchlist().then(setMovies);
-  }, []);
+    let cancelled = false;
+    getWatchlist().then(async (list) => {
+      const localized = await Promise.all(
+        list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
+      );
+      if (!cancelled) setMovies(localized);
+    });
+    return () => { cancelled = true; };
+  }, [lang]);
 
   const handleMarkWatched = async (movie: MovieData) => {
     await addToWatched(movie);

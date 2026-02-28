@@ -6,28 +6,35 @@ import {
   getWatched, isInFavourites,
   type MovieData,
 } from '@/lib/db';
+import { getMovieDetails } from '@/lib/tmdb';
 import MovieCard from '@/components/MovieCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Filter = 'all' | 'movie' | 'series';
 
 export default function WatchedPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [movies, setMovies] = useState<MovieData[]>([]);
   const [favIds, setFavIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<Filter>('all');
   const [favOnly, setFavOnly] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     getWatched().then(async (list) => {
-      setMovies(list);
+      const localized = await Promise.all(
+        list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
+      );
+      if (cancelled) return;
+      setMovies(localized);
       const fSet = new Set<string>();
       for (const m of list) {
         if (await isInFavourites(m.imdbID)) fSet.add(m.imdbID);
       }
-      setFavIds(fSet);
+      if (!cancelled) setFavIds(fSet);
     });
-  }, []);
+    return () => { cancelled = true; };
+  }, [lang]);
 
   const filtered = movies
     .filter((m) => filter === 'all' || (m.Type || 'movie') === filter)

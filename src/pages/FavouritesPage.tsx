@@ -7,26 +7,33 @@ import {
   addToWatchlist, removeFromWatchlist, isInWatchlist,
   type MovieData,
 } from '@/lib/db';
+import { getMovieDetails } from '@/lib/tmdb';
 import MovieCard from '@/components/MovieCard';
 
 type Tab = 'movie' | 'series';
 
 export default function FavouritesPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [movies, setMovies] = useState<MovieData[]>([]);
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<Tab>('movie');
 
   useEffect(() => {
+    let cancelled = false;
     getFavourites().then(async (list) => {
-      setMovies(list);
+      const localized = await Promise.all(
+        list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
+      );
+      if (cancelled) return;
+      setMovies(localized);
       const wSet = new Set<string>();
       for (const m of list) {
         if (await isInWatchlist(m.imdbID)) wSet.add(m.imdbID);
       }
-      setWatchlistIds(wSet);
+      if (!cancelled) setWatchlistIds(wSet);
     });
-  }, []);
+    return () => { cancelled = true; };
+  }, [lang]);
 
   const handleRemove = async (id: string) => {
     await removeFromFavourites(id);
