@@ -1,8 +1,10 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem, RefreshCw, ChevronLeft } from 'lucide-react';
+import { ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem, RefreshCw, ChevronLeft, Loader2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import { SLUG_TO_SECTION_ID, type RecoSection } from '@/lib/recommendations';
+import { SLUG_TO_SECTION_ID, loadMoreForSection, FETCH_PAGES, type RecoSection } from '@/lib/recommendations';
+import type { MovieData } from '@/lib/db';
 import MovieCard from '@/components/MovieCard';
 
 const SECTION_ICONS: Record<RecoSection['id'], React.ReactNode> = {
@@ -27,16 +29,71 @@ const SECTION_TITLE_KEYS: Record<RecoSection['id'], SectionTitleKey> = {
 
 export default function RecoSectionPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { sections, isLoading, isFetching, refresh } = useRecommendations();
 
   const sectionId = slug ? SLUG_TO_SECTION_ID[slug] : undefined;
   const section = sectionId ? sections.find(s => s.id === sectionId) : undefined;
 
+  const [allMovies, setAllMovies] = useState<MovieData[]>([]);
+  const [nextPage, setNextPage] = useState(FETCH_PAGES + 1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Keep a ref to loadMore so the observer never holds a stale closure
+  const loadMoreRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
+  // Sync with cached section when it first arrives / changes
+  useEffect(() => {
+    if (section) {
+      setAllMovies(section.movies);
+      setNextPage(FETCH_PAGES + 1);
+      setHasMore(true);
+    }
+  }, [section]);
+
+  const loadMore = useCallback(async () => {
+    if (!sectionId || isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const shownIds = new Set(allMovies.map(m => m.imdbID));
+      const { movies, nextPage: newPage } = await loadMoreForSection(sectionId, lang, nextPage, shownIds);
+      if (movies.length === 0) {
+        setHasMore(false);
+      } else {
+        setAllMovies(prev => {
+          const existingIds = new Set(prev.map(m => m.imdbID));
+          const fresh = movies.filter(m => !existingIds.has(m.imdbID));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+        setNextPage(newPage);
+      }
+    } catch {
+      setHasMore(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [sectionId, lang, nextPage, isLoadingMore, hasMore, allMovies]);
+
+  useEffect(() => { loadMoreRef.current = loadMore; }, [loadMore]);
+
+  // Single stable observer — fires loadMoreRef.current which always points to latest closure
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadMoreRef.current(); },
+      { rootMargin: '400px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []); // intentionally empty — observer is created once, loadMoreRef keeps it current
+
   const title = sectionId
     ? section?.id === 'becauseLiked' && section.seedTitle
       ? `${t(SECTION_TITLE_KEYS[sectionId])} ${section.seedTitle}`
-      : t(SECTION_TITLE_KEYS[sectionId] ?? 'forYou')
+      : t(SECTION_TITLE_KEYS[sectionId])
     : '';
 
   let subtitle: string | null = null;
@@ -63,7 +120,7 @@ export default function RecoSectionPage() {
         </button>
       </div>
 
-      {subtitle && <p className="text-sm text-muted-foreground mb-6">{subtitle}</p>}
+      {subtitle && <p className="text-sm text-muted-foreground mb-4">{subtitle}</p>}
 
       {isLoading ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4 mt-6">
@@ -75,12 +132,19 @@ export default function RecoSectionPage() {
             </div>
           ))}
         </div>
-      ) : section && section.movies.length > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4 mt-6">
-          {section.movies.slice(0, 100).map(movie => (
-            <MovieCard key={movie.imdbID} movie={movie} fluid />
-          ))}
-        </div>
+      ) : allMovies.length > 0 ? (
+        <>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4 mt-6">
+            {allMovies.map(movie => (
+              <MovieCard key={movie.imdbID} movie={movie} fluid />
+            ))}
+          </div>
+
+          {/* Sentinel div — observed by IntersectionObserver to trigger loadMore */}
+          <div ref={sentinelRef} className="py-8 flex justify-center">
+            {isLoadingMore && <Loader2 size={24} className="animate-spin text-muted-foreground" />}
+          </div>
+        </>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">

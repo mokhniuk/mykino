@@ -3,7 +3,8 @@ import { discoverMovies, getRecommendations, getTrending, getNowPlaying, getPopu
 import { getOrBuildTasteProfile, invalidateTasteProfile, type TasteProfile } from './tasteProfile';
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
-const FETCH_PAGES = 5; // pages fetched per source on first build
+export const FETCH_PAGES = 5;       // pages fetched per source on first build
+const LOAD_MORE_PAGES = 3;          // pages fetched per infinite-scroll batch
 
 /** Fetches FETCH_PAGES pages in parallel, tolerating individual page failures. */
 async function fetchPages(fetcher: (page: number) => Promise<MovieData[]>): Promise<MovieData[]> {
@@ -285,4 +286,127 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
 
   await setSectionCache(lang, sections);
   return sections;
+}
+
+/**
+ * Fetches the next batch of movies for a section page (infinite scroll).
+ * `nextPage` is the first TMDB page to request; returns the updated nextPage.
+ * `alreadyShownIds` prevents duplicates across batches.
+ */
+export async function loadMoreForSection(
+  sectionId: RecoSection['id'],
+  lang: string,
+  nextPage: number,
+  alreadyShownIds: Set<string>,
+): Promise<{ movies: MovieData[]; nextPage: number }> {
+  const [prefs, watched, watchlist, profile] = await Promise.all([
+    getContentPreferences(),
+    getWatched(),
+    getWatchlist(),
+    getOrBuildTasteProfile(),
+  ]);
+
+  const excludeIds = new Set([
+    ...watched.map(m => m.imdbID),
+    ...watchlist.map(m => m.imdbID),
+    ...alreadyShownIds,
+  ]);
+
+  const dislikedGenres = new Set(prefs.disliked_genres);
+  const dislikedCountries = new Set(prefs.disliked_countries);
+  const dislikedLanguages = new Set(prefs.disliked_languages);
+  const topGenres = profile.topGenres.length > 0 ? profile.topGenres : prefs.liked_genres;
+
+  const pageNums = Array.from({ length: LOAD_MORE_PAGES }, (_, i) => nextPage + i);
+
+  let rawMovies: MovieData[] = [];
+
+  switch (sectionId) {
+    case 'becauseLiked': {
+      const [savedDate, savedId] = await Promise.all([
+        getSetting('daily_seed_date'),
+        getSetting('daily_seed_id'),
+      ]);
+      const today = new Date().toISOString().slice(0, 10);
+      if (savedDate === today && savedId) {
+        const seedType: 'movie' | 'tv' = savedId.startsWith('tv-') ? 'tv' : 'movie';
+        const batches = await Promise.allSettled(
+          pageNums.flatMap(p => [
+            getRecommendations(savedId, seedType, lang, p),
+            getSimilar(savedId, seedType, lang, p),
+          ])
+        );
+        rawMovies = batches
+          .filter((r): r is PromiseFulfilledResult<MovieData[]> => r.status === 'fulfilled')
+          .flatMap(r => r.value);
+      }
+      break;
+    }
+    case 'byGenre': {
+      if (topGenres.length > 0) {
+        const batches = await Promise.allSettled(
+          pageNums.map(p => discoverMovies({
+            genre: topGenres.slice(0, 3).join('|'),
+            vote_average_gte: 6.5,
+            vote_count_gte: 200,
+            sort_by: 'popularity.desc',
+            lang,
+            page: p,
+          }).then(r => r.Search ?? []))
+        );
+        rawMovies = batches
+          .filter((r): r is PromiseFulfilledResult<MovieData[]> => r.status === 'fulfilled')
+          .flatMap(r => r.value);
+      }
+      break;
+    }
+    case 'nowPlaying': {
+      const batches = await Promise.allSettled(pageNums.map(p => getNowPlaying(lang, p)));
+      rawMovies = batches
+        .filter((r): r is PromiseFulfilledResult<MovieData[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value);
+      break;
+    }
+    case 'trending': {
+      const batches = await Promise.allSettled(pageNums.map(p => getTrending(lang, p)));
+      rawMovies = batches
+        .filter((r): r is PromiseFulfilledResult<MovieData[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value);
+      break;
+    }
+    case 'popular': {
+      const batches = await Promise.allSettled(pageNums.map(p => getPopular(lang, p)));
+      rawMovies = batches
+        .filter((r): r is PromiseFulfilledResult<MovieData[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value);
+      break;
+    }
+    case 'hiddenGems': {
+      const batches = await Promise.allSettled(
+        pageNums.map(p => discoverMovies({
+          vote_average_gte: 7.5,
+          vote_count_gte: 100,
+          vote_count_lte: 5000,
+          sort_by: 'vote_average.desc',
+          lang,
+          page: p,
+        }).then(r => r.Search ?? []))
+      );
+      rawMovies = batches
+        .filter((r): r is PromiseFulfilledResult<MovieData[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value);
+      break;
+    }
+  }
+
+  const movies = filterAndScore(
+    dedupeByImdbID(rawMovies),
+    excludeIds,
+    dislikedGenres,
+    dislikedCountries,
+    dislikedLanguages,
+    profile,
+  );
+
+  return { movies, nextPage: nextPage + LOAD_MORE_PAGES };
 }
