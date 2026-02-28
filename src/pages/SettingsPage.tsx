@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences } from '@/lib/db';
+import { triggerSWUpdate } from '@/lib/sw-update';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -54,11 +55,7 @@ export default function SettingsPage() {
   }, []);
 
   const handleUpdate = () => {
-    // The new SW is already active (skipWaiting + autoUpdate).
-    // Just navigate to root so the SW serves fresh content from the new precache.
-    // Do NOT unregister — that would bypass the SW and let the browser fetch
-    // stale/missing old-hash assets directly, causing a 404.
-    window.location.replace('/');
+    triggerSWUpdate();
   };
 
   const isStandalone = useMemo(() =>

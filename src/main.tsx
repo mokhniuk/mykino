@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { registerSW } from 'virtual:pwa-register';
+import { setUpdateSW } from './lib/sw-update';
 import App from "./App.tsx";
 import "./index.css";
 
@@ -10,6 +11,9 @@ const updateSW = registerSW({
   },
   onOfflineReady() {},
 });
+
+// Expose for manual trigger (e.g. Settings page update button).
+setUpdateSW(updateSW);
 
 // After a SW update, old hashed chunk files no longer exist in the new cache.
 // Vite fires this event when a dynamic import or preload fails to load.
