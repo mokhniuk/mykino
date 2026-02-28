@@ -16,15 +16,17 @@ type Filter = 'all' | 'movie' | 'series';
 export default function WatchlistPage() {
   const { t, lang } = useI18n();
   const [movies, setMovies] = useState<MovieData[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     getWatchlist().then(async (list) => {
       const localized = await Promise.all(
         list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
       );
-      if (!cancelled) setMovies(localized);
+      if (!cancelled) { setMovies(localized); setLoaded(true); }
     });
     return () => { cancelled = true; };
   }, [lang]);
@@ -40,7 +42,10 @@ export default function WatchlistPage() {
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
-        <h1 className="text-2xl md:text-3xl text-foreground">{t('watchlist')}</h1>
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-2xl md:text-3xl text-foreground">{t('watchlist')}</h1>
+          {loaded && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
+        </div>
         <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
           <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
             <SelectValue />

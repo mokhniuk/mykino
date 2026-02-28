@@ -15,17 +15,20 @@ type Tab = 'movie' | 'series';
 export default function FavouritesPage() {
   const { t, lang } = useI18n();
   const [movies, setMovies] = useState<MovieData[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<Tab>('movie');
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     getFavourites().then(async (list) => {
       const localized = await Promise.all(
         list.map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
       );
       if (cancelled) return;
       setMovies(localized);
+      setLoaded(true);
       const wSet = new Set<string>();
       for (const m of list) {
         if (await isInWatchlist(m.imdbID)) wSet.add(m.imdbID);
@@ -60,7 +63,10 @@ export default function FavouritesPage() {
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
-        <h1 className="text-2xl md:text-3xl text-foreground">{t('favourites')}</h1>
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-2xl md:text-3xl text-foreground">{t('favourites')}</h1>
+          {loaded && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
+        </div>
         <div className="flex gap-0.5 p-1 bg-secondary rounded-xl">
           {tabs.map((tb) => (
             <button
