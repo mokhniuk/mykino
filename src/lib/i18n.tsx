@@ -142,6 +142,7 @@ const translations = {
     exclude: 'Exclude',
     include: 'Include',
     emptyForYouHint: 'Add movies to your favourites or watchlist to get personalized recommendations.',
+    pwaTransferTip: 'The browser and home screen app store data separately. To transfer: tap Export, save the file, then open the app and Import.',
   },
   ua: {
     goodMorning: 'Доброго ранку',
@@ -274,6 +275,7 @@ const translations = {
     exclude: 'Виключити',
     include: 'Включити',
     emptyForYouHint: 'Додайте фільми до улюблених або списку перегляду, щоб отримати персональні рекомендації.',
+    pwaTransferTip: 'Браузер та додаток на головному екрані зберігають дані окремо. Для передачі: натисніть Експорт, збережіть файл, потім відкрийте додаток і натисніть Імпорт.',
   },
   de: {
     goodMorning: 'Guten Morgen',
@@ -406,6 +408,7 @@ const translations = {
     exclude: 'Ausschließen',
     include: 'Einschließen',
     emptyForYouHint: 'Füge Filme zu deinen Favoriten oder der Merkliste hinzu, um personalisierte Empfehlungen zu erhalten.',
+    pwaTransferTip: 'Browser und Home-Screen-App speichern Daten getrennt. Zum Übertragen: Exportieren tippen, Datei speichern, dann App öffnen und Importieren.',
   },
 } as const;
 

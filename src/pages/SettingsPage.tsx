@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, ThumbsUp, ThumbsDown, Plus, X } from 'lucide-react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, ThumbsUp, ThumbsDown, Plus, X, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
@@ -66,13 +66,31 @@ export default function SettingsPage() {
     }
   };
 
+  const isStandalone = useMemo(() =>
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  , []);
+
   const handleExport = async () => {
     const data = await exportAllData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const json = JSON.stringify(data, null, 2);
+    const filename = `mykino-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const file = new File([json], filename, { type: 'application/json' });
+
+    // On mobile, prefer the native share sheet (lets user save to Files, AirDrop, etc.)
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'MyKino backup' });
+        return;
+      } catch {
+        // User cancelled — fall through to download
+      }
+    }
+
+    const url = URL.createObjectURL(file);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mykino-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -295,6 +313,17 @@ export default function SettingsPage() {
             <Database size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('dataManagement')}</h2>
           </div>
+
+          {/* Browser ↔ PWA transfer tip — only shown in browser, not in standalone */}
+          {!isStandalone && (
+            <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+              <Smartphone size={14} className="text-primary mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('pwaTransferTip')}
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handleExport}
