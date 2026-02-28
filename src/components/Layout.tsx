@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { Home, Search, BookmarkPlus, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
@@ -11,8 +12,17 @@ const navItems = [
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const navigationType = useNavigationType();
   const { t } = useI18n();
+
+  useEffect(() => {
+    if (navigationType !== 'POP') {
+      window.scrollTo(0, 0);
+    }
+  }, [location.pathname, navigationType]);
+
+  const { pathname } = location;
 
   return (
     <div className="min-h-screen bg-background">
