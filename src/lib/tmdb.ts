@@ -133,8 +133,10 @@ function getBestTrailer(videos?: { results: TmdbVideo[] }): string | undefined {
 
 function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
   const { director, writer, actors } = mapCredits(data.credits);
+  // Ensure storeId is prefixed appropriately if it lacks a prefix and isn't a tt- id
+  const finalId = storeId.startsWith('tt') || storeId.startsWith('m-') ? storeId : `m-${storeId}`;
   return {
-    imdbID: storeId,
+    imdbID: finalId,
     Title: data.title,
     OriginalTitle: data.original_title !== data.title ? data.original_title : undefined,
     Year: data.release_date?.slice(0, 4) ?? '',
@@ -163,8 +165,10 @@ function mapTVDetail(data: TmdbTVDetail, storeId: string): MovieData {
     .map(c => c.name)
     .join(', ') || undefined;
   const runtime = data.episode_run_time?.[0];
+  // Ensure storeId is prefixed appropriately if it lacks a prefix and isn't a tt- id
+  const finalId = storeId.startsWith('tt') || storeId.startsWith('tv-') ? storeId : `tv-${storeId}`;
   return {
-    imdbID: storeId,
+    imdbID: finalId,
     Title: data.name,
     OriginalTitle: data.original_name !== data.name ? data.original_name : undefined,
     Year: data.first_air_date?.slice(0, 4) ?? '',
@@ -187,8 +191,9 @@ function mapTVDetail(data: TmdbTVDetail, storeId: string): MovieData {
 
 function mapTmdbItemToMovieData(item: TmdbSearchItem, type: 'movie' | 'tv' | 'series' = 'movie'): MovieData {
   const isTV = type === 'tv' || type === 'series' || item.media_type === 'tv';
+  const prefix = isTV ? 'tv-' : 'm-';
   return {
-    imdbID: String(item.id),
+    imdbID: `${prefix}${item.id}`,
     Title: isTV ? (item.name ?? '') : (item.title ?? ''),
     Year: (isTV ? item.first_air_date : item.release_date)?.slice(0, 4) ?? '',
     Poster: posterUrl(item.poster_path),
@@ -231,8 +236,9 @@ export async function searchMovies(query: string, page = 1, lang = 'en'): Promis
       .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
       .map(r => {
         const isTV = r.media_type === 'tv';
+        const prefix = isTV ? 'tv-' : 'm-';
         return {
-          imdbID: String(r.id),
+          imdbID: `${prefix}${r.id}`,
           Title: isTV ? (r.name ?? '') : (r.title ?? ''),
           Year: (isTV ? r.first_air_date : r.release_date)?.slice(0, 4) ?? '',
           Poster: posterUrl(r.poster_path),
@@ -314,16 +320,19 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
       return cached ?? null;
     }
 
-    // TMDB numeric ID — use Type from cache to pick the right endpoint
-    if (cached?.Type === 'series') {
-      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=credits,videos`, tmdbLang);
+    // TMDB numeric (or prefixed) ID — use Type from cache to pick the right endpoint or infer from prefix
+    const isTV = cached?.Type === 'series' || id.startsWith('tv-');
+    const rawId = id.replace(/^(m-|tv-)/, '');
+
+    if (isTV) {
+      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${rawId}?append_to_response=credits,videos`, tmdbLang);
       let movie = mapTVDetail(detail, id);
       movie._full = true;
 
       // Fallback for series trailers
       if (!movie.TrailerKey && lang !== 'en') {
         try {
-          const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=videos`, 'en-US');
+          const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${rawId}?append_to_response=videos`, 'en-US');
           const originalTrailer = getBestTrailer(originalDetail.videos);
           if (originalTrailer) {
             movie = { ...movie, TrailerKey: originalTrailer };
@@ -337,14 +346,14 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
 
     // Default: try movie, fall back to TV
     try {
-      const detail = await tmdbFetch<TmdbMovieDetail>(`/movie/${id}?append_to_response=credits,videos`, tmdbLang);
+      const detail = await tmdbFetch<TmdbMovieDetail>(`/movie/${rawId}?append_to_response=credits,videos`, tmdbLang);
       let movie = mapMovieDetail(detail, id);
       movie._full = true;
 
       // Fallback for trailers: if localized trailer is missing, try fetching original (English)
       if (!movie.TrailerKey && lang !== 'en') {
         try {
-          const originalDetail = await tmdbFetch<TmdbMovieDetail>(`/movie/${id}?append_to_response=videos`, 'en-US');
+          const originalDetail = await tmdbFetch<TmdbMovieDetail>(`/movie/${rawId}?append_to_response=videos`, 'en-US');
           const originalTrailer = getBestTrailer(originalDetail.videos);
           if (originalTrailer) {
             movie = { ...movie, TrailerKey: originalTrailer };
@@ -355,14 +364,14 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
       await cacheMovie({ ...movie, _lang: lang });
       return movie;
     } catch {
-      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=credits,videos`, tmdbLang);
+      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${rawId}?append_to_response=credits,videos`, tmdbLang);
       let movie = mapTVDetail(detail, id);
       movie._full = true;
 
       // Fallback for series trailers
       if (!movie.TrailerKey && lang !== 'en') {
         try {
-          const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=videos`, 'en-US');
+          const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${rawId}?append_to_response=videos`, 'en-US');
           const originalTrailer = getBestTrailer(originalDetail.videos);
           if (originalTrailer) {
             movie = { ...movie, TrailerKey: originalTrailer };
@@ -386,8 +395,8 @@ export async function getWatchProviders(
   if (!API_KEY) return null;
 
   try {
-    let tmdbId = id;
-    let mediaType = type === 'series' ? 'tv' : 'movie';
+    let tmdbId = id.replace(/^(m-|tv-)/, '');
+    let mediaType = type === 'series' || id.startsWith('tv-') ? 'tv' : 'movie';
 
     if (id.startsWith('tt')) {
       const found = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`);
@@ -486,19 +495,21 @@ export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'mov
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {
     // We need to find the TMDB ID first if we only have imdbID
-    let tmdbId = id;
+    let tmdbId = id.replace(/^(m-|tv-)/, '');
+    const actualType = id.startsWith('tv-') ? 'tv' : id.startsWith('m-') ? 'movie' : type;
+
     if (id.startsWith('tt')) {
       const findRes = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`);
-      const results = type === 'movie' ? findRes.movie_results : findRes.tv_results;
+      const results = actualType === 'movie' ? findRes.movie_results : findRes.tv_results;
       if (results.length === 0) return [];
       tmdbId = String(results[0].id);
     }
 
     const data = await tmdbFetch<{ results: TmdbSearchItem[] }>(
-      `/${type}/${tmdbId}/recommendations`,
+      `/${actualType}/${tmdbId}/recommendations`,
       tmdbLang
     );
-    return data.results.map(item => mapTmdbItemToMovieData(item, type));
+    return data.results.map(item => mapTmdbItemToMovieData(item, actualType));
   } catch {
     return [];
   }

@@ -44,6 +44,42 @@ export interface ContentPreferences {
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
+let migrationPromise: Promise<void> | null = null;
+
+async function runMigration(db: IDBPDatabase) {
+  const isMigrated = await db.get('settings', 'id_migration_done');
+  if (isMigrated?.value === 'true') return;
+
+  const storesToMigrate = ['movies', 'watchlist', 'favourites', 'watched'];
+  for (const storeName of storesToMigrate) {
+    if (!db.objectStoreNames.contains(storeName)) continue;
+
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    let cursor = await store.openCursor();
+
+    while (cursor) {
+      const item = cursor.value as MovieData;
+      // If the ID is purely numeric, it's a legacy TMDB ID
+      if (/^\d+$/.test(item.imdbID)) {
+        const prefix = item.Type === 'series' || item.Type === 'tv' ? 'tv-' : 'm-';
+        const newId = `${prefix}${item.imdbID}`;
+        
+        // Delete old record
+        await cursor.delete();
+        
+        // Add new record with prefixed ID
+        const newItem = { ...item, imdbID: newId };
+        await store.put(newItem);
+      }
+      cursor = await cursor.continue();
+    }
+  }
+
+  // Mark migration as complete
+  const txSettings = db.transaction('settings', 'readwrite');
+  await txSettings.objectStore('settings').put({ key: 'id_migration_done', value: 'true' });
+}
 
 function getDB() {
   if (!dbPromise) {
@@ -60,8 +96,13 @@ function getDB() {
         }
       },
     });
+    
+    // Chain migration to initialization so it only runs once per boot
+    migrationPromise = dbPromise.then(runMigration);
   }
-  return dbPromise;
+  
+  // Wait for migration to finish before returning DB in case callers need migrated data
+  return migrationPromise ? migrationPromise.then(() => dbPromise!) : dbPromise;
 }
 
 // Movies cache
