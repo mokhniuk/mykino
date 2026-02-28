@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, BookmarkPlus, Star, Clock, CheckCircle2, Heart, Globe, ChevronDown,
+  ArrowLeft, BookmarkPlus, BookmarkCheck, Star, Clock, CheckCircle2, Heart, Globe, ChevronDown,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { getMovieDetails, getWatchProviders, detectCountry, PROVIDER_LOGO_BASE, type WatchProviderResult } from '@/lib/api';
@@ -175,9 +175,8 @@ export default function MovieDetailsPage() {
               </button>
               <button
                 onClick={toggleFavourite}
-                className={`p-2 rounded-full glass transition-colors ${
-                  inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
-                }`}
+                className={`p-2 rounded-full glass transition-colors ${inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
+                  }`}
               >
                 <Heart size={24} fill={inFavourites ? 'currentColor' : 'none'} />
               </button>
@@ -200,12 +199,12 @@ export default function MovieDetailsPage() {
                 <h1 className="text-2xl md:text-3xl text-foreground leading-tight">{movie.Title}</h1>
                 <div className="flex flex-col items-start gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
                   <p className="mb-2 flex items-center gap-3">
-                  {movie.Year && <span >{movie.Year}</span>}
-                  {movie.imdbRating && movie.imdbRating !== 'N/A' && (
-                    <span className="flex items-center gap-1 text-primary">
-                      <Star size={12} fill="currentColor" /> {movie.imdbRating}
-                    </span>
-                  )}  
+                    {movie.Year && <span >{movie.Year}</span>}
+                    {movie.imdbRating && movie.imdbRating !== 'N/A' && (
+                      <span className="flex items-center gap-1 text-primary">
+                        <Star size={12} fill="currentColor" /> {movie.imdbRating}
+                      </span>
+                    )}
                   </p>
                   {movie.Runtime && movie.Runtime !== 'N/A' && (
                     <span className="flex items-center gap-1">
@@ -225,32 +224,44 @@ export default function MovieDetailsPage() {
         <div className="max-w-4xl mx-auto mt-10 md:mt-8 pb-8">
 
           {/* Actions */}
-          <div className="mb-6">
-            {watched ? (
+          <div className="mb-6 relative h-[42px] w-full">
+            {/* Action Buttons (shown when not watched) */}
+            <div className={`flex gap-3 w-full transition-all duration-500 ${watched ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
               <button
-                onClick={handleUnwatch}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors"
+                onClick={inWatchlist ? () => removeFromWatchlist(movie.imdbID).then(() => setInWatchlist(false)) : handleAddToWatchlist}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
+                  ? 'w-[42px] bg-secondary text-primary'
+                  : 'flex-1 bg-primary text-primary-foreground hover:opacity-90'
+                  }`}
+                title={inWatchlist ? t('removeFromWatchlist') : t('addToWatchlist')}
               >
-                <CheckCircle2 size={16} className="text-primary" />
-                {t('watchedSection')}
+                {inWatchlist ? <BookmarkCheck size={24} className="flex-shrink-0" /> : <BookmarkPlus size={24} className="flex-shrink-0" />}
+                {!inWatchlist && <span className="transition-opacity duration-200">{t('addToWatchlist')}</span>}
               </button>
-            ) : inWatchlist ? (
+
               <button
                 onClick={handleMarkWatched}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors"
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
+                  ? 'flex-1 bg-primary text-primary-foreground hover:opacity-90'
+                  : 'w-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }`}
+                title={t('markAsWatched')}
               >
-                <CheckCircle2 size={16} />
-                {t('markAsWatched')}
+                <CheckCircle2 size={24} className="flex-shrink-0" />
+                {inWatchlist && <span className="transition-opacity duration-200">{t('markAsWatched')}</span>}
               </button>
-            ) : (
+            </div>
+
+            {/* Watched Status (shown when watched) */}
+            <div className={`absolute inset-0 transition-all duration-500 ${watched ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'}`}>
               <button
-                onClick={handleAddToWatchlist}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-sm font-medium transition-opacity"
+                onClick={handleUnwatch}
+                className="w-full h-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors"
               >
-                <BookmarkPlus size={16} />
-                {t('addToWatchlist')}
+                <CheckCircle2 size={24} className="text-primary" />
+                {t('watchedSection')}
               </button>
-            )}
+            </div>
           </div>
 
           {/* Plot */}
@@ -326,66 +337,66 @@ export default function MovieDetailsPage() {
 
                 <div className="p-4 rounded-xl bg-secondary/50">
                   {hasProviders ? (() => {
-                      const searchTitle = movie.OriginalTitle ?? movie.Title;
-                      const renderProviders = (list: typeof providers.flatrate) => (
-                        <div className="flex flex-wrap gap-3">
-                          {list!.map(p => {
-                            const url = providerSearchUrl(p.provider_name, searchTitle);
-                            const inner = (
-                              <>
-                                <img src={`${PROVIDER_LOGO_BASE}${p.logo_path}`} alt={p.provider_name} className="w-10 h-10 rounded-xl transition-opacity group-hover:opacity-75" />
-                                <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2">{p.provider_name}</span>
-                              </>
-                            );
-                            return url ? (
-                              <a key={p.provider_id} href={url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group w-12">
-                                {inner}
-                              </a>
-                            ) : (
-                              <div key={p.provider_id} className="flex flex-col items-center gap-1 w-12">
-                                {inner}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                      const hasRentOrBuy = !!(providers.rent || providers.buy);
-                      const expandRentBuy = !providers.flatrate || showMoreProviders;
-                      return (
-                        <div className="space-y-4">
-                          {providers.flatrate && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-2">{t('stream')}</p>
-                              {renderProviders(providers.flatrate)}
-                            </div>
-                          )}
-                          {expandRentBuy && (
+                    const searchTitle = movie.OriginalTitle ?? movie.Title;
+                    const renderProviders = (list: typeof providers.flatrate) => (
+                      <div className="flex flex-wrap gap-3">
+                        {list!.map(p => {
+                          const url = providerSearchUrl(p.provider_name, searchTitle);
+                          const inner = (
                             <>
-                              {providers.rent && (
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-2">{t('rent')}</p>
-                                  {renderProviders(providers.rent)}
-                                </div>
-                              )}
-                              {providers.buy && (
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-2">{t('buy')}</p>
-                                  {renderProviders(providers.buy)}
-                                </div>
-                              )}
+                              <img src={`${PROVIDER_LOGO_BASE}${p.logo_path}`} alt={p.provider_name} className="w-10 h-10 rounded-xl transition-opacity group-hover:opacity-75" />
+                              <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2">{p.provider_name}</span>
                             </>
-                          )}
-                          {providers.flatrate && hasRentOrBuy && (
-                            <button
-                              onClick={() => setShowMoreProviders(v => !v)}
-                              className="text-xs text-primary hover:underline"
-                            >
-                              {showMoreProviders ? t('showLess') : t('more')}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })() : (
+                          );
+                          return url ? (
+                            <a key={p.provider_id} href={url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group w-12">
+                              {inner}
+                            </a>
+                          ) : (
+                            <div key={p.provider_id} className="flex flex-col items-center gap-1 w-12">
+                              {inner}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                    const hasRentOrBuy = !!(providers.rent || providers.buy);
+                    const expandRentBuy = !providers.flatrate || showMoreProviders;
+                    return (
+                      <div className="space-y-4">
+                        {providers.flatrate && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-2">{t('stream')}</p>
+                            {renderProviders(providers.flatrate)}
+                          </div>
+                        )}
+                        {expandRentBuy && (
+                          <>
+                            {providers.rent && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-2">{t('rent')}</p>
+                                {renderProviders(providers.rent)}
+                              </div>
+                            )}
+                            {providers.buy && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-2">{t('buy')}</p>
+                                {renderProviders(providers.buy)}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {providers.flatrate && hasRentOrBuy && (
+                          <button
+                            onClick={() => setShowMoreProviders(v => !v)}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            {showMoreProviders ? t('showLess') : t('more')}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })() : (
                     <div className="text-sm text-muted-foreground">
                       <p>{t('notAvailableInCountry')} {countryName(selectedCountry)}.</p>
                       {availableCountries.length > 0 && (

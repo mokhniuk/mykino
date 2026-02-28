@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Film, Star, Shuffle, Trophy } from 'lucide-react';
+import { Search, Film, Star, Shuffle, Trophy, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { getWatchlist, getWatched, type MovieData } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
@@ -134,7 +134,7 @@ function Top100Challenge({
       {/* Progress bar */}
 
       <p className="text-md text-muted-foreground font-medium tabular-nums mb-2">
-        {revealedCount} / 100 
+        {revealedCount} / 100
         {t('top100Unlocked')}
       </p>
       <div className="w-full h-1 bg-secondary rounded-full mb-4 overflow-hidden">
@@ -329,8 +329,8 @@ export default function Index() {
               <Film size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('fromYourWatchlist')}</h2>
             </div>
-            <Link to="/watchlist" className="text-xs text-primary hover:underline">
-              {t('watchlist')} →
+            <Link to="/watchlist" className="text-xs text-primary inline-flex items-baseline">
+              <ChevronRight size={32} className="mt-2" />
             </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
