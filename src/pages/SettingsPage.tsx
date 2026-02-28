@@ -1,15 +1,56 @@
-import React, { useRef, useState } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import { exportAllData, importAllData } from '@/lib/db';
+import { Button } from '@/components/ui/button';
 
 export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [newVersion, setNewVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    checkVersion();
+  }, []);
+
+  const checkVersion = async () => {
+    try {
+      setCheckingUpdate(true);
+      // Add cache-busting query param
+      const res = await fetch(`/version.json?t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.version && data.version !== __APP_VERSION__) {
+          setNewVersion(data.version);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to check version', e);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleUpdate = () => {
+    // Force a full reload to get the new version
+    // Also try to unregister service worker if it exists to ensure fresh load
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister();
+        }
+        window.location.reload();
+      });
+    } else {
+      window.location.reload();
+    }
+  };
 
   const handleExport = async () => {
     const data = await exportAllData();
@@ -47,10 +88,9 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="px-4 md:px-6 max-w-2xl mx-auto animate-fade-in py-4 md:py-8">
+    <div className="px-4 md:px-6 max-w-2xl mx-auto animate-fade-in py-4 md:py-8 space-y-4">
       <h1 className="text-2xl md:text-3xl text-foreground mb-6">{t('settings')}</h1>
 
-      {/* Mobile: stacked. Tablet/Desktop: bento grid */}
       <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
 
         {/* Language */}
@@ -130,14 +170,45 @@ export default function SettingsPage() {
         </section>
 
         {/* App Info — full width */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-2 md:col-span-2">
-          <div className="flex items-center gap-2 text-foreground">
-            <Info size={16} className="text-primary" />
-            <h2 className="text-sm font-semibold">{t('appInfo')}</h2>
+        <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-foreground">
+              <Info size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold">{t('appInfo')}</h2>
+            </div>
+            {checkingUpdate && <Loader2 className="animate-spin text-muted-foreground" size={14} />}
           </div>
-          <div className="text-sm text-muted-foreground space-y-1">
+
+          <div className="text-sm text-muted-foreground space-y-2">
             <p><span className="text-foreground font-medium">MyKino</span> — {t('appDescription')}</p>
-            <p>{t('version')}: {__APP_VERSION__}</p>
+
+            <div className="flex flex-wrap items-center gap-3 py-1">
+              <p className="flex items-center gap-2">
+                {t('version')}: <span className="text-foreground font-medium">{__APP_VERSION__}</span>
+              </p>
+
+              {newVersion ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleUpdate}
+                  className="h-7 px-3 text-[10px] animate-fade-in gap-1.5 shadow-lg shadow-primary/20"
+                >
+                  <RefreshCw size={12} />
+                  {t('updateBtn')} ({newVersion})
+                </Button>
+              ) : (
+                <button
+                  onClick={checkVersion}
+                  disabled={checkingUpdate}
+                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 opacity-60 hover:opacity-100"
+                >
+                  <RefreshCw size={11} className={checkingUpdate ? 'animate-spin' : ''} />
+                  {t('checkUpdate')}
+                </button>
+              )}
+            </div>
+
             <p>{t('dataStorage')}: IndexedDB</p>
             <p>
               API:{' '}
@@ -151,16 +222,10 @@ export default function SettingsPage() {
                 Oleg Mokhniuk
               </a>
             </p>
-            <p>
-              {t('statistics')}:{' '}
-              <a href="https://umami.mokhni.uk/share/fH4J4yX37j8uuyU7" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                Umami
-              </a>
-            </p>
           </div>
         </section>
-
       </div>
     </div>
   );
 }
+

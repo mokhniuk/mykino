@@ -59,6 +59,22 @@ export default defineConfig(({ mode }) => ({
         ],
       },
     }),
+    {
+      name: 'generate-version-json',
+      configureServer(server) {
+        server.middlewares.use('/version.json', (req, res) => {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ version: pkg.version }));
+        });
+      },
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify({ version: pkg.version })
+        });
+      }
+    }
   ],
   resolve: {
     alias: {
