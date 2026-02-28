@@ -130,6 +130,29 @@ export async function isWatched(id: string): Promise<boolean> {
   return !!item;
 }
 
+// Export / Import
+export async function exportAllData() {
+  const [watchlist, watched, favourites] = await Promise.all([
+    getWatchlist(),
+    getWatched(),
+    getFavourites(),
+  ]);
+  return { version: 1, exportedAt: Date.now(), watchlist, watched, favourites };
+}
+
+export async function importAllData(data: {
+  watchlist?: MovieData[];
+  watched?: MovieData[];
+  favourites?: MovieData[];
+}) {
+  const db = await getDB();
+  const tx = db.transaction(['watchlist', 'watched', 'favourites'], 'readwrite');
+  for (const m of data.watchlist ?? []) tx.objectStore('watchlist').put(m);
+  for (const m of data.watched ?? []) tx.objectStore('watched').put(m);
+  for (const m of data.favourites ?? []) tx.objectStore('favourites').put(m);
+  await tx.done;
+}
+
 // Settings
 export async function getSetting(key: string): Promise<string | undefined> {
   const db = await getDB();

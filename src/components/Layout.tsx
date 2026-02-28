@@ -44,12 +44,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Content */}
-      <main className="md:pt-16 pb-28 md:pb-8">
+      <main className="md:pt-16 pb-24 [@media(display-mode:standalone)]:pb-28 md:pb-8">
         {children}
       </main>
 
       {/* Bottom nav - mobile floating pill */}
-      <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm">
+      <nav className="md:hidden fixed bottom-3 [@media(display-mode:standalone)]:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-sm">
         <div className="flex items-center justify-around px-2 py-3 rounded-3xl bg-card/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           {navItems.map((item) => {
             const active = pathname === item.path;

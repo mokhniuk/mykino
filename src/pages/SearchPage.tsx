@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
@@ -87,16 +87,20 @@ export default function SearchPage() {
     }
   }, [lang]);
 
-  useEffect(() => {
-    const q = params.get('q');
-    if (q) { setQuery(q); doSearch(q); }
-  }, [doSearch]);
+  const isFirstRender = useRef(true);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setParams(query ? { q: query } : {});
-    doSearch(query);
-  };
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      if (query) doSearch(query);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setParams(query ? { q: query } : {}, { replace: true });
+      doSearch(query);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query, doSearch, setParams]);
 
   const toggleWatchlist = async (movie: MovieData) => {
     if (watchlistIds.has(movie.imdbID)) {
@@ -110,7 +114,7 @@ export default function SearchPage() {
 
   return (
     <div className="px-4 md:px-6 max-w-2xl mx-auto space-y-4 animate-fade-in">
-      <form onSubmit={handleSubmit} className="pt-4 md:pt-8">
+      <form onSubmit={(e) => e.preventDefault()} className="pt-4 md:pt-8">
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
           <SearchIcon size={18} className="text-muted-foreground" />
           <input

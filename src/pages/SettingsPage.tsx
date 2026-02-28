@@ -1,11 +1,44 @@
-import React from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
+import { exportAllData, importAllData } from '@/lib/db';
 
 export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleExport = async () => {
+    const data = await exportAllData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mykino-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.watchlist && !data.watched && !data.favourites) throw new Error();
+      await importAllData(data);
+      toast.success(t('importSuccess'));
+    } catch {
+      toast.error(t('importError'));
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const themeOptions: { value: ThemePreference; label: string; icon: React.ReactNode }[] = [
     { value: 'light', label: t('lightMode'), icon: <Sun size={15} /> },
@@ -71,6 +104,33 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Data — full width */}
+        <section className="rounded-xl bg-card border border-border p-5 space-y-3 md:col-span-2">
+          <div className="flex items-center gap-2 text-foreground">
+            <Database size={16} className="text-primary" />
+            <h2 className="text-sm font-semibold">{t('dataManagement')}</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={handleExport}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors"
+            >
+              <Download size={15} />
+              {t('exportData')}
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              <Upload size={15} />
+              {importing ? '…' : t('importData')}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
+          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+        </section>
+
         {/* App Info — full width */}
         <section className="rounded-xl bg-card border border-border p-5 space-y-2 md:col-span-2">
           <div className="flex items-center gap-2 text-foreground">
@@ -79,7 +139,7 @@ export default function SettingsPage() {
           </div>
           <div className="text-sm text-muted-foreground space-y-1">
             <p><span className="text-foreground font-medium">MyKino</span> — {t('appDescription')}</p>
-            <p>{t('version')}: 1.2.2</p>
+            <p>{t('version')}: 1.3.3</p>
             <p>{t('dataStorage')}: IndexedDB</p>
             <p>
               API:{' '}
