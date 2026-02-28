@@ -40,9 +40,8 @@ export default function WatchedPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFavOnly((v) => !v)}
-            className={`w-auto h-auto p-2.5 rounded-xl transition-colors ${
-              favOnly ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground hover:text-foreground'
-            }`}
+            className={`w-auto h-auto p-2.5 rounded-xl transition-colors ${favOnly ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground hover:text-foreground'
+              }`}
           >
             <Heart size={16} fill={favOnly ? 'currentColor' : 'none'} />
           </button>
