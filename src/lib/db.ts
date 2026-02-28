@@ -26,6 +26,7 @@ export interface MovieData {
   imdbVotes?: string;
   BoxOffice?: string;
   Production?: string;
+  TrailerKey?: string;
   addedAt?: number;
   [key: string]: unknown;
 }

@@ -272,6 +272,22 @@ export default function MovieDetailsPage() {
             </section>
           )}
 
+          {/* Trailer */}
+          {movie.TrailerKey && (
+            <section className="mb-6">
+              <h2 className="text-lg text-foreground mb-2">{t('trailer') ?? 'Trailer'}</h2>
+              <div className="relative aspect-video w-full rounded-xl overflow-hidden shadow-lg bg-secondary/30">
+                <iframe
+                  src={`https://www.youtube.com/embed/${movie.TrailerKey}`}
+                  title={`${movie.Title} Trailer`}
+                  className="absolute inset-0 w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </section>
+          )}
+
           {/* Ratings */}
           {(movie.imdbRating || movie.Metascore) && (
             <div className="flex gap-3 mb-6">

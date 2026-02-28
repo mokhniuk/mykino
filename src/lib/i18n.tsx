@@ -38,6 +38,7 @@ const translations = {
     imdbRating: 'IMDb Rating',
     metascore: 'Metascore',
     plot: 'Plot',
+    trailer: 'Trailer',
     whereToWatch: 'Where to Watch',
     stream: 'Stream',
     rent: 'Rent',
@@ -134,6 +135,7 @@ const translations = {
     imdbRating: 'Рейтинг IMDb',
     metascore: 'Metascore',
     plot: 'Сюжет',
+    trailer: 'Трейлер',
     whereToWatch: 'Де дивитися',
     stream: 'Стрімінг',
     rent: 'Оренда',
@@ -225,6 +227,7 @@ const translations = {
     imdbRating: 'IMDb-Bewertung',
     metascore: 'Metascore',
     plot: 'Handlung',
+    trailer: 'Trailer',
     whereToWatch: 'Wo schauen',
     stream: 'Streamen',
     rent: 'Leihen',
@@ -298,7 +301,7 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType>({
   t: (key) => key,
   lang: 'en',
-  setLang: () => {},
+  setLang: () => { },
 });
 
 function getInitialLang(): Lang {

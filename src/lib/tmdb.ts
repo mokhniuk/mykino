@@ -47,6 +47,7 @@ interface TmdbMovieDetail {
   production_countries: { name: string }[];
   revenue: number;
   credits: TmdbCredits;
+  videos?: { results: TmdbVideo[] };
 }
 
 interface TmdbTVDetail {
@@ -64,6 +65,14 @@ interface TmdbTVDetail {
   production_countries: { name: string }[];
   number_of_seasons: number;
   credits: TmdbCredits;
+  videos?: { results: TmdbVideo[] };
+}
+
+interface TmdbVideo {
+  key: string;
+  site: string;
+  type: string;
+  iso_639_1: string;
 }
 
 interface TmdbFindResult {
@@ -109,6 +118,16 @@ function mapCredits(credits?: TmdbCredits) {
   return { director, writer, actors };
 }
 
+function getBestTrailer(videos?: { results: TmdbVideo[] }): string | undefined {
+  if (!videos?.results) return undefined;
+  // Prioritize "Trailer" on "YouTube"
+  const trailers = videos.results.filter(v => v.type === 'Trailer' && v.site === 'YouTube');
+  if (trailers.length > 0) return trailers[0].key;
+  // Fallback to any YouTube video if no "Trailer" type
+  const youtubeVideos = videos.results.filter(v => v.site === 'YouTube');
+  return youtubeVideos[0]?.key;
+}
+
 function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
   const { director, writer, actors } = mapCredits(data.credits);
   return {
@@ -130,6 +149,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
     Country: data.production_countries?.map(c => c.name).join(', ') || undefined,
     Released: data.release_date || undefined,
     BoxOffice: data.revenue ? `$${data.revenue.toLocaleString()}` : undefined,
+    TrailerKey: getBestTrailer(data.videos),
   };
 }
 
@@ -158,6 +178,7 @@ function mapTVDetail(data: TmdbTVDetail, storeId: string): MovieData {
     Language: data.spoken_languages?.map(l => l.english_name).join(', ') || undefined,
     Country: data.production_countries?.map(c => c.name).join(', ') || undefined,
     Released: data.first_air_date || undefined,
+    TrailerKey: getBestTrailer(data.videos),
   };
 }
 
@@ -218,7 +239,7 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
   const cached = await getCachedMovie(id);
 
   // Return cached only if full details are present AND language matches
-  if (cached?.Plot !== undefined && (cached as Record<string, unknown>)._lang === lang) {
+  if (cached?.Plot !== undefined && (cached as Record<string, unknown>)._full === true && (cached as Record<string, unknown>)._lang === lang) {
     return cached;
   }
 
@@ -231,15 +252,41 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
 
       if (found.movie_results.length > 0) {
         const tmdbId = String(found.movie_results[0].id);
-        const detail = await tmdbFetch<TmdbMovieDetail>(`/movie/${tmdbId}?append_to_response=credits`, tmdbLang);
-        const movie = mapMovieDetail(detail, id);
+        const detail = await tmdbFetch<TmdbMovieDetail>(`/movie/${tmdbId}?append_to_response=credits,videos`, tmdbLang);
+        let movie = mapMovieDetail(detail, id);
+        movie._full = true;
+
+        // Fallback for trailers
+        if (!movie.TrailerKey && lang !== 'en') {
+          try {
+            const originalDetail = await tmdbFetch<TmdbMovieDetail>(`/movie/${tmdbId}?append_to_response=videos`, 'en-US');
+            const originalTrailer = getBestTrailer(originalDetail.videos);
+            if (originalTrailer) {
+              movie = { ...movie, TrailerKey: originalTrailer };
+            }
+          } catch { /* ignore fallback error */ }
+        }
+
         await cacheMovie({ ...movie, _lang: lang });
         return movie;
       }
       if (found.tv_results.length > 0) {
         const tmdbId = String(found.tv_results[0].id);
-        const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${tmdbId}?append_to_response=credits`, tmdbLang);
-        const movie = mapTVDetail(detail, id);
+        const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${tmdbId}?append_to_response=credits,videos`, tmdbLang);
+        let movie = mapTVDetail(detail, id);
+        movie._full = true;
+
+        // Fallback for trailers
+        if (!movie.TrailerKey && lang !== 'en') {
+          try {
+            const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${tmdbId}?append_to_response=videos`, 'en-US');
+            const originalTrailer = getBestTrailer(originalDetail.videos);
+            if (originalTrailer) {
+              movie = { ...movie, TrailerKey: originalTrailer };
+            }
+          } catch { /* ignore fallback error */ }
+        }
+
         await cacheMovie({ ...movie, _lang: lang });
         return movie;
       }
@@ -248,21 +295,60 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
 
     // TMDB numeric ID — use Type from cache to pick the right endpoint
     if (cached?.Type === 'series') {
-      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=credits`, tmdbLang);
-      const movie = mapTVDetail(detail, id);
+      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=credits,videos`, tmdbLang);
+      let movie = mapTVDetail(detail, id);
+      movie._full = true;
+
+      // Fallback for series trailers
+      if (!movie.TrailerKey && lang !== 'en') {
+        try {
+          const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=videos`, 'en-US');
+          const originalTrailer = getBestTrailer(originalDetail.videos);
+          if (originalTrailer) {
+            movie = { ...movie, TrailerKey: originalTrailer };
+          }
+        } catch { /* ignore fallback error */ }
+      }
+
       await cacheMovie({ ...movie, _lang: lang });
       return movie;
     }
 
     // Default: try movie, fall back to TV
     try {
-      const detail = await tmdbFetch<TmdbMovieDetail>(`/movie/${id}?append_to_response=credits`, tmdbLang);
-      const movie = mapMovieDetail(detail, id);
+      const detail = await tmdbFetch<TmdbMovieDetail>(`/movie/${id}?append_to_response=credits,videos`, tmdbLang);
+      let movie = mapMovieDetail(detail, id);
+      movie._full = true;
+
+      // Fallback for trailers: if localized trailer is missing, try fetching original (English)
+      if (!movie.TrailerKey && lang !== 'en') {
+        try {
+          const originalDetail = await tmdbFetch<TmdbMovieDetail>(`/movie/${id}?append_to_response=videos`, 'en-US');
+          const originalTrailer = getBestTrailer(originalDetail.videos);
+          if (originalTrailer) {
+            movie = { ...movie, TrailerKey: originalTrailer };
+          }
+        } catch { /* ignore fallback error */ }
+      }
+
       await cacheMovie({ ...movie, _lang: lang });
       return movie;
     } catch {
-      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=credits`, tmdbLang);
-      const movie = mapTVDetail(detail, id);
+      const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=credits,videos`, tmdbLang);
+      let movie = mapTVDetail(detail, id);
+      movie._full = true;
+
+      // Fallback for series trailers
+      if (!movie.TrailerKey && lang !== 'en') {
+        try {
+          const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${id}?append_to_response=videos`, 'en-US');
+          const originalTrailer = getBestTrailer(originalDetail.videos);
+          if (originalTrailer) {
+            movie = { ...movie, TrailerKey: originalTrailer };
+          }
+        } catch { /* ignore fallback error */ }
+      }
+
       await cacheMovie({ ...movie, _lang: lang });
       return movie;
     }
