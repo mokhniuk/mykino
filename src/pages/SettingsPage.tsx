@@ -207,7 +207,6 @@ export default function SettingsPage() {
 
           <div className="text-sm text-muted-foreground space-y-2">
             <p><span className="text-foreground font-medium">MyKino</span> — {t('appDescription')}</p>
-
             <div className="flex flex-wrap items-center gap-3 py-1">
               <p className="flex items-center gap-2">
                 {t('version')}: <span className="text-foreground font-medium">{__APP_VERSION__}</span>
@@ -235,12 +234,27 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <p>{t('dataStorage')}: IndexedDB</p>
+            <p>{t('dataStorage')}: IndexedDB<br />
+              <span className="text-xs leading-relaxed">{t('localDataNote')}</span>
+            </p>
             <p>
               API:{' '}
               <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 TMDB
               </a>
+            </p>
+            <p>
+              {t('analytics')}:{' '}
+              <a
+                href="https://umami.mokhni.uk/websites/36b2fed3-e325-4e17-b7e1-1fdcfdd3ef1c"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Umami
+              </a>
+              {' '}
+              <span className="text-xs opacity-60">({t('public')})</span>
             </p>
             <p>
               {t('author')}:{' '}
