@@ -17,6 +17,7 @@ import RecoSectionPage from "./pages/RecoSectionPage";
 import AchievementsTop100Page from "./pages/AchievementsTop100Page";
 import AchievementsDirectorPage from "./pages/AchievementsDirectorPage";
 import AchievementsMilestonesPage from "./pages/AchievementsMilestonesPage";
+import TVShowPage from "./pages/TVShowPage";
 import DirectorPage from "./pages/DirectorPage";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => (
                 <Route path="/watchlist" element={<WatchlistPage />} />
                 <Route path="/watched" element={<WatchedPage />} />
                 <Route path="/movie/:id" element={<MovieDetailsPage />} />
+                <Route path="/tv/:id" element={<TVShowPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/favourites" element={<FavouritesPage />} />
                 <Route path="/section/:slug" element={<RecoSectionPage />} />

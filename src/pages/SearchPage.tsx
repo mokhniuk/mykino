@@ -31,7 +31,7 @@ function SearchResultCard({
   return (
     <div className="flex items-stretch rounded-xl overflow-hidden bg-secondary/60 hover:bg-secondary transition-colors">
       {/* Poster — flush left/top/bottom, 2:3 ratio, no crop */}
-      <Link to={`/movie/${movie.imdbID}`} className="flex-shrink-0 w-[80px] aspect-[2/3]">
+      <Link to={movie.Type === 'series' ? `/tv/${movie.imdbID}` : `/movie/${movie.imdbID}`} className="flex-shrink-0 w-[80px] aspect-[2/3]">
         {poster ? (
           <img src={poster} alt={movie.Title} className="w-full h-full object-cover" loading="lazy" />
         ) : (
@@ -42,7 +42,7 @@ function SearchResultCard({
       </Link>
 
       {/* Title + meta */}
-      <Link to={`/movie/${movie.imdbID}`} className="flex-1 min-w-0 flex items-center px-3">
+      <Link to={movie.Type === 'series' ? `/tv/${movie.imdbID}` : `/movie/${movie.imdbID}`} className="flex-1 min-w-0 flex items-center px-3">
         <div className="min-w-0 w-full">
           <span className="inline-block text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded mb-1.5">{typeLabel}</span>
           <p className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">{movie.Title}</p>

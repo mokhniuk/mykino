@@ -1,7 +1,8 @@
 import { openDB, IDBPDatabase } from 'idb';
+import type { TVSeriesTracking } from './tvTracking';
 
 const DB_NAME = 'movieapp';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export interface MovieData {
   imdbID: string;
@@ -81,7 +82,7 @@ async function runMigration(db: IDBPDatabase) {
   await txSettings.objectStore('settings').put({ key: 'id_migration_done', value: 'true' });
 }
 
-function getDB() {
+export function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
@@ -93,6 +94,9 @@ function getDB() {
         }
         if (oldVersion < 2) {
           db.createObjectStore('watched', { keyPath: 'imdbID' });
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
         }
       },
     });
@@ -186,13 +190,15 @@ export async function isWatched(id: string): Promise<boolean> {
 
 // Export / Import
 export async function exportAllData() {
-  const [watchlist, watched, favourites, settings] = await Promise.all([
+  const db = await getDB();
+  const [watchlist, watched, favourites, settings, tvTracking] = await Promise.all([
     getWatchlist(),
     getWatched(),
     getFavourites(),
-    getDB().then(db => db.getAll('settings')),
+    db.getAll('settings'),
+    db.getAll('tv_tracking'),
   ]);
-  return { version: 1, exportedAt: Date.now(), watchlist, watched, favourites, settings };
+  return { version: 1, exportedAt: Date.now(), watchlist, watched, favourites, settings, tvTracking };
 }
 
 export async function importAllData(data: {
@@ -200,13 +206,18 @@ export async function importAllData(data: {
   watched?: MovieData[];
   favourites?: MovieData[];
   settings?: { key: string; value: string }[];
+  tvTracking?: TVSeriesTracking[];
 }) {
   const db = await getDB();
-  const tx = db.transaction(['watchlist', 'watched', 'favourites', 'settings'], 'readwrite');
+  const hasTVTracking = (data.tvTracking?.length ?? 0) > 0;
+  const stores: string[] = ['watchlist', 'watched', 'favourites', 'settings'];
+  if (hasTVTracking) stores.push('tv_tracking');
+  const tx = db.transaction(stores, 'readwrite');
   for (const m of data.watchlist ?? []) tx.objectStore('watchlist').put(m);
   for (const m of data.watched ?? []) tx.objectStore('watched').put(m);
   for (const m of data.favourites ?? []) tx.objectStore('favourites').put(m);
   for (const s of data.settings ?? []) tx.objectStore('settings').put(s);
+  for (const t of data.tvTracking ?? []) tx.objectStore('tv_tracking').put(t);
   await tx.done;
 }
 

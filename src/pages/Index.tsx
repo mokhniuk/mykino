@@ -3,17 +3,19 @@ import { Link } from 'react-router-dom';
 import {
   Search, Film, Heart, ChevronRight,
   ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem,
-  Trophy, Video, Medal, Star, Clock, Globe, Languages,
+  Trophy, Video, Medal, Star, Clock, Globe, Languages, Tv2,
   type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { getWatchlist, getWatched, getFavourites, type MovieData } from '@/lib/db';
+import { getWatchlist, getWatched, getFavourites, getCachedMovie, type MovieData } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useAchievements } from '@/hooks/useAchievements';
+import { useTVTracking } from '@/hooks/useTVTracking';
 import type { RecoSection } from '@/lib/recommendations';
 import { SECTION_SLUGS } from '@/lib/recommendations';
 import type { MilestoneId } from '@/lib/achievements';
+import { computeProgress } from '@/lib/tvTracking';
 import MovieCard from '@/components/MovieCard';
 import RecoCard from '@/components/RecoCard';
 
@@ -87,6 +89,22 @@ export default function Index() {
   const [favouritesReady, setFavouritesReady] = useState(false);
   const { sections: recoSections, isLoading: recoLoading } = useRecommendations();
   const { watched, directors, milestones, dailyPickMovie, dailyPickLoading, top100Progress } = useAchievements();
+  const { trackingList } = useTVTracking();
+  const watchingShows = trackingList.filter(s => s.status === 'watching');
+  const [watchingMovies, setWatchingMovies] = useState<Map<string, MovieData>>(new Map());
+
+  useEffect(() => {
+    if (watchingShows.length === 0) return;
+    Promise.all(
+      watchingShows.map(async show => {
+        const cached = await getCachedMovie(show.tvId);
+        return [show.tvId, cached] as const;
+      })
+    ).then(results => {
+      setWatchingMovies(new Map(results.filter(([, m]) => !!m) as [string, MovieData][]));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchingShows.length]);
 
   useEffect(() => {
     Promise.all([getWatchlist(), getWatched()]).then(([wl]) => {
@@ -162,6 +180,54 @@ export default function Index() {
           <span className="text-sm text-muted-foreground">{t('searchForMovies')}</span>
         </div>
       </Link>
+
+      {/* Currently Watching TV Shows */}
+      {watchingShows.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <Link to="/watchlist" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Tv2 size={24} className="text-primary" />
+              <h2 className="text-2xl text-foreground">{t('currentlyWatching')}</h2>
+            </Link>
+            <Link to="/watchlist" className="text-primary">
+              <ChevronRight size={32} />
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+            {watchingShows.map(show => {
+              const movieData = watchingMovies.get(show.tvId);
+              const poster = movieData?.Poster && movieData.Poster !== 'N/A' ? movieData.Poster : null;
+              const progress = computeProgress(show, []);
+              return (
+                <Link key={show.tvId} to={`/tv/${show.tvId}`} className="flex-shrink-0 w-28">
+                  <div className="aspect-[2/3] rounded-lg bg-secondary overflow-hidden mb-2 relative">
+                    {poster ? (
+                      <img src={poster} alt={movieData?.Title} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Tv2 size={20} className="text-muted-foreground/30" />
+                      </div>
+                    )}
+                    {show.totalEpisodesWatched > 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
+                        <div
+                          className="h-full bg-primary"
+                          style={{
+                            width: `${progress.total > 0 ? (show.totalEpisodesWatched / progress.total) * 100 : 0}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">
+                    {movieData?.Title ?? show.tvId}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Watchlist preview */}
       {!watchlistReady ? (

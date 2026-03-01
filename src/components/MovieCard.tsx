@@ -37,7 +37,7 @@ export default function MovieCard({
 
   return (
     <div className={`${widthClass} flex-shrink-0 group animate-fade-in`}>
-      <Link to={`/movie/${movie.imdbID}`} className="block">
+      <Link to={movie.Type === 'series' ? `/tv/${movie.imdbID}` : `/movie/${movie.imdbID}`} className="block">
         <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-secondary mb-2">
           {poster ? (
             <img
@@ -61,7 +61,7 @@ export default function MovieCard({
       </Link>
 
       <div className="flex items-start justify-between gap-1">
-        <Link to={`/movie/${movie.imdbID}`} className="flex-1 min-w-0">
+        <Link to={movie.Type === 'series' ? `/tv/${movie.imdbID}` : `/movie/${movie.imdbID}`} className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground truncate leading-tight">
             {movie.Title}
           </p>
