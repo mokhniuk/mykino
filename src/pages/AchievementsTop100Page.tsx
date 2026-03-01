@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Trophy, Shuffle, Film } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAchievements } from '@/hooks/useAchievements';
@@ -8,6 +8,7 @@ import { TOP_100_MOVIES } from '@/lib/top100';
 import RecoCard from '@/components/RecoCard';
 
 export default function AchievementsTop100Page() {
+  const navigate = useNavigate();
   const { t } = useI18n();
   const { watched, dailyPickMovie, dailyPickLoading, top100Progress, isLoading } = useAchievements();
   const [shuffledId, setShuffledId] = useState<string | null>(null);
@@ -41,9 +42,9 @@ export default function AchievementsTop100Page() {
     <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3 pt-6 mb-6">
-        <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft size={28} />
-        </Link>
+        </button>
         <Trophy size={24} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">{t('achievementsTop100')}</h1>
       </div>

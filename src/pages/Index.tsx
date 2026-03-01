@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Search, Film, Heart, ChevronRight, ThumbsUp, Layers, Clapperboard,
-  TrendingUp, Flame, Gem, Trophy, Video, Medal,
+  Search, Film, Heart, ChevronRight,
+  ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem,
+  Trophy, Video, Medal, Star, Clock, Globe, Languages,
+  type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { getWatchlist, getWatched, getFavourites, type MovieData } from '@/lib/db';
@@ -11,6 +13,7 @@ import { useRecommendations } from '@/hooks/useRecommendations';
 import { useAchievements } from '@/hooks/useAchievements';
 import type { RecoSection } from '@/lib/recommendations';
 import { SECTION_SLUGS } from '@/lib/recommendations';
+import type { MilestoneId } from '@/lib/achievements';
 import MovieCard from '@/components/MovieCard';
 import RecoCard from '@/components/RecoCard';
 
@@ -24,22 +27,22 @@ function useGreeting() {
 
 const SECTION_ICONS: Record<RecoSection['id'], React.ReactNode> = {
   becauseLiked: <ThumbsUp size={24} className="text-primary" />,
-  byGenre: <Layers size={24} className="text-primary" />,
-  nowPlaying: <Clapperboard size={24} className="text-primary" />,
-  trending: <TrendingUp size={24} className="text-primary" />,
-  popular: <Flame size={24} className="text-primary" />,
-  hiddenGems: <Gem size={24} className="text-primary" />,
+  byGenre:      <Layers size={24} className="text-primary" />,
+  nowPlaying:   <Clapperboard size={24} className="text-primary" />,
+  trending:     <TrendingUp size={24} className="text-primary" />,
+  popular:      <Flame size={24} className="text-primary" />,
+  hiddenGems:   <Gem size={24} className="text-primary" />,
 };
 
 type SectionTitleKey = 'sectionBecauseLiked' | 'sectionByGenre' | 'sectionNowPlaying' | 'sectionTrending' | 'sectionPopular' | 'sectionHiddenGems';
 
 const SECTION_TITLE_KEYS: Record<RecoSection['id'], SectionTitleKey> = {
   becauseLiked: 'sectionBecauseLiked',
-  byGenre: 'sectionByGenre',
-  nowPlaying: 'sectionNowPlaying',
-  trending: 'sectionTrending',
-  popular: 'sectionPopular',
-  hiddenGems: 'sectionHiddenGems',
+  byGenre:      'sectionByGenre',
+  nowPlaying:   'sectionNowPlaying',
+  trending:     'sectionTrending',
+  popular:      'sectionPopular',
+  hiddenGems:   'sectionHiddenGems',
 };
 
 function RecoSectionHeader({ section }: { section: RecoSection }) {
@@ -48,18 +51,30 @@ function RecoSectionHeader({ section }: { section: RecoSection }) {
   const title = section.id === 'becauseLiked' && section.seedTitle
     ? `${t(titleKey)} ${section.seedTitle}`
     : t(titleKey);
+  const to = `/section/${SECTION_SLUGS[section.id]}`;
   return (
     <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-2">
+      <Link to={to} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
         {SECTION_ICONS[section.id]}
         <h2 className="text-2xl text-foreground font-semibold leading-tight">{title}</h2>
-      </div>
-      <Link to={`/section/${SECTION_SLUGS[section.id]}`} className="text-xs text-primary inline-flex items-baseline">
-        <ChevronRight size={32} className="mt-2" />
+      </Link>
+      <Link to={to} className="text-primary">
+        <ChevronRight size={32} />
       </Link>
     </div>
   );
 }
+
+const MILESTONE_ICONS: Record<MilestoneId, LucideIcon> = {
+  first_film:    Clapperboard,
+  ten_films:     Film,
+  fifty_films:   Star,
+  hundred_films: Trophy,
+  classic:       Clock,
+  world_explorer:Globe,
+  polyglot:      Languages,
+  genre_master:  Layers,
+};
 
 export default function Index() {
   const { t, lang } = useI18n();
@@ -167,12 +182,12 @@ export default function Index() {
       ) : localizedWatchlist.length > 0 ? (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+            <Link to="/watchlist" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Film size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('fromYourWatchlist')}</h2>
-            </div>
-            <Link to="/watchlist" className="text-xs text-primary inline-flex items-baseline">
-              <ChevronRight size={32} className="mt-2" />
+            </Link>
+            <Link to="/watchlist" className="text-primary">
+              <ChevronRight size={32} />
             </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
@@ -229,12 +244,12 @@ export default function Index() {
       ) : localizedFavourites.length > 0 ? (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+            <Link to="/favourites" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Heart size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('somethingFamiliar')}</h2>
-            </div>
-            <Link to="/favourites" className="text-xs text-primary inline-flex items-baseline">
-              <ChevronRight size={32} className="mt-2" />
+            </Link>
+            <Link to="/favourites" className="text-primary">
+              <ChevronRight size={32} />
             </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
@@ -245,15 +260,15 @@ export default function Index() {
         </section>
       ) : null}
 
-      {/* ── Achievement: Top 100 Challenge (compact) ── */}
+      {/* ── Top 100 Challenge (compact) ── */}
       <section className="pb-2">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+          <Link to="/achievements/top100" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Trophy size={24} className="text-primary" />
             <h2 className="text-2xl text-foreground">{t('achievementsTop100')}</h2>
-          </div>
-          <Link to="/achievements/top100" className="text-xs text-primary inline-flex items-baseline">
-            <ChevronRight size={32} className="mt-2" />
+          </Link>
+          <Link to="/achievements/top100" className="text-primary">
+            <ChevronRight size={32} />
           </Link>
         </div>
         <div className="mb-3">
@@ -270,20 +285,18 @@ export default function Index() {
         </div>
       </section>
 
-      {/* ── Achievement: Director Collections ── */}
+      {/* ── Director Collections ── */}
       {directors.length > 0 && (
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Video size={24} className="text-primary" />
-              <h2 className="text-2xl text-foreground">{t('achievementsDirectors')}</h2>
-            </div>
+          <div className="flex items-center mb-3">
+            <Video size={24} className="text-primary mr-2" />
+            <h2 className="text-2xl text-foreground">{t('achievementsDirectors')}</h2>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             {directors.map(director => (
               <Link
                 key={director.slug}
-                to={`/achievements/director/${director.slug}`}
+                to={`/director/${director.slug}`}
                 className="flex-shrink-0 w-36 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors overflow-hidden"
               >
                 {/* Micro-poster thumbnails */}
@@ -325,34 +338,38 @@ export default function Index() {
         </section>
       )}
 
-      {/* ── Achievement: Milestones ── */}
+      {/* ── Milestones ── */}
       {watched.length > 0 && (
         <section className="pb-8">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+            <Link to="/achievements/milestones" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Medal size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('achievementsMilestones')}</h2>
-            </div>
-            <Link to="/achievements/milestones" className="text-xs text-primary inline-flex items-baseline">
-              <ChevronRight size={32} className="mt-2" />
+            </Link>
+            <Link to="/achievements/milestones" className="text-primary">
+              <ChevronRight size={32} />
             </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {milestones.map(milestone => (
-              <Link
-                key={milestone.id}
-                to="/achievements/milestones"
-                className={`flex-shrink-0 w-20 rounded-xl p-2.5 flex flex-col items-center gap-1.5 text-center border transition-colors ${
-                  milestone.unlocked
-                    ? 'bg-primary/10 border-primary/20'
-                    : 'bg-secondary border-border opacity-40'
-                }`}
-              >
-                <span className={`text-2xl leading-none ${!milestone.unlocked ? 'grayscale' : ''}`}>
-                  {milestone.icon}
-                </span>
-              </Link>
-            ))}
+            {milestones.map(milestone => {
+              const Icon = MILESTONE_ICONS[milestone.id as MilestoneId];
+              return (
+                <Link
+                  key={milestone.id}
+                  to="/achievements/milestones"
+                  className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border transition-colors ${
+                    milestone.unlocked
+                      ? 'bg-primary/10 border-primary/20'
+                      : 'bg-secondary border-border opacity-40'
+                  }`}
+                >
+                  <Icon
+                    size={22}
+                    className={milestone.unlocked ? 'text-primary' : 'text-muted-foreground'}
+                  />
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}

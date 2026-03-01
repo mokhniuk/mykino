@@ -572,6 +572,58 @@ export async function getPopular(lang = 'en', page = 1): Promise<MovieData[]> {
   }
 }
 
+export async function getDirectorMovies(directorName: string, lang = 'en'): Promise<MovieData[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    const searchRes = await tmdbFetch<{
+      results: Array<{ id: number; name: string; known_for_department: string }>;
+    }>(`/search/person?query=${encodeURIComponent(directorName)}&include_adult=false`);
+
+    // Prefer someone in Directing; otherwise take first result
+    const person =
+      searchRes.results.find(p => p.known_for_department === 'Directing') ??
+      searchRes.results[0];
+
+    if (!person) return [];
+
+    const credits = await tmdbFetch<{
+      crew: Array<{
+        id: number;
+        title: string;
+        release_date: string;
+        poster_path: string | null;
+        vote_average: number;
+        overview: string;
+        genre_ids?: number[];
+        original_language: string;
+        job: string;
+      }>;
+    }>(`/person/${person.id}/movie_credits`, tmdbLang);
+
+    return credits.crew
+      .filter(c => c.job === 'Director')
+      .sort((a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? ''))
+      .map(c =>
+        mapTmdbItemToMovieData(
+          {
+            id: c.id,
+            media_type: 'movie',
+            title: c.title,
+            release_date: c.release_date,
+            poster_path: c.poster_path,
+            vote_average: c.vote_average,
+            overview: c.overview,
+            genre_ids: c.genre_ids,
+            original_language: c.original_language,
+          },
+          'movie'
+        )
+      );
+  } catch {
+    return [];
+  }
+}
+
 export async function discoverMovies(options: {
   genre?: number | string | null;
   without_genres?: string;

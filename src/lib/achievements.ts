@@ -67,9 +67,21 @@ export interface DirectorCompletion {
   movies: MovieData[];
 }
 
+const CYRILLIC_MAP: Record<string, string> = {
+  'а':'a','б':'b','в':'v','г':'h','ґ':'g','д':'d','е':'e','є':'ie',
+  'ж':'zh','з':'z','и':'y','і':'i','ї':'yi','й':'i','к':'k','л':'l',
+  'м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u',
+  'ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ь':'',
+  'ю':'iu','я':'ia','ё':'io','ъ':'','ы':'y','э':'e',
+};
+
 export function slugifyDirector(name: string): string {
-  return name
+  const transliterated = name
     .toLowerCase()
+    .split('')
+    .map(c => CYRILLIC_MAP[c] ?? c)
+    .join('');
+  return transliterated
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
@@ -105,7 +117,6 @@ export function computeDirectorCompletions(watched: MovieData[]): DirectorComple
 
 export interface Milestone {
   id: string;
-  icon: string;
   unlocked: boolean;
 }
 
@@ -147,13 +158,13 @@ export function computeMilestones(watched: MovieData[]): Milestone[] {
   });
 
   return [
-    { id: 'first_film',    icon: '🎬', unlocked: count >= 1 },
-    { id: 'ten_films',     icon: '🎭', unlocked: count >= 10 },
-    { id: 'fifty_films',   icon: '🏆', unlocked: count >= 50 },
-    { id: 'hundred_films', icon: '🎉', unlocked: count >= 100 },
-    { id: 'classic',       icon: '🕰', unlocked: hasClassic },
-    { id: 'world_explorer',icon: '🌍', unlocked: countries.size >= 5 },
-    { id: 'polyglot',      icon: '🗣', unlocked: languages.size >= 5 },
-    { id: 'genre_master',  icon: '🎪', unlocked: genres.size >= 10 },
+    { id: 'first_film',    unlocked: count >= 1 },
+    { id: 'ten_films',     unlocked: count >= 10 },
+    { id: 'fifty_films',   unlocked: count >= 50 },
+    { id: 'hundred_films', unlocked: count >= 100 },
+    { id: 'classic',       unlocked: hasClassic },
+    { id: 'world_explorer',unlocked: countries.size >= 5 },
+    { id: 'polyglot',      unlocked: languages.size >= 5 },
+    { id: 'genre_master',  unlocked: genres.size >= 10 },
   ];
 }

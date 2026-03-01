@@ -1,15 +1,39 @@
+import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronLeft, Video } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import { useAchievements } from '@/hooks/useAchievements';
+import { getDirectorMovies } from '@/lib/api';
 import MovieCard from '@/components/MovieCard';
 
 export default function AchievementsDirectorPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { t } = useI18n();
-  const { directors, isLoading } = useAchievements();
+  const { t, lang } = useI18n();
+  const { watched, directors, isLoading: achievementsLoading } = useAchievements();
 
   const director = directors.find(d => d.slug === slug);
+
+  const { data: allTmdbMovies = [], isLoading: tmdbLoading } = useQuery({
+    queryKey: ['directorMovies', director?.name, lang],
+    queryFn: () => getDirectorMovies(director!.name, lang),
+    enabled: !!director?.name,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+
+  const watchedIds = useMemo(() => new Set(watched.map(m => m.imdbID)), [watched]);
+  const watchedTitles = useMemo(() => new Set(watched.map(m => m.Title.toLowerCase())), [watched]);
+
+  const isWatchedFn = (movie: { imdbID: string; Title: string }) =>
+    watchedIds.has(movie.imdbID) || watchedTitles.has(movie.Title.toLowerCase());
+
+  const unwatchedTmdb = useMemo(
+    () => allTmdbMovies.filter(m => !isWatchedFn(m)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allTmdbMovies, watchedIds, watchedTitles]
+  );
+
+  const isLoading = achievementsLoading;
 
   if (isLoading) {
     return (
@@ -21,10 +45,10 @@ export default function AchievementsDirectorPage() {
           <div className="h-7 w-48 bg-secondary rounded animate-pulse" />
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(6)].map((_, i) => (
             <div key={i}>
               <div className="aspect-[2/3] rounded-lg bg-secondary animate-pulse mb-2" />
-              <div className="h-2.5 bg-secondary rounded animate-pulse mb-1" />
+              <div className="h-2.5 bg-secondary rounded animate-pulse" />
             </div>
           ))}
         </div>
@@ -56,16 +80,46 @@ export default function AchievementsDirectorPage() {
         <Video size={24} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">{director.name}</h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-6 ml-14">
+      <p className="text-sm text-muted-foreground mb-8 ml-14">
         {director.movies.length} {t('directorFilmsWatched')}
+        {allTmdbMovies.length > 0 && !tmdbLoading && (
+          <> · {allTmdbMovies.length} total</>
+        )}
       </p>
 
-      {/* Film grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-        {director.movies.map(movie => (
-          <MovieCard key={movie.imdbID} movie={movie} size="sm" />
-        ))}
-      </div>
+      {/* Watched films */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-foreground mb-3">{t('watchedSection')}</h2>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+          {director.movies.map(movie => (
+            <MovieCard key={movie.imdbID} movie={movie} size="sm" />
+          ))}
+        </div>
+      </section>
+
+      {/* Unwatched films from TMDB */}
+      {tmdbLoading ? (
+        <section>
+          <div className="h-5 w-32 bg-secondary rounded animate-pulse mb-3" />
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i}>
+                <div className="aspect-[2/3] rounded-lg bg-secondary animate-pulse mb-2" />
+                <div className="h-2.5 bg-secondary rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : unwatchedTmdb.length > 0 ? (
+        <section>
+          <h2 className="text-lg font-semibold text-foreground mb-3">{t('directorMoreFilms')}</h2>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+            {unwatchedTmdb.map(movie => (
+              <MovieCard key={movie.imdbID} movie={movie} size="sm" />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

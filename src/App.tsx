@@ -17,6 +17,7 @@ import RecoSectionPage from "./pages/RecoSectionPage";
 import AchievementsTop100Page from "./pages/AchievementsTop100Page";
 import AchievementsDirectorPage from "./pages/AchievementsDirectorPage";
 import AchievementsMilestonesPage from "./pages/AchievementsMilestonesPage";
+import DirectorPage from "./pages/DirectorPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/favourites" element={<FavouritesPage />} />
                 <Route path="/section/:slug" element={<RecoSectionPage />} />
                 <Route path="/achievements/top100" element={<AchievementsTop100Page />} />
+                <Route path="/director/:slug" element={<DirectorPage />} />
                 <Route path="/achievements/director/:slug" element={<AchievementsDirectorPage />} />
                 <Route path="/achievements/milestones" element={<AchievementsMilestonesPage />} />
                 <Route path="*" element={<NotFound />} />

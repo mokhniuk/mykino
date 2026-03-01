@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { ChevronLeft, Medal } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, Medal, Clapperboard, Film, Star, Trophy, Clock, Globe, Languages, Layers, type LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAchievements } from '@/hooks/useAchievements';
 import type { MilestoneId } from '@/lib/achievements';
@@ -7,17 +7,28 @@ import type { MilestoneId } from '@/lib/achievements';
 type MilestoneKey = `milestone_${MilestoneId}`;
 type MilestoneDescKey = `milestone_${MilestoneId}_desc`;
 
+const MILESTONE_ICONS: Record<MilestoneId, LucideIcon> = {
+  first_film:    Clapperboard,
+  ten_films:     Film,
+  fifty_films:   Star,
+  hundred_films: Trophy,
+  classic:       Clock,
+  world_explorer:Globe,
+  polyglot:      Languages,
+  genre_master:  Layers,
+};
+
 export default function AchievementsMilestonesPage() {
+  const navigate = useNavigate();
   const { t } = useI18n();
   const { milestones, isLoading } = useAchievements();
 
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center gap-3 pt-6 mb-6">
-        <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft size={28} />
-        </Link>
+        </button>
         <Medal size={24} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">{t('allMilestones')}</h1>
       </div>
@@ -33,6 +44,7 @@ export default function AchievementsMilestonesPage() {
           {milestones.map(milestone => {
             const titleKey = `milestone_${milestone.id}` as MilestoneKey;
             const descKey = `milestone_${milestone.id}_desc` as MilestoneDescKey;
+            const Icon = MILESTONE_ICONS[milestone.id as MilestoneId];
             return (
               <div
                 key={milestone.id}
@@ -42,7 +54,10 @@ export default function AchievementsMilestonesPage() {
                     : 'bg-secondary border-border opacity-40'
                 }`}
               >
-                <span className="text-3xl leading-none">{milestone.icon}</span>
+                <Icon
+                  size={28}
+                  className={milestone.unlocked ? 'text-primary' : 'text-muted-foreground'}
+                />
                 <p className="font-semibold text-sm text-foreground leading-snug">
                   {t(titleKey)}
                 </p>
