@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem, RefreshCw, ChevronLeft, Loader2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import { SLUG_TO_SECTION_ID, loadMoreForSection, FETCH_PAGES, type RecoSection } from '@/lib/recommendations';
+import { SLUG_TO_SECTION_ID, loadMoreForSection, SECTION_LOAD_MORE_START, type RecoSection } from '@/lib/recommendations';
 import type { MovieData } from '@/lib/db';
 import MovieCard from '@/components/MovieCard';
 
@@ -36,7 +36,7 @@ export default function RecoSectionPage() {
   const section = sectionId ? sections.find(s => s.id === sectionId) : undefined;
 
   const [allMovies, setAllMovies] = useState<MovieData[]>([]);
-  const [nextPage, setNextPage] = useState(FETCH_PAGES + 1);
+  const [nextPage, setNextPage] = useState(sectionId ? SECTION_LOAD_MORE_START[sectionId] : 2);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -48,7 +48,7 @@ export default function RecoSectionPage() {
   useEffect(() => {
     if (section) {
       setAllMovies(section.movies);
-      setNextPage(FETCH_PAGES + 1);
+      setNextPage(sectionId ? SECTION_LOAD_MORE_START[sectionId] : 2);
       setHasMore(true);
     }
   }, [section]);

@@ -35,6 +35,16 @@ export const SLUG_TO_SECTION_ID: Record<string, RecoSection['id']> = Object.from
   (Object.entries(SECTION_SLUGS) as [RecoSection['id'], string][]).map(([id, slug]) => [slug, id])
 );
 
+/** First page to request when loading more for each section (accounts for how many pages were pre-fetched). */
+export const SECTION_LOAD_MORE_START: Record<RecoSection['id'], number> = {
+  becauseLiked: FETCH_PAGES + 1,
+  byGenre:      FETCH_PAGES + 1,
+  nowPlaying:   2,               // only page 1 is pre-fetched for nowPlaying
+  trending:     FETCH_PAGES + 1,
+  popular:      FETCH_PAGES + 1,
+  hiddenGems:   FETCH_PAGES + 1,
+};
+
 interface CachedSections {
   sections: RecoSection[];
   cachedAt: number;
@@ -202,7 +212,7 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
           page: p,
         }).then(r => r.Search ?? []))
       : Promise.resolve([]),
-    fetchPages(p => getNowPlaying(lang, p)),
+    getNowPlaying(lang, 1),
     fetchPages(p => getTrending(lang, p)),
     fetchPages(p => getPopular(lang, p)),
     fetchPages(p => discoverMovies({
