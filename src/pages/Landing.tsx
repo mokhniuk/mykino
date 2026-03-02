@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type SVGProps } from 'react';
+import GB from 'country-flag-icons/react/3x2/GB';
+import UA from 'country-flag-icons/react/3x2/UA';
+import DE from 'country-flag-icons/react/3x2/DE';
+import CZ from 'country-flag-icons/react/3x2/CZ';
+import PL from 'country-flag-icons/react/3x2/PL';
+import BR from 'country-flag-icons/react/3x2/BR';
 import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
@@ -30,13 +36,15 @@ const GENRES: { id: number; names: Record<Lang, string> }[] = [
   { id: 9648,  names: { en: 'Mystery',       ua: 'Містика',        de: 'Mystery',          cs: 'Mysteriózní' } },
 ];
 
-const LANG_OPTIONS: { value: Lang; label: string; flag: string }[] = [
-  { value: 'en', label: 'English',    flag: '🇬🇧' },
-  { value: 'ua', label: 'Українська', flag: '🇺🇦' },
-  { value: 'de', label: 'Deutsch',    flag: '🇩🇪' },
-  { value: 'cs', label: 'Čeština',    flag: '🇨🇿' },
-  { value: 'pl', label: 'Polski',     flag: '🇵🇱' },
-  { value: 'pt', label: 'Português',  flag: '🇧🇷' },
+type FlagComponent = ComponentType<SVGProps<SVGSVGElement>>;
+
+const LANG_OPTIONS: { value: Lang; label: string; Flag: FlagComponent }[] = [
+  { value: 'en', label: 'English',    Flag: GB },
+  { value: 'ua', label: 'Українська', Flag: UA },
+  { value: 'de', label: 'Deutsch',    Flag: DE },
+  { value: 'cs', label: 'Čeština',    Flag: CZ },
+  { value: 'pl', label: 'Polski',     Flag: PL },
+  { value: 'pt', label: 'Português',  Flag: BR },
 ];
 
 // ── Floating poster rows for hero background ────────────────────────────────
@@ -279,18 +287,18 @@ export default function Landing() {
             </div>
             <div className="flex-1 w-full">
               <div className="grid grid-cols-3 gap-3">
-                {LANG_OPTIONS.map(opt => (
+                {LANG_OPTIONS.map(({ value, label, Flag }) => (
                   <button
-                    key={opt.value}
-                    onClick={() => setLang(opt.value)}
+                    key={value}
+                    onClick={() => setLang(value)}
                     className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all text-left ${
-                      lang === opt.value
+                      lang === value
                         ? 'border-primary bg-primary/8 text-foreground'
                         : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
                     }`}
                   >
-                    <span className="text-3xl leading-none">{opt.flag}</span>
-                    <span className="font-semibold text-base">{opt.label}</span>
+                    <Flag className="w-7 h-auto rounded-sm flex-shrink-0" />
+                    <span className="font-semibold text-sm leading-tight">{label}</span>
                   </button>
                 ))}
               </div>
@@ -499,7 +507,17 @@ export default function Landing() {
                   <BarChart2 size={20} className="text-primary" />
                 </div>
                 <h4 className="font-semibold text-foreground mb-2">{t('infoAnalyticsTitle')}</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">{t('infoAnalyticsDesc')}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {t('infoAnalyticsDesc')}{' '}
+                  <a
+                    href="https://umami.is"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
+                  >
+                    Umami
+                  </a>.
+                </p>
               </div>
             </div>
 
