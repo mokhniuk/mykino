@@ -212,6 +212,10 @@ const translations = {
     landingFeaturePrivate: 'Data stays on your device',
     landingFeatureOffline: 'Works offline',
     landingFeatureNoAccount: 'No sign-up required',
+    landingLangDesc: 'The app speaks your language. Switch anytime in Settings.',
+    landingThemeDesc: 'Choose how the app looks. Follows your system setting by default.',
+    landingGenreDesc: 'Boost genres you love, push down ones to avoid. Recommendations adjust instantly.',
+    landingWatchedDesc: 'Already seen a film? Mark it so it won\'t appear in your recommendations.',
   },
   ua: {
     goodMorning: 'Доброго ранку',
@@ -414,6 +418,10 @@ const translations = {
     landingFeaturePrivate: 'Дані залишаються на пристрої',
     landingFeatureOffline: 'Працює офлайн',
     landingFeatureNoAccount: 'Без реєстрації',
+    landingLangDesc: 'Застосунок говорить вашою мовою. Змінити можна в налаштуваннях.',
+    landingThemeDesc: 'Виберіть вигляд. За замовчуванням слідує системній темі.',
+    landingGenreDesc: 'Підвищуйте улюблені жанри, знижуйте небажані. Рекомендації адаптуються.',
+    landingWatchedDesc: 'Вже бачили фільм? Позначте, щоб він не потрапляв у рекомендації.',
   },
   de: {
     goodMorning: 'Guten Morgen',
@@ -616,6 +624,10 @@ const translations = {
     landingFeaturePrivate: 'Daten auf deinem Gerät',
     landingFeatureOffline: 'Offline nutzbar',
     landingFeatureNoAccount: 'Kein Konto nötig',
+    landingLangDesc: 'Die App spricht deine Sprache. Jederzeit in den Einstellungen änderbar.',
+    landingThemeDesc: 'Wähle das Erscheinungsbild. Folgt standardmäßig der Systemeinstellung.',
+    landingGenreDesc: 'Bevorzuge Lieblingsgenres, schließe unerwünschte aus. Empfehlungen passen sich an.',
+    landingWatchedDesc: 'Film schon gesehen? Markiere ihn, damit er in Empfehlungen übersprungen wird.',
   },
   cs: {
     goodMorning: 'Dobré ráno',
@@ -816,6 +828,10 @@ const translations = {
     landingFeaturePrivate: 'Data zůstávají v zařízení',
     landingFeatureOffline: 'Funguje offline',
     landingFeatureNoAccount: 'Bez registrace',
+    landingLangDesc: 'Aplikace mluví vaším jazykem. Kdykoli změnitelné v nastavení.',
+    landingThemeDesc: 'Vyberte vzhled. Výchozí chování sleduje systémové nastavení.',
+    landingGenreDesc: 'Upřednostněte oblíbené žánry, vylučte neoblíbené. Doporučení se okamžitě přizpůsobí.',
+    landingWatchedDesc: 'Film jste již viděli? Označte ho, aby se v doporučeních neobjevoval.',
   },
 } as const;
 
