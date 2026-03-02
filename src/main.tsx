@@ -15,11 +15,22 @@ window.addEventListener('vite:preloadError', () => {
 // values from localStorage (they call localStorage.getItem in their state
 // initialisers). The full payload is kept in _setup_handoff for the async IDB
 // writes that happen inside the app (genres, watched movies).
+function decodeSetupToken(token: string): string {
+  // URLSearchParams decodes '+' as space and base64url uses '-' and '_'.
+  // Normalize to standard base64 before calling atob.
+  let base64 = token.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
+  // Add '=' padding to make the length a multiple of 4, as required by atob.
+  while (base64.length % 4 !== 0) {
+    base64 += '=';
+  }
+  return atob(base64);
+}
+
 (function applySetupHandoff() {
   const token = new URLSearchParams(window.location.search).get('_s');
   if (!token) return;
   try {
-    const p = JSON.parse(atob(token)) as {
+    const p = JSON.parse(decodeSetupToken(token)) as {
       l?: string; t?: string; lg?: number[]; dg?: number[];
       w?: { i: string; T: string; y: string; p: string; tp: string }[];
     };
