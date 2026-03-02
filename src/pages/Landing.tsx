@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
-  Globe, Palette, Layers, Search, Loader2,
-  Sun, Moon, Monitor,
+  Search, Loader2, Sun, Moon, Monitor,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Lang } from '@/lib/i18n';
@@ -118,22 +117,6 @@ function FloatingPosters({ lang }: { lang: Lang }) {
   );
 }
 
-// ── Shared piece: the left description column inside a bento cell ───────────
-function CellDesc({
-  step, title, desc, className = '',
-}: {
-  step: string; title: string; desc: string; className?: string;
-}) {
-  return (
-    <div className={`flex-shrink-0 ${className}`}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/30 mb-1.5 select-none">
-        {step}
-      </p>
-      <h3 className="text-base font-semibold text-foreground leading-snug mb-2">{title}</h3>
-      <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-    </div>
-  );
-}
 
 export default function Landing() {
   const navigate   = useNavigate();
@@ -264,202 +247,209 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Bento setup grid ─────────────────────────────────────────────── */}
-      <div ref={setupRef} className="max-w-4xl mx-auto px-4 pb-32">
+      {/* ── Setup sections ──────────────────────────────────────────────── */}
+      <div ref={setupRef} className="border-t border-border">
 
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">{t('landingSetupTitle')}</h2>
-          <p className="text-muted-foreground text-sm">{t('landingSetupSubtitle')}</p>
+        {/* Intro */}
+        <div className="max-w-3xl mx-auto px-6 py-20 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground mb-5">
+            {t('landingSetupTitle')}
+          </p>
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground leading-tight">
+            {t('landingSetupSubtitle')}
+          </h2>
         </div>
 
-        {/* Bento grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-          {/* ── 01 Language ── col-span-1: vertical two-part */}
-          <div className="rounded-2xl bg-card border border-border p-6 flex flex-col gap-5">
-            <CellDesc
-              step="01"
-              title={t('landingPickLanguage')}
-              desc={t('landingLangDesc')}
-            />
-            <div className="h-px bg-border" />
-            <div className="grid grid-cols-2 gap-2">
-              {LANG_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setLang(opt.value)}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                    lang === opt.value
-                      ? 'bg-primary/10 border-primary'
-                      : 'bg-secondary/50 border-border hover:border-primary/30'
-                  }`}
-                >
-                  <span className="text-lg leading-none">{opt.flag}</span>
-                  <span className={`font-medium text-sm ${lang === opt.value ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {opt.label}
-                  </span>
-                </button>
-              ))}
+        {/* ── 01 Language — text left · content right ── */}
+        <div className="w-full py-20 lg:py-28">
+          <div className="max-w-6xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center gap-12 lg:gap-24">
+            <div className="flex-1">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-5">01</p>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight mb-5">
+                {t('landingPickLanguage')}
+              </h3>
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                {t('landingLangDesc')}
+              </p>
             </div>
-          </div>
-
-          {/* ── 02 Theme ── col-span-1: vertical two-part */}
-          <div className="rounded-2xl bg-card border border-border p-6 flex flex-col gap-5">
-            <CellDesc
-              step="02"
-              title={t('themeSetting')}
-              desc={t('landingThemeDesc')}
-            />
-            <div className="h-px bg-border" />
-            <div className="flex gap-2">
-              {themeOptions.map(({ value, icon: Icon, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setTheme(value)}
-                  className={`flex-1 flex flex-col items-center gap-2 py-3.5 rounded-xl text-xs font-medium transition-colors ${
-                    theme === value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
-                  }`}
-                >
-                  <Icon size={16} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── 03 Genre preferences ── full-width: horizontal two-part */}
-          <div className="rounded-2xl bg-card border border-border p-6 sm:col-span-2">
-            <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
-
-              {/* Description */}
-              <div className="md:w-[200px] lg:w-[220px] flex-shrink-0 md:border-r md:border-border md:pr-8 pb-5 border-b border-border md:pb-0 md:border-b-0">
-                <CellDesc
-                  step="03"
-                  title={t('landingPickGenres')}
-                  desc={t('landingGenreDesc')}
-                />
-                {/* Legend */}
-                <div className="flex flex-col gap-1.5 mt-5 text-xs text-muted-foreground/60">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500/70 flex-shrink-0" />
-                    {t('include')}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500/70 flex-shrink-0" />
-                    {t('exclude')}
-                  </span>
-                  <span className="italic mt-0.5 text-muted-foreground/40">tap to cycle</span>
-                </div>
+            <div className="flex-1 w-full">
+              <div className="grid grid-cols-2 gap-3">
+                {LANG_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setLang(opt.value)}
+                    className={`flex items-center gap-4 px-5 py-5 rounded-2xl border-2 transition-all text-left ${
+                      lang === opt.value
+                        ? 'border-primary bg-primary/8 text-foreground'
+                        : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                    }`}
+                  >
+                    <span className="text-3xl leading-none">{opt.flag}</span>
+                    <span className="font-semibold text-base">{opt.label}</span>
+                  </button>
+                ))}
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* Interactive: genre chips */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap gap-2">
-                  {GENRES.map(g => {
-                    const liked    = likedGenres.has(g.id);
-                    const disliked = dislikedGenres.has(g.id);
+        {/* ── 02 Theme — content left · text right ── */}
+        <div className="w-full py-20 lg:py-28 bg-secondary/30">
+          <div className="max-w-6xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row-reverse items-center gap-12 lg:gap-24">
+            <div className="flex-1">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-5">02</p>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight mb-5">
+                {t('themeSetting')}
+              </h3>
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                {t('landingThemeDesc')}
+              </p>
+            </div>
+            <div className="flex-1 w-full">
+              <div className="grid grid-cols-3 gap-3">
+                {themeOptions.map(({ value, icon: Icon, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setTheme(value)}
+                    className={`flex flex-col items-center gap-4 py-8 rounded-2xl border-2 transition-all ${
+                      theme === value
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                    }`}
+                  >
+                    <Icon size={26} />
+                    <span className="text-sm font-semibold">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 03 Genre preferences — text left · content right ── */}
+        <div className="w-full py-20 lg:py-28">
+          <div className="max-w-6xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-start gap-12 lg:gap-24">
+            <div className="flex-1 md:sticky md:top-28">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-5">03</p>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight mb-5">
+                {t('landingPickGenres')}
+              </h3>
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-8">
+                {t('landingGenreDesc')}
+              </p>
+              <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
+                <span className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500/70 flex-shrink-0" />
+                  {t('include')}
+                </span>
+                <span className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/70 flex-shrink-0" />
+                  {t('exclude')}
+                </span>
+                <span className="italic text-muted-foreground/40 mt-1">tap to cycle</span>
+              </div>
+            </div>
+            <div className="flex-1 w-full">
+              <div className="flex flex-wrap gap-2.5">
+                {GENRES.map(g => {
+                  const liked    = likedGenres.has(g.id);
+                  const disliked = dislikedGenres.has(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => cycleGenre(g.id)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                        liked
+                          ? 'bg-green-500/15 border-green-500/40 text-green-700 dark:text-green-400'
+                          : disliked
+                          ? 'bg-red-500/15 border-red-500/40 text-red-700 dark:text-red-400'
+                          : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                      }`}
+                    >
+                      {liked ? '+ ' : disliked ? '× ' : ''}{g.names[lang]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 04 Watched history — content left · text right ── */}
+        <div className="w-full py-20 lg:py-28 bg-secondary/30">
+          <div className="max-w-6xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row-reverse items-start gap-12 lg:gap-24">
+            <div className="flex-1">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-5">04</p>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight mb-5">
+                {t('landingMarkWatched')}
+              </h3>
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                {t('landingWatchedDesc')}
+              </p>
+              {watchedIds.size > 0 && (
+                <p className="mt-6 text-base font-semibold text-primary">{watchedIds.size} ✓</p>
+              )}
+            </div>
+            <div className="flex-1 w-full">
+              <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-card border border-border focus-within:border-primary/40 transition-colors mb-3">
+                <Search size={16} className="text-muted-foreground flex-shrink-0" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={e => handleSearch(e.target.value)}
+                  placeholder={t('searchForMovies')}
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+                {searchLoading && <Loader2 size={15} className="text-muted-foreground animate-spin flex-shrink-0" />}
+              </div>
+              {searchResults.length > 0 && (
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {searchResults.map(movie => {
+                    const poster  = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
+                    const checked = watchedIds.has(movie.imdbID);
                     return (
                       <button
-                        key={g.id}
-                        onClick={() => cycleGenre(g.id)}
-                        className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                          liked
-                            ? 'bg-green-500/15 border-green-500/40 text-green-700 dark:text-green-400'
-                            : disliked
-                            ? 'bg-red-500/15 border-red-500/40 text-red-700 dark:text-red-400'
-                            : 'bg-secondary/50 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                        key={movie.imdbID}
+                        onClick={() => toggleWatched(movie)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                          checked
+                            ? 'bg-primary/10 border border-primary/20'
+                            : 'bg-card border border-border hover:border-primary/30'
                         }`}
                       >
-                        {liked ? '+ ' : disliked ? '× ' : ''}{g.names[lang]}
+                        <div className="w-9 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                          {poster && <img src={poster} alt={movie.Title} className="w-full h-full object-cover" loading="lazy" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{movie.Title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{movie.Year}</p>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          checked ? 'bg-primary border-primary' : 'border-border'
+                        }`}>
+                          {checked && <Check size={12} className="text-primary-foreground" strokeWidth={3} />}
+                        </div>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              )}
             </div>
           </div>
-
-          {/* ── 04 Watched history ── full-width: horizontal two-part */}
-          <div className="rounded-2xl bg-card border border-border p-6 sm:col-span-2">
-            <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
-
-              {/* Description */}
-              <div className="md:w-[200px] lg:w-[220px] flex-shrink-0 md:border-r md:border-border md:pr-8 pb-5 border-b border-border md:pb-0 md:border-b-0">
-                <CellDesc
-                  step="04"
-                  title={t('landingMarkWatched')}
-                  desc={t('landingWatchedDesc')}
-                />
-                {watchedIds.size > 0 && (
-                  <p className="mt-4 text-sm font-medium text-primary">{watchedIds.size} ✓</p>
-                )}
-              </div>
-
-              {/* Interactive: search + results */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-secondary/50 border border-border focus-within:border-primary/40 transition-colors">
-                  <Search size={15} className="text-muted-foreground flex-shrink-0" />
-                  <input
-                    type="search"
-                    value={searchQuery}
-                    onChange={e => handleSearch(e.target.value)}
-                    placeholder={t('searchForMovies')}
-                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                  />
-                  {searchLoading && <Loader2 size={14} className="text-muted-foreground animate-spin flex-shrink-0" />}
-                </div>
-
-                {searchResults.length > 0 && (
-                  <div className="mt-2 space-y-1.5 max-h-60 overflow-y-auto">
-                    {searchResults.map(movie => {
-                      const poster  = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
-                      const checked = watchedIds.has(movie.imdbID);
-                      return (
-                        <button
-                          key={movie.imdbID}
-                          onClick={() => toggleWatched(movie)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-left ${
-                            checked
-                              ? 'bg-primary/10 border border-primary/20'
-                              : 'bg-secondary/50 border border-transparent hover:border-border'
-                          }`}
-                        >
-                          <div className="w-8 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                            {poster && <img src={poster} alt={movie.Title} className="w-full h-full object-cover" loading="lazy" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{movie.Title}</p>
-                            <p className="text-xs text-muted-foreground">{movie.Year}</p>
-                          </div>
-                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
-                            checked ? 'bg-primary border-primary' : 'border-border'
-                          }`}>
-                            {checked && <Check size={11} className="text-primary-foreground" strokeWidth={3} />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
         </div>
 
         {/* ── Final CTA ── */}
-        <div className="text-center mt-12 pt-12 border-t border-border">
-          <h3 className="text-2xl font-bold text-foreground mb-2">{t('landingDoneHeadline')}</h3>
-          <p className="text-sm text-muted-foreground mb-7">{t('landingTagline')}</p>
+        <div className="py-28 px-6 text-center">
+          <h3 className="text-4xl md:text-5xl font-bold text-foreground mb-5">{t('landingDoneHeadline')}</h3>
+          <p className="text-lg text-muted-foreground mb-10 max-w-md mx-auto leading-relaxed">{t('landingTagline')}</p>
           <button
             onClick={handleEnterApp}
-            className="w-full max-w-xs py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity mx-auto block"
+            className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
           >
             {t('landingEnterApp')} →
           </button>
         </div>
+
       </div>
     </div>
   );
