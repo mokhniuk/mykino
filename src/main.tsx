@@ -16,14 +16,13 @@ window.addEventListener('vite:preloadError', () => {
 // initialisers). The full payload is kept in _setup_handoff for the async IDB
 // writes that happen inside the app (genres, watched movies).
 function decodeSetupToken(token: string): string {
-  // URLSearchParams decodes '+' as space and base64url uses '-' and '_'.
-  // Normalize to standard base64 before calling atob.
+  // Normalize base64url → standard base64 and restore any padding.
   let base64 = token.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
-  // Add '=' padding to make the length a multiple of 4, as required by atob.
-  while (base64.length % 4 !== 0) {
-    base64 += '=';
-  }
-  return atob(base64);
+  while (base64.length % 4 !== 0) base64 += '=';
+  // atob gives a binary string; feed through TextDecoder to recover UTF-8.
+  const binary = atob(base64);
+  const bytes  = Uint8Array.from(binary, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 (function applySetupHandoff() {

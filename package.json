@@ -1,8 +1,8 @@
 {
   "name": "mykino",
   "private": true,
-  "version": "1.15.7",
-  "type": "module",
+  "version": "1.15.9",
+  "type": "module",   
   "scripts": {
     "dev": "vite",
     "build": "vite build",

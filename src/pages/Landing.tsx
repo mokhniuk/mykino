@@ -204,7 +204,10 @@ export default function Landing() {
     // Encode all setup data as a compact URL token so the app can re-apply it
     // in a different storage context (e.g. iOS PWA after the user adds to home
     // screen — browser and PWA have completely separate storage on iOS).
-    const token = btoa(JSON.stringify({
+    // Unicode-safe base64: JSON → UTF-8 bytes → binary string → base64.
+    // Plain btoa(JSON.stringify(...)) throws on any non-Latin1 character
+    // (e.g. movie titles in Ukrainian, Japanese, Arabic, …).
+    const json  = JSON.stringify({
       l:  lang,
       t:  theme,
       lg: [...likedGenres],
@@ -216,9 +219,11 @@ export default function Landing() {
         p:  m.Poster,
         tp: m.Type,
       })),
-    }));
-    const encodedToken = encodeURIComponent(token);
-    navigate(`/app?_s=${encodedToken}`);
+    });
+    const bytes  = new TextEncoder().encode(json);
+    const binary = Array.from(bytes, b => String.fromCharCode(b)).join('');
+    const token  = btoa(binary);
+    navigate(`/app?_s=${encodeURIComponent(token)}`);
   };
 
   const themeOptions: { value: ThemePreference; icon: React.ElementType; label: string }[] = [
