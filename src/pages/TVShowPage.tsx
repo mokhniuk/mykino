@@ -15,6 +15,7 @@ import { computeProgress, type TVSeriesTracking } from '@/lib/tvTracking';
 import {
   cacheMovie, isInWatchlist, addToWatchlist, removeFromWatchlist,
   isInFavourites, addToFavourites, removeFromFavourites,
+  addToWatched, removeFromWatched,
   type MovieData,
 } from '@/lib/db';
 
@@ -98,6 +99,8 @@ export default function TVShowPage() {
     if (!showDetail) return;
     const current = getOrCreateTracking();
     await updateTracking({ ...current, status: 'completed', lastWatchedAt: Date.now() });
+    await addToWatched(buildMovieData());
+    queryClient.invalidateQueries({ queryKey: ['watched'] });
     if (inWatchlist) {
       await removeFromWatchlist(id!);
       setInWatchlist(false);
@@ -108,6 +111,8 @@ export default function TVShowPage() {
   const handleUnmarkCompleted = async () => {
     const current = getOrCreateTracking();
     await updateTracking({ ...current, status: 'watching', lastWatchedAt: Date.now() });
+    await removeFromWatched(id!);
+    queryClient.invalidateQueries({ queryKey: ['watched'] });
     await addToWatchlist(buildMovieData());
     setInWatchlist(true);
     queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -183,6 +188,14 @@ export default function TVShowPage() {
       status: newStatus,
       lastWatchedAt: Date.now(),
     });
+
+    if (newStatus === 'completed' && current.status !== 'completed') {
+      await addToWatched(buildMovieData());
+      queryClient.invalidateQueries({ queryKey: ['watched'] });
+    } else if (newStatus !== 'completed' && current.status === 'completed') {
+      await removeFromWatched(id!);
+      queryClient.invalidateQueries({ queryKey: ['watched'] });
+    }
   };
 
   const handleMarkAllInSeason = async (seasonNum: number, episodeCount: number, markAll: boolean) => {
@@ -214,6 +227,14 @@ export default function TVShowPage() {
       status: newStatus,
       lastWatchedAt: Date.now(),
     });
+
+    if (newStatus === 'completed' && current.status !== 'completed') {
+      await addToWatched(buildMovieData());
+      queryClient.invalidateQueries({ queryKey: ['watched'] });
+    } else if (newStatus !== 'completed' && current.status === 'completed') {
+      await removeFromWatched(id!);
+      queryClient.invalidateQueries({ queryKey: ['watched'] });
+    }
   };
 
   if (loading) {

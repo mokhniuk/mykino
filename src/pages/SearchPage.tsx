@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
@@ -30,7 +30,6 @@ function SearchResultCard({
 
   return (
     <div className="flex items-stretch rounded-xl overflow-hidden bg-secondary/60 hover:bg-secondary transition-colors">
-      {/* Poster — flush left/top/bottom, 2:3 ratio, no crop */}
       <Link to={movie.Type === 'series' ? `/tv/${movie.imdbID}` : `/movie/${movie.imdbID}`} className="flex-shrink-0 w-[80px] aspect-[2/3]">
         {poster ? (
           <img src={poster} alt={movie.Title} className="w-full h-full object-cover" loading="lazy" />
@@ -41,7 +40,6 @@ function SearchResultCard({
         )}
       </Link>
 
-      {/* Title + meta */}
       <Link to={movie.Type === 'series' ? `/tv/${movie.imdbID}` : `/movie/${movie.imdbID}`} className="flex-1 min-w-0 flex items-center px-3">
         <div className="min-w-0 w-full">
           <span className="inline-block text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded mb-1.5">{typeLabel}</span>
@@ -50,8 +48,7 @@ function SearchResultCard({
         </div>
       </Link>
 
-      {/* Button */}
-      <div className="flex items-center  flex-shrink-0">
+      <div className="flex items-center flex-shrink-0">
         <button
           onClick={(e) => { e.preventDefault(); onToggleWatchlist(); }}
           className={`p-2.5 h-full rounded-r-xl transition-colors ${inWatchlist
@@ -75,7 +72,6 @@ export default function SearchPage() {
   const [error, setError] = useState('');
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
-  // Filter & Pagination state
   const [genres, setGenres] = useState<{ id: number, name: string }[]>([]);
   const [countries, setCountries] = useState<{ code: string, name: string }[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
@@ -87,21 +83,17 @@ export default function SearchPage() {
   const [isDiscovery, setIsDiscovery] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
 
-  // Derive years list (last 100 years)
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
 
-  // Fetch metadata
+  const hasActiveFilters = selectedGenre !== null || selectedYear !== 'all' || selectedCountry !== 'all';
+
   useEffect(() => {
-    Promise.all([
-      getGenres(lang),
-      getCountries(lang)
-    ]).then(([genreData, countryData]) => {
+    Promise.all([getGenres(lang), getCountries(lang)]).then(([genreData, countryData]) => {
       const allGenres = [...genreData.movie, ...genreData.tv];
       const uniqueGenres = Array.from(new Map(allGenres.map(g => [g.id, g])).values())
         .sort((a, b) => a.name.localeCompare(b.name));
       setGenres(uniqueGenres);
-
       const mappedCountries = countryData.map(c => ({
         code: c.iso_3166_1,
         name: c.native_name || c.english_name
@@ -110,23 +102,29 @@ export default function SearchPage() {
     });
   }, [lang]);
 
-  const hasActiveFilters = selectedGenre !== null || selectedYear !== 'all' || selectedCountry !== 'all';
+  // Ref updated every render so the observer callback always has fresh state
+  // without the observer needing to be recreated.
+  const loadMoreRef = useRef<(() => void) | null>(null);
 
-  const fetchData = useCallback(async (q: string, p: number, append = false) => {
+  // Core fetch — not useCallback, so it never becomes a stale dep itself.
+  // Filters are applied client-side when a query is active (TMDB /search/multi
+  // doesn't support genre/year/country params, but results include genre_ids,
+  // origin_country, and Year which we can filter on).
+  const doFetch = async (q: string, p: number, append: boolean) => {
     setLoading(true);
     setError('');
 
-    let data;
-    const discovery = !q.trim() && hasActiveFilters;
-    setIsDiscovery(discovery);
+    const isDiscMode = !q.trim() && hasActiveFilters;
+    if (!append) setIsDiscovery(isDiscMode);
 
-    if (discovery) {
+    let data;
+    if (isDiscMode) {
       data = await discoverMovies({
         genre: selectedGenre,
         year: selectedYear,
         country: selectedCountry,
         page: p,
-        lang
+        lang,
       });
     } else if (q.trim()) {
       data = await searchMovies(q, p, lang);
@@ -138,55 +136,80 @@ export default function SearchPage() {
     }
 
     setLoading(false);
-    if (data.Response === 'True' && data.Search) {
-      setResults(prev => append ? [...prev, ...data.Search!] : data.Search!);
-      setHasMore(data.Search.length >= 20); // Basic check for more results
 
-      const wSet = new Set(append ? watchlistIds : []);
-      for (const m of data.Search) {
-        if (await isInWatchlist(m.imdbID)) wSet.add(m.imdbID);
+    if (data.Response === 'True' && data.Search) {
+      let items = data.Search;
+
+      // Client-side filter when search query is active
+      if (q.trim() && hasActiveFilters) {
+        if (selectedGenre !== null) items = items.filter(m => m.genre_ids?.includes(selectedGenre));
+        if (selectedYear !== 'all') items = items.filter(m => m.Year === selectedYear);
+        if (selectedCountry !== 'all') items = items.filter(m => m.origin_country?.includes(selectedCountry));
       }
-      setWatchlistIds(wSet);
+
+      setResults(prev => append ? [...prev, ...items] : items);
+      setHasMore(data.Search.length >= 20);
+
+      // Check watchlist status without closing over watchlistIds state
+      const newIds = new Set<string>();
+      for (const m of data.Search) {
+        if (await isInWatchlist(m.imdbID)) newIds.add(m.imdbID);
+      }
+      setWatchlistIds(prev => {
+        const merged = new Set(append ? prev : []);
+        for (const id of newIds) merged.add(id);
+        return merged;
+      });
     } else {
       if (!append) setResults([]);
       setHasMore(false);
       if (data.Error && data.Error !== 'No API key configured') setError(data.Error);
     }
-  }, [lang, selectedGenre, selectedYear, selectedCountry, watchlistIds, hasActiveFilters]);
+  };
 
-  // Handle Search/Filter changes
+  // Trigger search/discovery when query or filters change.
+  // doFetch is intentionally omitted from deps — it's redefined every render
+  // with fresh closure values, and all its external deps are listed here directly.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setPage(1);
     const timer = setTimeout(() => {
       setParams(query ? { q: query } : {}, { replace: true });
-      fetchData(query, 1);
+      doFetch(query, 1, false);
     }, 400);
     return () => clearTimeout(timer);
-  }, [query, selectedGenre, selectedYear, selectedCountry, fetchData, setParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, selectedGenre, selectedYear, selectedCountry, lang]);
 
-  // Infinite Scroll Observer
+  // Keep loadMoreRef current every render — no dep array needed.
+  loadMoreRef.current = () => {
+    if (!hasMore || loading) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    doFetch(query, nextPage, true);
+  };
+
+  // Set up the intersection observer once. It calls loadMoreRef.current which
+  // always has the latest state, so the observer never needs to be recreated.
   useEffect(() => {
-    if (!observerRef.current || !hasMore || loading) return;
-
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        const nextPage = page + 1;
-        setPage(nextPage);
-        fetchData(query, nextPage, true);
-      }
-    }, { threshold: 0.1 });
-
-    observer.observe(observerRef.current);
+    const el = observerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMoreRef.current?.(); },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, loading, page, query, fetchData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleWatchlist = async (movie: MovieData) => {
     if (watchlistIds.has(movie.imdbID)) {
       await removeFromWatchlist(movie.imdbID);
-      setWatchlistIds((s) => { const n = new Set(s); n.delete(movie.imdbID); return n; });
+      setWatchlistIds(s => { const n = new Set(s); n.delete(movie.imdbID); return n; });
     } else {
       await addToWatchlist(movie);
-      setWatchlistIds((s) => new Set(s).add(movie.imdbID));
+      setWatchlistIds(s => new Set(s).add(movie.imdbID));
     }
   };
 
@@ -225,12 +248,11 @@ export default function SearchPage() {
           </div>
         </form>
 
-        {/* Filters Grid/Row */}
+        {/* Filters */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {/* Genre Filter */}
           <Select
-            value={selectedGenre?.toString() || "all"}
-            onValueChange={(val) => setSelectedGenre(val === "all" ? null : Number(val))}
+            value={selectedGenre?.toString() || 'all'}
+            onValueChange={(val) => setSelectedGenre(val === 'all' ? null : Number(val))}
           >
             <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
               <SelectValue placeholder={t('filterGenre')} />
@@ -243,11 +265,7 @@ export default function SearchPage() {
             </SelectContent>
           </Select>
 
-          {/* Year Filter */}
-          <Select
-            value={selectedYear}
-            onValueChange={setSelectedYear}
-          >
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
             <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
               <SelectValue placeholder={t('filterYear')} />
             </SelectTrigger>
@@ -259,11 +277,7 @@ export default function SearchPage() {
             </SelectContent>
           </Select>
 
-          {/* Country Filter */}
-          <Select
-            value={selectedCountry}
-            onValueChange={setSelectedCountry}
-          >
+          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
             <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
               <SelectValue placeholder={t('filterCountry')} />
             </SelectTrigger>
@@ -275,7 +289,6 @@ export default function SearchPage() {
             </SelectContent>
           </Select>
 
-          {/* Clear Filters */}
           <Button
             variant="ghost"
             size="sm"
@@ -306,12 +319,11 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Infinite Scroll Trigger */}
+      {/* Infinite scroll sentinel */}
       <div ref={observerRef} className="h-20 flex items-center justify-center">
         {loading && <Loader2 size={24} className="text-muted-foreground/40 animate-spin" />}
       </div>
 
-      {/* Empty States */}
       {!loading && results.length === 0 && (query || hasActiveFilters) && (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
@@ -334,4 +346,3 @@ export default function SearchPage() {
     </div>
   );
 }
-
