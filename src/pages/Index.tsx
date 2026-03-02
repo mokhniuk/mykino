@@ -15,7 +15,6 @@ import { useTVTracking } from '@/hooks/useTVTracking';
 import type { RecoSection } from '@/lib/recommendations';
 import { SECTION_SLUGS } from '@/lib/recommendations';
 import type { MilestoneId } from '@/lib/achievements';
-import { computeProgress } from '@/lib/tvTracking';
 import MovieCard from '@/components/MovieCard';
 import RecoCard from '@/components/RecoCard';
 
@@ -90,6 +89,10 @@ export default function Index() {
   const { sections: recoSections, isLoading: recoLoading } = useRecommendations();
   const { watched, directors, milestones, dailyPickMovie, dailyPickLoading, top100Progress } = useAchievements();
   const { trackingList } = useTVTracking();
+  const trackingMap = useMemo(
+    () => Object.fromEntries(trackingList.map(tr => [tr.tvId, tr])),
+    [trackingList],
+  );
   const watchingShows = trackingList.filter(s => s.status === 'watching');
   const [watchingMovies, setWatchingMovies] = useState<Map<string, MovieData>>(new Map());
 
@@ -195,34 +198,20 @@ export default function Index() {
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             {watchingShows.map(show => {
-              const movieData = watchingMovies.get(show.tvId);
-              const poster = movieData?.Poster && movieData.Poster !== 'N/A' ? movieData.Poster : null;
-              const progress = computeProgress(show, []);
+              const movieData = watchingMovies.get(show.tvId) ?? {
+                imdbID: show.tvId,
+                Title: show.tvId,
+                Year: '',
+                Poster: 'N/A',
+                Type: 'series' as const,
+              };
               return (
-                <Link key={show.tvId} to={`/tv/${show.tvId}`} className="flex-shrink-0 w-28">
-                  <div className="aspect-[2/3] rounded-lg bg-secondary overflow-hidden mb-2 relative">
-                    {poster ? (
-                      <img src={poster} alt={movieData?.Title} className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Tv2 size={20} className="text-muted-foreground/30" />
-                      </div>
-                    )}
-                    {show.totalEpisodesWatched > 0 && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
-                        <div
-                          className="h-full bg-primary"
-                          style={{
-                            width: `${progress.total > 0 ? (show.totalEpisodesWatched / progress.total) * 100 : 0}%`,
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs font-medium text-foreground line-clamp-2 leading-snug">
-                    {movieData?.Title ?? show.tvId}
-                  </p>
-                </Link>
+                <MovieCard
+                  key={show.tvId}
+                  movie={movieData}
+                  size="sm"
+                  progress={{ watched: show.totalEpisodesWatched, total: show.numberOfEpisodes ?? 0 }}
+                />
               );
             })}
           </div>
@@ -258,7 +247,15 @@ export default function Index() {
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             {localizedWatchlist.map((movie) => (
-              <MovieCard key={movie.imdbID} movie={movie} size="sm" />
+              <MovieCard
+                key={movie.imdbID}
+                movie={movie}
+                size="sm"
+                progress={movie.Type === 'series' ? (() => {
+                  const tr = trackingMap[movie.imdbID];
+                  return tr ? { watched: tr.totalEpisodesWatched, total: tr.numberOfEpisodes ?? 0 } : undefined;
+                })() : undefined}
+              />
             ))}
           </div>
         </section>
@@ -285,7 +282,15 @@ export default function Index() {
           <RecoSectionHeader section={section} />
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             {section.movies.slice(0, 10).map((movie) => (
-              <MovieCard key={movie.imdbID} movie={movie} size="sm" />
+              <MovieCard
+                key={movie.imdbID}
+                movie={movie}
+                size="sm"
+                progress={movie.Type === 'series' ? (() => {
+                  const tr = trackingMap[movie.imdbID];
+                  return tr ? { watched: tr.totalEpisodesWatched, total: tr.numberOfEpisodes ?? 0 } : undefined;
+                })() : undefined}
+              />
             ))}
           </div>
         </section>
@@ -320,7 +325,15 @@ export default function Index() {
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
             {localizedFavourites.map((movie) => (
-              <MovieCard key={movie.imdbID} movie={movie} size="sm" />
+              <MovieCard
+                key={movie.imdbID}
+                movie={movie}
+                size="sm"
+                progress={movie.Type === 'series' ? (() => {
+                  const tr = trackingMap[movie.imdbID];
+                  return tr ? { watched: tr.totalEpisodesWatched, total: tr.numberOfEpisodes ?? 0 } : undefined;
+                })() : undefined}
+              />
             ))}
           </div>
         </section>
