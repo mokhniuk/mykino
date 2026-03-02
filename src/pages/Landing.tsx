@@ -286,18 +286,18 @@ export default function Landing() {
               </p>
             </div>
             <div className="flex-1 w-full">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-3">
                 {LANG_OPTIONS.map(({ value, label, Flag }) => (
                   <button
                     key={value}
                     onClick={() => setLang(value)}
-                    className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all text-left ${
+                    className={`flex flex-row sm:flex-col items-center gap-3 px-4 py-4 sm:py-7 rounded-2xl border-2 transition-all text-left sm:text-center ${
                       lang === value
                         ? 'border-primary bg-primary/8 text-foreground'
                         : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
                     }`}
                   >
-                    <Flag className="w-7 h-auto rounded-sm flex-shrink-0" />
+                    <Flag className="w-7 sm:w-9 h-auto rounded-sm flex-shrink-0" />
                     <span className="font-semibold text-sm leading-tight">{label}</span>
                   </button>
                 ))}
@@ -510,7 +510,7 @@ export default function Landing() {
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {t('infoAnalyticsDesc')}{' '}
                   <a
-                    href="https://umami.is"
+                    href="https://umami.mokhni.uk/websites/36b2fed3-e325-4e17-b7e1-1fdcfdd3ef1c"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
@@ -604,6 +604,21 @@ export default function Landing() {
         </div>
 
       </div>
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-border px-6 py-10">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <span>
+            © {new Date().getFullYear() === 2026 ? '2026' : `2026\u2013${new Date().getFullYear()}`}{' '}
+            <span className="text-foreground font-medium">mykino.app</span>
+            <span className="opacity-40 ml-2">v{__APP_VERSION__}</span>
+          </span>
+          <a href="https://mokhniuk.online" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+            Made by Oleg Mokhniuk
+          </a>
+        </div>
+      </footer>
+
     </div>
   );
 }
