@@ -33,25 +33,39 @@ export default function Layout() {
     const raw = localStorage.getItem('_setup_handoff');
     if (!raw) return;
     localStorage.removeItem('_setup_handoff');
-    try {
-      const p = JSON.parse(raw) as {
-        l?: string; t?: string; lg?: number[]; dg?: number[];
-        w?: { i: string; T: string; y: string; p: string; tp: string }[];
-      };
-      if (p.l) setSetting('lang', p.l);
-      if (p.t) setSetting('theme', p.t);
-      if (p.lg?.length || p.dg?.length) {
-        setContentPreferences({
-          liked_genres:    p.lg ?? [],
-          disliked_genres: p.dg ?? [],
-          liked_countries: [], disliked_countries: [],
-          liked_languages: [], disliked_languages: [],
-        });
+    (async () => {
+      try {
+        const p = JSON.parse(raw) as {
+          l?: string; t?: string; lg?: number[]; dg?: number[];
+          w?: { i: string; T: string; y: string; p: string; tp: string }[];
+        };
+        if (p.l) await setSetting('lang', p.l);
+        if (p.t) await setSetting('theme', p.t);
+        if (p.lg?.length || p.dg?.length) {
+          await setContentPreferences({
+            liked_genres:    p.lg ?? [],
+            disliked_genres: p.dg ?? [],
+            liked_countries: [], disliked_countries: [],
+            liked_languages: [], disliked_languages: [],
+          });
+        }
+        if (p.w?.length) {
+          await Promise.all(
+            p.w.map(m =>
+              addToWatched({
+                imdbID: m.i,
+                Title: m.T,
+                Year: m.y,
+                Poster: m.p,
+                Type: m.tp,
+              }),
+            ),
+          );
+        }
+      } catch {
+        /* malformed — ignore */
       }
-      p.w?.forEach(m => addToWatched({
-        imdbID: m.i, Title: m.T, Year: m.y, Poster: m.p, Type: m.tp,
-      }));
-    } catch { /* malformed — ignore */ }
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
