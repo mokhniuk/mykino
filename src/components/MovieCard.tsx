@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BookmarkPlus, BookmarkCheck, Heart, CheckCircle2 } from 'lucide-react';
 import type { MovieData } from '@/lib/db';
+import { useI18n } from '@/lib/i18n';
 
 interface MovieCardProps {
   movie: MovieData;
@@ -12,6 +13,7 @@ interface MovieCardProps {
   onToggleWatched?: () => void;
   size?: 'sm' | 'md' | 'lg';
   fluid?: boolean;
+  progress?: { watched: number; total: number };
 }
 
 export default function MovieCard({
@@ -24,7 +26,9 @@ export default function MovieCard({
   onToggleWatched,
   size = 'md',
   fluid = false,
+  progress,
 }: MovieCardProps) {
+  const { t } = useI18n();
   const poster = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
 
   const sizeClasses = {
@@ -55,6 +59,25 @@ export default function MovieCard({
           {isWatched && (
             <div className="absolute top-1.5 right-1.5 bg-background/80 rounded-full p-0.5">
               <CheckCircle2 size={14} className="text-primary" />
+            </div>
+          )}
+          {progress && progress.watched > 0 && (
+            <div className="absolute bottom-0 left-0 right-0">
+              <div className="bg-gradient-to-t from-black/75 to-transparent pt-5 px-2 pb-1.5">
+                <span className="text-[10px] font-medium text-white/90 leading-none">
+                  {progress.watched}{progress.total > 0 ? ` / ${progress.total}` : ''} {t('tvEp')}
+                </span>
+              </div>
+              <div className="h-[3px] bg-white/20">
+                <div
+                  className="h-full bg-primary transition-all duration-500"
+                  style={{
+                    width: progress.total > 0
+                      ? `${Math.min(100, (progress.watched / progress.total) * 100)}%`
+                      : '100%',
+                  }}
+                />
+              </div>
             </div>
           )}
         </div>

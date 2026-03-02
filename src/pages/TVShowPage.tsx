@@ -148,12 +148,17 @@ export default function TVShowPage() {
     }
   };
 
-  const getOrCreateTracking = (): TVSeriesTracking => tracking ?? {
-    tvId: id!,
-    status: 'planned',
-    seasons: {},
-    totalEpisodesWatched: 0,
-    lastWatchedAt: Date.now(),
+  const getOrCreateTracking = (): TVSeriesTracking => {
+    const base = tracking ?? {
+      tvId: id!,
+      status: 'planned' as const,
+      seasons: {},
+      totalEpisodesWatched: 0,
+      lastWatchedAt: Date.now(),
+    };
+    // Always stamp numberOfEpisodes from the loaded showDetail so every save
+    // keeps it up to date — list cards can then show progress without a fetch.
+    return { ...base, numberOfEpisodes: showDetail?.numberOfEpisodes ?? base.numberOfEpisodes };
   };
 
   const handleToggleEpisode = async (seasonNum: number, episodeNum: number) => {

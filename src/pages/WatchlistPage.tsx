@@ -11,6 +11,7 @@ import {
 import { getMovieDetails } from '@/lib/tmdb';
 import MovieCard from '@/components/MovieCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTVTracking } from '@/hooks/useTVTracking';
 
 type Filter = 'all' | 'movie' | 'series';
 
@@ -18,6 +19,8 @@ export default function WatchlistPage() {
   const { t, lang } = useI18n();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
+  const { trackingList } = useTVTracking();
+  const trackingMap = Object.fromEntries(trackingList.map(tr => [tr.tvId, tr]));
 
   const { data: movies = [], isLoading } = useQuery<MovieData[]>({
     queryKey: ['watchlist', lang],
@@ -75,7 +78,11 @@ export default function WatchlistPage() {
               key={movie.imdbID}
               movie={movie}
               fluid
-              onToggleWatched={() => handleMarkWatched(movie)}
+              onToggleWatched={movie.Type !== 'series' ? () => handleMarkWatched(movie) : undefined}
+              progress={movie.Type === 'series' ? (() => {
+                const tr = trackingMap[movie.imdbID];
+                return tr ? { watched: tr.totalEpisodesWatched, total: tr.numberOfEpisodes ?? 0 } : undefined;
+              })() : undefined}
             />
           ))}
         </div>

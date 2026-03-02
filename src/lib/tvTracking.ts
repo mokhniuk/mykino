@@ -5,6 +5,7 @@ export interface TVSeriesTracking {
   status: 'watching' | 'completed' | 'planned';
   seasons: Record<number, { watchedEpisodes: number[] }>;
   totalEpisodesWatched: number;
+  numberOfEpisodes?: number; // cached from TMDB so list cards can show progress without a fetch
   lastWatchedAt: number;
 }
 
