@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
   Search, Loader2, Sun, Moon, Monitor,
+  ShieldCheck, Globe, RefreshCw, BarChart2, Heart,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Lang } from '@/lib/i18n';
@@ -144,6 +145,7 @@ export default function Landing() {
   const [searchResults, setSearchResults] = useState<MovieData[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [watchedIds,    setWatchedIds]    = useState<Set<string>>(new Set());
+  const [watchedMovies, setWatchedMovies] = useState<MovieData[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = (q: string) => {
@@ -166,6 +168,7 @@ export default function Landing() {
     if (watchedIds.has(movie.imdbID)) return;
     await addToWatched(movie);
     setWatchedIds(s => new Set(s).add(movie.imdbID));
+    setWatchedMovies(l => [...l, movie]);
   };
 
   const handleEnterApp = async () => {
@@ -209,16 +212,16 @@ export default function Landing() {
             {t('landingTagline')}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mx-auto">
+          <div className="flex flex-col sm:flex-row gap-3 mx-auto w-fit">
             <button
               onClick={handleEnterApp}
-              className="flex-1 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"
+              className="px-7 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
             >
               {t('landingEnterApp')} →
             </button>
             <button
               onClick={() => setupRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex-1 py-3.5 rounded-xl bg-secondary text-foreground font-semibold hover:bg-secondary/70 transition-colors"
+              className="px-7 py-3.5 rounded-xl bg-secondary text-foreground font-semibold hover:bg-secondary/70 transition-colors whitespace-nowrap"
             >
               {t('landingGetStarted')}
             </button>
@@ -376,7 +379,7 @@ export default function Landing() {
         </div>
 
         {/* ── 04 Watched history — content left · text right ── */}
-        <div className="w-full py-20 lg:py-28 bg-secondary/30">
+        <div className="w-full py-20 lg:py-28">
           <div className="max-w-6xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row-reverse items-start gap-12 lg:gap-24">
             <div className="flex-1">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-5">04</p>
@@ -386,11 +389,28 @@ export default function Landing() {
               <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
                 {t('landingWatchedDesc')}
               </p>
-              {watchedIds.size > 0 && (
-                <p className="mt-6 text-base font-semibold text-primary">{watchedIds.size} ✓</p>
+              {watchedMovies.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-6">
+                  {watchedMovies.map(m => {
+                    const hasPoster = m.Poster && m.Poster !== 'N/A';
+                    return (
+                      <div key={m.imdbID} className="relative flex-shrink-0">
+                        <div className="w-14 h-[84px] rounded-xl overflow-hidden bg-muted ring-2 ring-primary/40">
+                          {hasPoster && (
+                            <img src={m.Poster} alt={m.Title} className="w-full h-full object-cover" loading="lazy" />
+                          )}
+                        </div>
+                        <div className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                          <Check size={9} className="text-primary-foreground" strokeWidth={3} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
             <div className="flex-1 w-full">
+              {/* Search */}
               <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-card border border-border focus-within:border-primary/40 transition-colors mb-3">
                 <Search size={16} className="text-muted-foreground flex-shrink-0" />
                 <input
@@ -435,6 +455,69 @@ export default function Landing() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* ── About / trust section ── */}
+        <div className="w-full py-20 lg:py-28 bg-secondary/30">
+          <div className="max-w-6xl mx-auto px-6 lg:px-12">
+
+            <div className="text-center mb-12">
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">{t('infoSectionTitle')}</h3>
+              <p className="text-lg text-muted-foreground max-w-md mx-auto">{t('infoSectionSubtitle')}</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div className="rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <ShieldCheck size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('infoPrivacyTitle')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('infoPrivacyDesc')}</p>
+              </div>
+
+              <div className="rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <Globe size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('infoTmdbTitle')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('infoTmdbDesc')}</p>
+              </div>
+
+              <div className="rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <RefreshCw size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('infoUpdatesTitle')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('infoUpdatesDesc')}</p>
+              </div>
+
+              <div className="rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <BarChart2 size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('infoAnalyticsTitle')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('infoAnalyticsDesc')}</p>
+              </div>
+            </div>
+
+            {/* Sponsor banner */}
+            <div className="rounded-2xl bg-card border border-border p-7 flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-8">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Heart size={20} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-foreground mb-1">{t('infoSponsorTitle')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('infoSponsorDesc')}</p>
+              </div>
+              <a
+                href="mailto:hello@mykino.app"
+                className="flex-shrink-0 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                hello@mykino.app
+              </a>
+            </div>
+
           </div>
         </div>
 
