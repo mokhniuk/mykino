@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
   Search, Loader2, Sun, Moon, Monitor,
-  ShieldCheck, Globe, RefreshCw, BarChart2, Heart,
+  ShieldCheck, Globe, RefreshCw, BarChart2, Heart, Smartphone,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Lang } from '@/lib/i18n';
@@ -347,20 +347,9 @@ export default function Landing() {
               <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight mb-5">
                 {t('landingPickGenres')}
               </h3>
-              <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-8">
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
                 {t('landingGenreDesc')}
               </p>
-              <div className="flex flex-col gap-2.5 text-sm text-muted-foreground">
-                <span className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500/70 flex-shrink-0" />
-                  {t('include')}
-                </span>
-                <span className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/70 flex-shrink-0" />
-                  {t('exclude')}
-                </span>
-                <span className="italic text-muted-foreground/40 mt-1">tap to cycle</span>
-              </div>
             </div>
             <div className="flex-1 w-full">
               <div className="flex flex-wrap gap-2.5">
@@ -384,12 +373,23 @@ export default function Landing() {
                   );
                 })}
               </div>
+              <div className="flex items-center gap-5 mt-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500/70 flex-shrink-0" />
+                  {t('include')}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500/70 flex-shrink-0" />
+                  {t('exclude')}
+                </span>
+                <span className="italic text-muted-foreground/40">tap to cycle</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ── 04 Watched history — content left · text right ── */}
-        <div className="w-full py-20 lg:py-28">
+        <div className="w-full py-20 lg:py-28 bg-secondary/30">
           <div className="max-w-6xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row-reverse items-start gap-12 lg:gap-24">
             <div className="flex-1">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-5">04</p>
@@ -469,7 +469,7 @@ export default function Landing() {
         </div>
 
         {/* ── About / trust section ── */}
-        <div className="w-full py-20 lg:py-28 bg-secondary/30">
+        <div className="w-full py-20 lg:py-28">
           <div className="max-w-6xl mx-auto px-6 lg:px-12">
 
             <div className="text-center mb-12">
@@ -538,6 +538,56 @@ export default function Landing() {
               </a>
             </div>
 
+          </div>
+        </div>
+
+        {/* ── Add to home screen ── */}
+        <div className="w-full py-20 lg:py-28 bg-secondary/30">
+          <div className="max-w-6xl mx-auto px-6 lg:px-12">
+            <div className="text-center mb-12">
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-4">{t('landingInstallTitle')}</h3>
+              <p className="text-lg text-muted-foreground max-w-xl mx-auto">{t('landingInstallDesc')}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+              {/* iOS */}
+              <div className="rounded-2xl bg-card border border-border p-7">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Smartphone size={20} className="text-primary" />
+                  </div>
+                  <h4 className="font-semibold text-foreground">{t('landingInstallIos')}</h4>
+                </div>
+                <ol className="space-y-3">
+                  {([t('landingInstallIosStep1'), t('landingInstallIosStep2'), t('landingInstallIosStep3')] as const).map((step, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {i + 1}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              {/* Android */}
+              <div className="rounded-2xl bg-card border border-border p-7">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Smartphone size={20} className="text-primary" />
+                  </div>
+                  <h4 className="font-semibold text-foreground">{t('landingInstallAndroid')}</h4>
+                </div>
+                <ol className="space-y-3">
+                  {([t('landingInstallAndroidStep1'), t('landingInstallAndroidStep2'), t('landingInstallAndroidStep3')] as const).map((step, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {i + 1}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
           </div>
         </div>
 
