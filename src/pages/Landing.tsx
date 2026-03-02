@@ -544,7 +544,7 @@ export default function Landing() {
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {t('infoAnalyticsDesc')}{' '}
                   <a
-                    href="https://umami.mokhni.uk/websites/36b2fed3-e325-4e17-b7e1-1fdcfdd3ef1c"
+                    href="https://umami.mokhni.uk/share/fH4J4yX37j8uuyU7"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
