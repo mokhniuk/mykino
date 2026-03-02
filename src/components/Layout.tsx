@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
-import { Home, Search, BookmarkPlus, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
+import { Search, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { addToWatched, setContentPreferences, setSetting } from '@/lib/db';
 
