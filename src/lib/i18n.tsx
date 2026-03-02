@@ -423,7 +423,7 @@ const translations = {
     milestone_genre_master: 'Знавець жанрів',
     milestone_genre_master_desc: 'Фільми 10 різних жанрів',
     // Landing
-    landingHeadline: 'Ваш наступний перегляд чекає',
+    landingHeadline: 'Ваш наступний фільм чекає',
     landingTagline: 'Відкривайте, відстежуйте та організовуйте улюблені фільми й серіали.',
     landingGetStarted: 'Налаштувати',
     landingPickLanguage: 'Оберіть мову',

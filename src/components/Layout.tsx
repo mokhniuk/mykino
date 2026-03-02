@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigationType, useNavigate } from 'react-router-dom';
 import { Home, Search, BookmarkPlus, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { addToWatched, setContentPreferences, setSetting } from '@/lib/db';
 
 const navItems = [
   { path: '/app/watchlist', icon: List, labelKey: 'watchlist' as const },
@@ -14,6 +15,7 @@ const navItems = [
 export default function Layout() {
   const location = useLocation();
   const navigationType = useNavigationType();
+  const navigate = useNavigate();
   const { t } = useI18n();
   const prevPathnameRef = useRef(location.pathname);
 
@@ -24,6 +26,46 @@ export default function Layout() {
     if (navigationType === 'POP' && prev.startsWith('/app/movie/')) return;
     window.scrollTo(0, 0);
   }, [location.pathname, navigationType]);
+
+  // ── Setup handoff (IDB writes) ─────────────────────────────────────────────
+  // main.tsx already applied lang/theme to localStorage before React mounted.
+  // Here we finish the job: write genre preferences and watched movies to IDB.
+  useEffect(() => {
+    const raw = localStorage.getItem('_setup_handoff');
+    if (!raw) return;
+    localStorage.removeItem('_setup_handoff');
+    try {
+      const p = JSON.parse(raw) as {
+        l?: string; t?: string; lg?: number[]; dg?: number[];
+        w?: { i: string; T: string; y: string; p: string; tp: string }[];
+      };
+      if (p.l) setSetting('lang', p.l);
+      if (p.t) setSetting('theme', p.t);
+      if (p.lg?.length || p.dg?.length) {
+        setContentPreferences({
+          liked_genres:    p.lg ?? [],
+          disliked_genres: p.dg ?? [],
+          liked_countries: [], disliked_countries: [],
+          liked_languages: [], disliked_languages: [],
+        });
+      }
+      p.w?.forEach(m => addToWatched({
+        imdbID: m.i, Title: m.T, Year: m.y, Poster: m.p, Type: m.tp,
+      }));
+    } catch { /* malformed — ignore */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── iOS PWA first-launch redirect ─────────────────────────────────────────
+  // On iOS, the PWA has completely separate storage from the browser. When the
+  // user opens the freshly-installed PWA, hasSeenLanding is absent. We send
+  // them to the landing page — which, running inside the PWA context, will
+  // write setup data directly into the PWA's own IDB.
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone && !localStorage.getItem('hasSeenLanding')) {
+      navigate('/', { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { pathname } = location;
 

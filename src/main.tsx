@@ -8,4 +8,32 @@ window.addEventListener('vite:preloadError', () => {
   window.location.replace('/app');
 });
 
+// ── Setup handoff ────────────────────────────────────────────────────────────
+// When navigating from the landing page to /app, all setup data is encoded in
+// a ?_s= URL parameter. We read it here — before React mounts — so that
+// I18nProvider and ThemeProvider can initialise synchronously with the correct
+// values from localStorage (they call localStorage.getItem in their state
+// initialisers). The full payload is kept in _setup_handoff for the async IDB
+// writes that happen inside the app (genres, watched movies).
+(function applySetupHandoff() {
+  const token = new URLSearchParams(window.location.search).get('_s');
+  if (!token) return;
+  try {
+    const p = JSON.parse(atob(token)) as {
+      l?: string; t?: string; lg?: number[]; dg?: number[];
+      w?: { i: string; T: string; y: string; p: string; tp: string }[];
+    };
+    if (p.l) localStorage.setItem('lang', p.l);
+    if (p.t) {
+      localStorage.setItem('theme', p.t);
+      const isDark = p.t === 'dark' || (p.t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.classList.toggle('dark', isDark);
+    }
+    localStorage.setItem('hasSeenLanding', 'true');
+    localStorage.setItem('_setup_handoff', JSON.stringify(p));
+    // Clean the token from the URL before React router sees it
+    window.history.replaceState({}, '', '/app');
+  } catch { /* malformed token — ignore */ }
+})();
+
 createRoot(document.getElementById("root")!).render(<App />);

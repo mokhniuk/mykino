@@ -193,7 +193,24 @@ export default function Landing() {
       });
     }
     localStorage.setItem('hasSeenLanding', 'true');
-    navigate('/app');
+
+    // Encode all setup data as a compact URL token so the app can re-apply it
+    // in a different storage context (e.g. iOS PWA after the user adds to home
+    // screen — browser and PWA have completely separate storage on iOS).
+    const token = btoa(JSON.stringify({
+      l:  lang,
+      t:  theme,
+      lg: [...likedGenres],
+      dg: [...dislikedGenres],
+      w:  watchedMovies.map(m => ({
+        i:  m.imdbID,
+        T:  m.Title,
+        y:  m.Year,
+        p:  m.Poster,
+        tp: m.Type,
+      })),
+    }));
+    navigate(`/app?_s=${token}`);
   };
 
   const themeOptions: { value: ThemePreference; icon: React.ElementType; label: string }[] = [
