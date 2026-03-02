@@ -235,7 +235,7 @@ export default function Landing() {
           <h1 className="text-5xl sm:text-6xl font-bold text-foreground mb-5 max-w-lg mx-auto leading-[1.1] tracking-tight">
             {t('landingHeadline')}
           </h1>
-          <p className="text-lg text-muted-foreground mb-10 max-w-md mx-auto leading-relaxed">
+          <p className="text-lg text-foreground/70 mb-10 max-w-md mx-auto leading-relaxed">
             {t('landingTagline')}
           </p>
 
@@ -260,7 +260,7 @@ export default function Landing() {
               { icon: WifiOff, label: t('landingFeatureOffline')   },
               { icon: UserX,   label: t('landingFeatureNoAccount') },
             ].map(({ icon: Icon, label }) => (
-              <span key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/60 px-3 py-1.5 rounded-full border border-border/60">
+              <span key={label} className="flex items-center gap-1.5 text-xs text-foreground/70 bg-secondary px-3 py-1.5 rounded-full border border-border">
                 <Icon size={11} />
                 {label}
               </span>
