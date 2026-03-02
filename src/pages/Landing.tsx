@@ -35,6 +35,8 @@ const LANG_OPTIONS: { value: Lang; label: string; flag: string }[] = [
   { value: 'ua', label: 'Українська', flag: '🇺🇦' },
   { value: 'de', label: 'Deutsch',    flag: '🇩🇪' },
   { value: 'cs', label: 'Čeština',    flag: '🇨🇿' },
+  { value: 'pl', label: 'Polski',     flag: '🇵🇱' },
+  { value: 'pt', label: 'Português',  flag: '🇧🇷' },
 ];
 
 // ── Floating poster rows for hero background ────────────────────────────────
@@ -276,12 +278,12 @@ export default function Landing() {
               </p>
             </div>
             <div className="flex-1 w-full">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {LANG_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     onClick={() => setLang(opt.value)}
-                    className={`flex items-center gap-4 px-5 py-5 rounded-2xl border-2 transition-all text-left ${
+                    className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 transition-all text-left ${
                       lang === opt.value
                         ? 'border-primary bg-primary/8 text-foreground'
                         : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
