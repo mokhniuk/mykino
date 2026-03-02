@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
@@ -10,7 +10,7 @@ import type { Lang } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 import type { ThemePreference } from '@/lib/theme';
 import { addToWatched, setContentPreferences, type MovieData } from '@/lib/db';
-import { searchMovies } from '@/lib/api';
+import { searchMovies, getPopular } from '@/lib/api';
 
 const GENRES: { id: number; names: Record<Lang, string> }[] = [
   { id: 28,    names: { en: 'Action',        ua: 'Бойовик',        de: 'Action',           cs: 'Akce' } },
@@ -36,6 +36,69 @@ const LANG_OPTIONS: { value: Lang; label: string; flag: string }[] = [
   { value: 'de', label: 'Deutsch',    flag: '🇩🇪' },
   { value: 'cs', label: 'Čeština',    flag: '🇨🇿' },
 ];
+
+// ── Floating poster rows for hero background ────────────────────────────────
+function FloatingPosters() {
+  const [posters, setPosters] = useState<string[]>([]);
+
+  useEffect(() => {
+    getPopular('en', 1)
+      .then(movies => {
+        setPosters(
+          movies
+            .filter(m => m.Poster && m.Poster !== 'N/A')
+            .map(m => m.Poster as string),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  if (posters.length < 9) return null;
+
+  const s = Math.ceil(posters.length / 3);
+  const rows = [
+    { items: posters.slice(0, s),     dir: 'ltr', dur: 38 },
+    { items: posters.slice(s, s * 2), dir: 'rtl', dur: 52 },
+    { items: posters.slice(s * 2),    dir: 'ltr', dur: 43 },
+  ];
+
+  const rowMask = 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)';
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+      <div className="flex flex-col justify-evenly h-full py-14">
+        {rows.map(({ items, dir, dur }, i) => (
+          <div
+            key={i}
+            className="overflow-hidden"
+            style={{ maskImage: rowMask, WebkitMaskImage: rowMask }}
+          >
+            <div
+              className="flex gap-3"
+              style={{
+                width: 'max-content',
+                animation: `marquee-${dir} ${dur}s linear infinite`,
+              }}
+            >
+              {[...items, ...items].map((url, j) => (
+                <img
+                  key={j}
+                  src={url}
+                  alt=""
+                  className="w-[68px] h-[102px] rounded-lg object-cover flex-shrink-0 opacity-[0.18]"
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* top & bottom fade */}
+      <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-background to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-background to-transparent" />
+    </div>
+  );
+}
 
 // ── Shared piece: the left description column inside a bento cell ───────────
 function CellDesc({
@@ -130,6 +193,7 @@ export default function Landing() {
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center justify-center min-h-screen px-6 text-center overflow-hidden">
+        <FloatingPosters />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden>
           <div className="w-[700px] h-[700px] rounded-full bg-primary/5 blur-3xl" />
         </div>
