@@ -217,7 +217,8 @@ export default function Landing() {
         tp: m.Type,
       })),
     }));
-    navigate(`/app?_s=${token}`);
+    const encodedToken = encodeURIComponent(token);
+    navigate(`/app?_s=${encodedToken}`);
   };
 
   const themeOptions: { value: ThemePreference; icon: React.ElementType; label: string }[] = [
