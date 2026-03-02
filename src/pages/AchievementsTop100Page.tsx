@@ -87,7 +87,7 @@ export default function AchievementsTop100Page() {
           const poster = watchedItem?.Poster && watchedItem.Poster !== 'N/A' ? watchedItem.Poster : null;
 
           return (
-            <Link key={movie.imdbID} to={`/movie/${movie.imdbID}`} className="block">
+            <Link key={movie.imdbID} to={`/app/movie/${movie.imdbID}`} className="block">
               <div className="aspect-[2/3] rounded-lg overflow-hidden relative group">
                 {isRevealed ? (
                   <>

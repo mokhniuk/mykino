@@ -11,6 +11,20 @@
         } catch(e) {}
       })();
     </script>
+    <script>
+      (function() {
+        try {
+          if (window.location.pathname !== '/') return;
+          var isStandalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator.standalone === true);
+          if (isStandalone) { window.location.replace('/app'); return; }
+          if (localStorage.getItem('hasSeenLanding') === 'true') {
+            window.location.replace('/app');
+          }
+        } catch(e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <meta name="theme-color" content="#111111" />
     <!-- TODO: Set the document title to the name of your application -->

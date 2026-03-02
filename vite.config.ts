@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
         background_color: "#111111",
         display: "standalone",
         scope: "/",
-        start_url: "/",
+        start_url: "/app",
         orientation: "any",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         navigateFallback: "/index.html",
+        navigateFallbackAllowlist: [/^\/app/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
         runtimeCaching: [
           {

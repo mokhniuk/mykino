@@ -104,7 +104,7 @@ export default function RecoSectionPage() {
     <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-2">
         <div className="flex items-center gap-3">
-          <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft size={24} />
           </Link>
           {sectionId && SECTION_ICONS[sectionId]}
