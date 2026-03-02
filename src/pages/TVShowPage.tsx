@@ -191,10 +191,20 @@ export default function TVShowPage() {
 
     if (newStatus === 'completed' && current.status !== 'completed') {
       await addToWatched(buildMovieData());
+      await removeFromWatchlist(id!);
+      setInWatchlist(false);
       queryClient.invalidateQueries({ queryKey: ['watched'] });
-    } else if (newStatus !== 'completed' && current.status === 'completed') {
+      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    } else if (newStatus === 'watching' && current.status === 'planned') {
+      await addToWatchlist(buildMovieData());
+      setInWatchlist(true);
+      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    } else if (newStatus === 'watching' && current.status === 'completed') {
       await removeFromWatched(id!);
+      await addToWatchlist(buildMovieData());
+      setInWatchlist(true);
       queryClient.invalidateQueries({ queryKey: ['watched'] });
+      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
     }
   };
 
@@ -230,10 +240,20 @@ export default function TVShowPage() {
 
     if (newStatus === 'completed' && current.status !== 'completed') {
       await addToWatched(buildMovieData());
+      await removeFromWatchlist(id!);
+      setInWatchlist(false);
       queryClient.invalidateQueries({ queryKey: ['watched'] });
-    } else if (newStatus !== 'completed' && current.status === 'completed') {
+      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    } else if (newStatus === 'watching' && current.status === 'planned') {
+      await addToWatchlist(buildMovieData());
+      setInWatchlist(true);
+      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    } else if (newStatus === 'watching' && current.status === 'completed') {
       await removeFromWatched(id!);
+      await addToWatchlist(buildMovieData());
+      setInWatchlist(true);
       queryClient.invalidateQueries({ queryKey: ['watched'] });
+      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
     }
   };
 
