@@ -207,6 +207,7 @@ export default function SettingsPage() {
               <SelectItem value="cs">Čeština</SelectItem>
               <SelectItem value="pl">Polski</SelectItem>
               <SelectItem value="pt">Português</SelectItem>
+              <SelectItem value="hr">Hrvatski</SelectItem>
             </SelectContent>
           </Select>
         </section>
