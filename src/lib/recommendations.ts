@@ -70,7 +70,7 @@ export async function clearRecommendationsCache(lang?: string): Promise<void> {
   if (lang) {
     await setSetting(`reco_sections_${lang}`, '');
   } else {
-    await Promise.all(['en', 'ua', 'de'].map(l => setSetting(`reco_sections_${l}`, '')));
+    await Promise.all(['en', 'ua', 'de', 'cs'].map(l => setSetting(`reco_sections_${l}`, '')));
   }
   await invalidateTasteProfile();
 }

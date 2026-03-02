@@ -29,7 +29,8 @@ export function useTmdbMetadata() {
         const localeMap: Record<string, string> = {
             en: 'en-US',
             ua: 'uk-UA',
-            de: 'de-DE'
+            de: 'de-DE',
+            cs: 'cs-CZ',
         };
         return localeMap[lang] || 'en-US';
     }, [lang]);

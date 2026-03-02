@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, type Lang } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences } from '@/lib/db';
 import { clearRecommendationsCache } from '@/lib/recommendations';
@@ -196,24 +196,17 @@ export default function SettingsPage() {
             <Globe size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('languageSetting')}</h2>
           </div>
-          <div className="flex gap-2">
-            {([
-              { code: 'en', label: 'English' },
-              { code: 'ua', label: 'Українська' },
-              { code: 'de', label: 'Deutsch' },
-            ] as const).map(({ code, label }) => (
-              <button
-                key={code}
-                onClick={() => setLang(code)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${lang === code
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
-                  }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Select value={lang} onValueChange={v => setLang(v as Lang)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="ua">Українська</SelectItem>
+              <SelectItem value="de">Deutsch</SelectItem>
+              <SelectItem value="cs">Čeština</SelectItem>
+            </SelectContent>
+          </Select>
         </section>
 
         {/* Theme */}

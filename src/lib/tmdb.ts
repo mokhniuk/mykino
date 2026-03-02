@@ -10,6 +10,7 @@ const TMDB_LANG: Record<string, string> = {
   en: 'en-US',
   ua: 'uk-UA',
   de: 'de-DE',
+  cs: 'cs-CZ',
 };
 
 
