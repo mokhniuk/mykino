@@ -52,7 +52,7 @@ function RecoSectionHeader({ section }: { section: RecoSection }) {
   const title = section.id === 'becauseLiked' && section.seedTitle
     ? `${t(titleKey)} ${section.seedTitle}`
     : t(titleKey);
-  const to = `/section/${SECTION_SLUGS[section.id]}`;
+  const to = `/app/section/${SECTION_SLUGS[section.id]}`;
   return (
     <div className="flex items-center justify-between mb-3">
       <Link to={to} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -177,7 +177,7 @@ export default function Index() {
       </section>
 
       {/* Search bar */}
-      <Link to="/search" className="block">
+      <Link to="/app/search" className="block">
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border hover:border-primary/30 transition-colors">
           <Search size={18} className="text-muted-foreground" />
           <span className="text-sm text-muted-foreground">{t('searchForMovies')}</span>
@@ -188,11 +188,11 @@ export default function Index() {
       {watchingShows.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <Link to="/watchlist" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Link to="/app/watchlist" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Tv2 size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('currentlyWatching')}</h2>
             </Link>
-            <Link to="/watchlist" className="text-primary">
+            <Link to="/app/watchlist" className="text-primary">
               <ChevronRight size={32} />
             </Link>
           </div>
@@ -237,11 +237,11 @@ export default function Index() {
       ) : localizedWatchlist.length > 0 ? (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <Link to="/watchlist" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Link to="/app/watchlist" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Film size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('fromYourWatchlist')}</h2>
             </Link>
-            <Link to="/watchlist" className="text-primary">
+            <Link to="/app/watchlist" className="text-primary">
               <ChevronRight size={32} />
             </Link>
           </div>
@@ -315,11 +315,11 @@ export default function Index() {
       ) : localizedFavourites.length > 0 ? (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <Link to="/favourites" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Link to="/app/favourites" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Heart size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('somethingFamiliar')}</h2>
             </Link>
-            <Link to="/favourites" className="text-primary">
+            <Link to="/app/favourites" className="text-primary">
               <ChevronRight size={32} />
             </Link>
           </div>
@@ -342,11 +342,11 @@ export default function Index() {
       {/* ── Top 100 Challenge (compact) ── */}
       <section className="pb-2">
         <div className="flex items-center justify-between mb-3">
-          <Link to="/achievements/top100" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link to="/app/achievements/top100" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Trophy size={24} className="text-primary" />
             <h2 className="text-2xl text-foreground">{t('achievementsTop100')}</h2>
           </Link>
-          <Link to="/achievements/top100" className="text-primary">
+          <Link to="/app/achievements/top100" className="text-primary">
             <ChevronRight size={32} />
           </Link>
         </div>
@@ -375,7 +375,7 @@ export default function Index() {
             {directors.map(director => (
               <Link
                 key={director.slug}
-                to={`/director/${director.slug}`}
+                to={`/app/director/${director.slug}`}
                 className="flex-shrink-0 w-36 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors overflow-hidden"
               >
                 {/* Micro-poster thumbnails */}
@@ -421,11 +421,11 @@ export default function Index() {
       {watched.length > 0 && (
         <section className="pb-8">
           <div className="flex items-center justify-between mb-3">
-            <Link to="/achievements/milestones" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Link to="/app/achievements/milestones" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Medal size={24} className="text-primary" />
               <h2 className="text-2xl text-foreground">{t('achievementsMilestones')}</h2>
             </Link>
-            <Link to="/achievements/milestones" className="text-primary">
+            <Link to="/app/achievements/milestones" className="text-primary">
               <ChevronRight size={32} />
             </Link>
           </div>
@@ -435,7 +435,7 @@ export default function Index() {
               return (
                 <Link
                   key={milestone.id}
-                  to="/achievements/milestones"
+                  to="/app/achievements/milestones"
                   className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border transition-colors ${
                     milestone.unlocked
                       ? 'bg-primary/10 border-primary/20'

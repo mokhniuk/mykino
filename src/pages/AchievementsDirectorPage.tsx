@@ -39,7 +39,7 @@ export default function AchievementsDirectorPage() {
     return (
       <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
         <div className="flex items-center gap-3 pt-6 mb-6">
-          <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft size={28} />
           </Link>
           <div className="h-7 w-48 bg-secondary rounded animate-pulse" />
@@ -60,7 +60,7 @@ export default function AchievementsDirectorPage() {
     return (
       <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
         <div className="flex items-center gap-3 pt-6 mb-6">
-          <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft size={28} />
           </Link>
           <h1 className="text-2xl font-semibold text-foreground">{t('achievementsDirectors')}</h1>

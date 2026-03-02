@@ -128,7 +128,7 @@ export default function FavouritesPage() {
           </h2>
           <p className="text-sm text-muted-foreground max-w-xs mb-6">{t('emptyHintFavourites')}</p>
           <Link
-            to="/search"
+            to="/app/search"
             className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
           >
             {t('discoverNow')}

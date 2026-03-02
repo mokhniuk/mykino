@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme";
 import Layout from "@/components/Layout";
+import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import SearchPage from "./pages/SearchPage";
 import WatchlistPage from "./pages/WatchlistPage";
@@ -31,24 +32,26 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/watchlist" element={<WatchlistPage />} />
-                <Route path="/watched" element={<WatchedPage />} />
-                <Route path="/movie/:id" element={<MovieDetailsPage />} />
-                <Route path="/tv/:id" element={<TVShowPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/favourites" element={<FavouritesPage />} />
-                <Route path="/section/:slug" element={<RecoSectionPage />} />
-                <Route path="/achievements/top100" element={<AchievementsTop100Page />} />
-                <Route path="/director/:slug" element={<DirectorPage />} />
-                <Route path="/achievements/director/:slug" element={<AchievementsDirectorPage />} />
-                <Route path="/achievements/milestones" element={<AchievementsMilestonesPage />} />
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/app" element={<Layout />}>
+                <Route index element={<Index />} />
+                <Route path="search" element={<SearchPage />} />
+                <Route path="watchlist" element={<WatchlistPage />} />
+                <Route path="watched" element={<WatchedPage />} />
+                <Route path="movie/:id" element={<MovieDetailsPage />} />
+                <Route path="tv/:id" element={<TVShowPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="favourites" element={<FavouritesPage />} />
+                <Route path="section/:slug" element={<RecoSectionPage />} />
+                <Route path="achievements/top100" element={<AchievementsTop100Page />} />
+                <Route path="director/:slug" element={<DirectorPage />} />
+                <Route path="achievements/director/:slug" element={<AchievementsDirectorPage />} />
+                <Route path="achievements/milestones" element={<AchievementsMilestonesPage />} />
                 <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Layout>
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </BrowserRouter>
         </TooltipProvider>
       </I18nProvider>

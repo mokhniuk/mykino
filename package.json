@@ -1,8 +1,8 @@
 {
   "name": "mykino",
   "private": true,
-  "version": "1.13.3",
-  "type": "module",
+  "version": "1.15.9",
+  "type": "module",   
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -45,6 +45,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "country-flag-icons": "^1.6.15",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "idb": "^8.0.3",

@@ -1,17 +1,18 @@
 import { useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigationType } from 'react-router-dom';
-import { Home, Search, BookmarkPlus, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
+import { Search, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { addToWatched, setContentPreferences, setSetting } from '@/lib/db';
 
 const navItems = [
-  { path: '/watchlist', icon: List, labelKey: 'watchlist' as const },
-  { path: '/watched', icon: CheckCircle2, labelKey: 'watched' as const },
-  { path: '/', icon: Clapperboard, labelKey: 'home' as const },
-  { path: '/search', icon: Search, labelKey: 'search' as const },
-  { path: '/settings', icon: Settings, labelKey: 'settings' as const },
+  { path: '/app/watchlist', icon: List, labelKey: 'watchlist' as const },
+  { path: '/app/watched', icon: CheckCircle2, labelKey: 'watched' as const },
+  { path: '/app', icon: Clapperboard, labelKey: 'home' as const },
+  { path: '/app/search', icon: Search, labelKey: 'search' as const },
+  { path: '/app/settings', icon: Settings, labelKey: 'settings' as const },
 ];
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const { t } = useI18n();
@@ -21,9 +22,52 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const prev = prevPathnameRef.current;
     prevPathnameRef.current = location.pathname;
     // Skip scroll-to-top only when going back from a movie details page
-    if (navigationType === 'POP' && prev.startsWith('/movie/')) return;
+    if (navigationType === 'POP' && prev.startsWith('/app/movie/')) return;
     window.scrollTo(0, 0);
   }, [location.pathname, navigationType]);
+
+  // ── Setup handoff (IDB writes) ─────────────────────────────────────────────
+  // main.tsx already applied lang/theme to localStorage before React mounted.
+  // Here we finish the job: write genre preferences and watched movies to IDB.
+  useEffect(() => {
+    const raw = localStorage.getItem('_setup_handoff');
+    if (!raw) return;
+    localStorage.removeItem('_setup_handoff');
+    (async () => {
+      try {
+        const p = JSON.parse(raw) as {
+          l?: string; t?: string; lg?: number[]; dg?: number[];
+          w?: { i: string; T: string; y: string; p: string; tp: string }[];
+        };
+        if (p.l) await setSetting('lang', p.l);
+        if (p.t) await setSetting('theme', p.t);
+        if (p.lg?.length || p.dg?.length) {
+          await setContentPreferences({
+            liked_genres:    p.lg ?? [],
+            disliked_genres: p.dg ?? [],
+            liked_countries: [], disliked_countries: [],
+            liked_languages: [], disliked_languages: [],
+          });
+        }
+        if (p.w?.length) {
+          await Promise.all(
+            p.w.map(m =>
+              addToWatched({
+                imdbID: m.i,
+                Title: m.T,
+                Year: m.y,
+                Poster: m.p,
+                Type: m.tp,
+              }),
+            ),
+          );
+        }
+      } catch {
+        /* malformed — ignore */
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const { pathname } = location;
 
@@ -31,7 +75,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       {/* Top bar - desktop */}
       <header className="hidden md:flex fixed top-0 left-0 right-0 z-50 h-16 items-center justify-between px-6 glass">
-        <Link to="/" className="flex items-center gap-2.5 font-display text-xl text-foreground group hidden">
+        <Link to="/app" className="flex items-center gap-2.5 font-display text-xl text-foreground group hidden">
           <img src="/icon-192.png" alt="MyKino" className="w-8 h-8 rounded-lg shadow-sm group-hover:scale-105 transition-transform" />
           <span className='font-semibold'>MyKino</span>
         </Link>
@@ -58,7 +102,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Content */}
       <main className="md:pt-16 pb-24 [@media(display-mode:standalone)]:pb-28 md:pb-8">
-        {children}
+        <Outlet />
       </main>
 
       {/* Bottom nav - mobile floating pill */}

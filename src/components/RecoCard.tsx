@@ -11,7 +11,7 @@ export default function RecoCard({ movie, loading }: { movie: MovieData | null; 
 
   return (
     <Link
-      to={movie.Type === 'series' ? `/tv/${movie.imdbID}` : `/movie/${movie.imdbID}`}
+      to={movie.Type === 'series' ? `/app/tv/${movie.imdbID}` : `/app/movie/${movie.imdbID}`}
       className="flex items-stretch rounded-xl overflow-hidden bg-secondary group hover:bg-secondary/80 transition-colors"
     >
       {/* Poster — flush left/top/bottom, drives card height */}
