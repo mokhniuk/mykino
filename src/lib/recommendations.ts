@@ -1,4 +1,4 @@
-import { getWatched, getWatchlist, getFavourites, getSetting, setSetting, type MovieData } from './db';
+import { getWatched, getWatchlist, getFavourites, getSetting, setSetting, getContentPreferences, type MovieData, type ContentPreferences } from './db';
 import { discoverMovies, getRecommendations, getTrending, getNowPlaying, getPopular, getSimilar } from './api';
 import { getOrBuildTasteProfile, invalidateTasteProfile, type TasteProfile } from './tasteProfile';
 
@@ -151,11 +151,31 @@ function filterAndScore(
   movies: MovieData[],
   excludeIds: Set<string>,
   profile: TasteProfile,
+  prefs: ContentPreferences,
   limit = 100,
 ): MovieData[] {
+  const dislikedGenres = new Set(prefs.disliked_genres);
+  const dislikedCountries = new Set(prefs.disliked_countries);
+  const dislikedLanguages = new Set(prefs.disliked_languages);
+  const likedGenres = new Set(prefs.liked_genres);
+  const likedCountries = new Set(prefs.liked_countries);
+  const likedLanguages = new Set(prefs.liked_languages);
+
   return movies
-    .filter(m => !excludeIds.has(m.imdbID))
-    .map(m => ({ movie: m, score: scoreMovie(m, profile) }))
+    .filter(m => {
+      if (excludeIds.has(m.imdbID)) return false;
+      if (dislikedGenres.size > 0 && m.genre_ids?.some(id => dislikedGenres.has(id))) return false;
+      if (dislikedCountries.size > 0 && m.origin_country?.some(c => dislikedCountries.has(c))) return false;
+      if (dislikedLanguages.size > 0 && m.original_language && dislikedLanguages.has(m.original_language)) return false;
+      return true;
+    })
+    .map(m => {
+      let score = scoreMovie(m, profile);
+      if (likedGenres.size > 0 && m.genre_ids?.some(id => likedGenres.has(id))) score += 3;
+      if (likedCountries.size > 0 && m.origin_country?.some(c => likedCountries.has(c))) score += 2;
+      if (likedLanguages.size > 0 && m.original_language && likedLanguages.has(m.original_language)) score += 2;
+      return { movie: m, score };
+    })
     .sort((a, b) => b.score - a.score)
     .map(({ movie }) => movie)
     .slice(0, limit);
@@ -165,10 +185,11 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
   const cached = await getSectionCache(lang);
   if (cached) return cached;
 
-  const [watched, watchlist, favourites] = await Promise.all([
+  const [watched, watchlist, favourites, prefs] = await Promise.all([
     getWatched(),
     getWatchlist(),
     getFavourites(),
+    getContentPreferences(),
   ]);
 
   const excludeIds = new Set([
@@ -230,6 +251,7 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
       dedupeByImdbID(movies),
       excludeIds,
       profile,
+      prefs,
       limit,
     );
 
@@ -291,10 +313,11 @@ export async function loadMoreForSection(
   nextPage: number,
   alreadyShownIds: Set<string>,
 ): Promise<{ movies: MovieData[]; nextPage: number }> {
-  const [watched, watchlist, profile] = await Promise.all([
+  const [watched, watchlist, profile, prefs] = await Promise.all([
     getWatched(),
     getWatchlist(),
     getOrBuildTasteProfile(),
+    getContentPreferences(),
   ]);
 
   const excludeIds = new Set([
@@ -391,6 +414,7 @@ export async function loadMoreForSection(
     dedupeByImdbID(rawMovies),
     excludeIds,
     profile,
+    prefs,
   );
 
   return { movies, nextPage: nextPage + LOAD_MORE_PAGES };

@@ -1,17 +1,99 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone } from 'lucide-react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
-import { exportAllData, importAllData } from '@/lib/db';
+import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences } from '@/lib/db';
+import { clearRecommendationsCache } from '@/lib/recommendations';
 import { triggerSWUpdate } from '@/lib/sw-update';
+import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface CategoryPickerProps {
+  label: string;
+  items: { id: string; label: string }[];
+  liked: string[];
+  disliked: string[];
+  onAddLiked: (id: string) => void;
+  onAddDisliked: (id: string) => void;
+  onRemove: (id: string) => void;
+  includeLabel: string;
+  excludeLabel: string;
+}
+
+function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDisliked, onRemove, includeLabel, excludeLabel }: CategoryPickerProps) {
+  const selectedIds = new Set([...liked, ...disliked]);
+  const available = items.filter(i => !selectedIds.has(i.id));
+  const getLabel = (id: string) => items.find(i => i.id === id)?.label ?? id;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      {(liked.length > 0 || disliked.length > 0) && (
+        <div className="flex flex-wrap gap-1.5">
+          {liked.map(id => (
+            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30">
+              {getLabel(id)}
+              <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+          {disliked.map(id => (
+            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
+              {getLabel(id)}
+              <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {available.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <Select value="" onValueChange={onAddLiked}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder={`+ ${includeLabel}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map(i => <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value="" onValueChange={onAddDisliked}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder={`✕ ${excludeLabel}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map(i => <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [prefs, setPrefs] = useState<ContentPreferences | null>(null);
+  const queryClient = useQueryClient();
+  const { genres, countries, languages } = useTmdbMetadata();
+
+  useEffect(() => {
+    getContentPreferences().then(setPrefs);
+  }, []);
+
+  const updatePrefs = async (newPrefs: ContentPreferences) => {
+    setPrefs(newPrefs);
+    await setContentPreferences(newPrefs);
+    await clearRecommendationsCache();
+    queryClient.removeQueries({ queryKey: ['recommendations'] });
+  };
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [newVersion, setNewVersion] = useState<string | null>(null);
@@ -156,6 +238,85 @@ export default function SettingsPage() {
             ))}
           </div>
         </section>
+
+        {/* Content Settings — full width */}
+        {prefs && (
+          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+            <div className="flex items-center gap-2 text-foreground">
+              <SlidersHorizontal size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold">{t('contentSettings')}</h2>
+            </div>
+            <CategoryPicker
+              label={t('genres')}
+              items={genres}
+              liked={prefs.liked_genres.map(String)}
+              disliked={prefs.disliked_genres.map(String)}
+              onAddLiked={id => updatePrefs({
+                ...prefs,
+                liked_genres: [...prefs.liked_genres.filter(g => g !== Number(id)), Number(id)],
+                disliked_genres: prefs.disliked_genres.filter(g => g !== Number(id)),
+              })}
+              onAddDisliked={id => updatePrefs({
+                ...prefs,
+                disliked_genres: [...prefs.disliked_genres.filter(g => g !== Number(id)), Number(id)],
+                liked_genres: prefs.liked_genres.filter(g => g !== Number(id)),
+              })}
+              onRemove={id => updatePrefs({
+                ...prefs,
+                liked_genres: prefs.liked_genres.filter(g => g !== Number(id)),
+                disliked_genres: prefs.disliked_genres.filter(g => g !== Number(id)),
+              })}
+              includeLabel={t('include')}
+              excludeLabel={t('exclude')}
+            />
+            <CategoryPicker
+              label={t('countries')}
+              items={countries}
+              liked={prefs.liked_countries}
+              disliked={prefs.disliked_countries}
+              onAddLiked={id => updatePrefs({
+                ...prefs,
+                liked_countries: [...prefs.liked_countries.filter(c => c !== id), id],
+                disliked_countries: prefs.disliked_countries.filter(c => c !== id),
+              })}
+              onAddDisliked={id => updatePrefs({
+                ...prefs,
+                disliked_countries: [...prefs.disliked_countries.filter(c => c !== id), id],
+                liked_countries: prefs.liked_countries.filter(c => c !== id),
+              })}
+              onRemove={id => updatePrefs({
+                ...prefs,
+                liked_countries: prefs.liked_countries.filter(c => c !== id),
+                disliked_countries: prefs.disliked_countries.filter(c => c !== id),
+              })}
+              includeLabel={t('include')}
+              excludeLabel={t('exclude')}
+            />
+            <CategoryPicker
+              label={t('languages')}
+              items={languages}
+              liked={prefs.liked_languages}
+              disliked={prefs.disliked_languages}
+              onAddLiked={id => updatePrefs({
+                ...prefs,
+                liked_languages: [...prefs.liked_languages.filter(l => l !== id), id],
+                disliked_languages: prefs.disliked_languages.filter(l => l !== id),
+              })}
+              onAddDisliked={id => updatePrefs({
+                ...prefs,
+                disliked_languages: [...prefs.disliked_languages.filter(l => l !== id), id],
+                liked_languages: prefs.liked_languages.filter(l => l !== id),
+              })}
+              onRemove={id => updatePrefs({
+                ...prefs,
+                liked_languages: prefs.liked_languages.filter(l => l !== id),
+                disliked_languages: prefs.disliked_languages.filter(l => l !== id),
+              })}
+              includeLabel={t('include')}
+              excludeLabel={t('exclude')}
+            />
+          </section>
+        )}
 
         {/* Data — full width */}
         <section className="rounded-xl bg-card border border-border p-5 space-y-3 md:col-span-2">
