@@ -406,7 +406,7 @@ export default function Landing() {
                   <span className="w-2 h-2 rounded-full bg-red-500/70 flex-shrink-0" />
                   {t('exclude')}
                 </span>
-                <span className="italic text-muted-foreground/40">tap to cycle</span>
+                <span className="italic text-muted-foreground/40">{t('tapToCycle')}</span>
               </div>
             </div>
           </div>
@@ -641,7 +641,7 @@ export default function Landing() {
             <span className="opacity-40 ml-2">v{__APP_VERSION__}</span>
           </span>
           <a href="https://mokhniuk.online" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-            Made by Oleg Mokhniuk
+            {t('landingMadeBy')} {t('authorName')}
           </a>
         </div>
       </footer>

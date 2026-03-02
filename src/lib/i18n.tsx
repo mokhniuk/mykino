@@ -239,6 +239,9 @@ const translations = {
     landingInstallAndroidStep2: 'Tap the three-dot menu (⋮) in the top right',
     landingInstallAndroidStep3: 'Select "Add to Home Screen"',
     landingInstallNote: '* In your browser, all settings configured above are applied automatically. On iPhone & iPad, the home screen app has its own separate storage — language and theme will need to be set again on first launch.',
+    tapToCycle: 'tap to cycle',
+    landingMadeBy: 'Made by',
+    authorName: 'Oleg Mokhniuk',
   },
   ua: {
     goodMorning: 'Доброго ранку',
@@ -468,6 +471,9 @@ const translations = {
     landingInstallAndroidStep2: 'Натисніть меню з трьома крапками (⋮) вгорі праворуч',
     landingInstallAndroidStep3: 'Оберіть «Додати на початковий екран»',
     landingInstallNote: '* У браузері всі налаштування, зроблені вище, застосовуються автоматично. На iPhone та iPad додаток на головному екрані має окреме сховище — мову та тему потрібно буде встановити знову при першому запуску.',
+    tapToCycle: 'тапніть для зміни',
+    landingMadeBy: 'Зробив',
+    authorName: 'Олег Мохнюк',
   },
   de: {
     goodMorning: 'Guten Morgen',
@@ -697,6 +703,9 @@ const translations = {
     landingInstallAndroidStep2: 'Auf das Drei-Punkte-Menü (⋮) oben rechts tippen',
     landingInstallAndroidStep3: '„Zum Startbildschirm hinzufügen" auswählen',
     landingInstallNote: '* Im Browser werden alle oben vorgenommenen Einstellungen automatisch übernommen. Auf iPhone & iPad hat die Home-Screen-App eigenen getrennten Speicher — Sprache und Theme müssen beim ersten Start erneut eingestellt werden.',
+    tapToCycle: 'tippen zum Wechseln',
+    landingMadeBy: 'Erstellt von',
+    authorName: 'Oleg Mokhniuk',
   },
   cs: {
     goodMorning: 'Dobré ráno',
@@ -924,6 +933,9 @@ const translations = {
     landingInstallAndroidStep2: 'Klepněte na nabídku se třemi tečkami (⋮) vpravo nahoře',
     landingInstallAndroidStep3: 'Vyberte „Přidat na domovskou obrazovku"',
     landingInstallNote: '* V prohlížeči se všechna výše provedená nastavení použijí automaticky. Na iPhone a iPad má aplikace na domovské obrazovce vlastní oddělené úložiště — jazyk a vzhled bude nutné při prvním spuštění nastavit znovu.',
+    tapToCycle: 'klepněte pro změnu',
+    landingMadeBy: 'Vytvořil',
+    authorName: 'Oleg Mokhniuk',
   },
   pl: {
     goodMorning: 'Dzień dobry',
@@ -1150,6 +1162,9 @@ const translations = {
     landingInstallAndroidStep2: 'Dotknij menu z trzema kropkami (⋮) w prawym górnym rogu',
     landingInstallAndroidStep3: 'Wybierz „Dodaj do ekranu głównego"',
     landingInstallNote: '* W przeglądarce wszystkie ustawienia skonfigurowane powyżej są stosowane automatycznie. Na iPhone i iPad aplikacja na ekranie głównym ma własne oddzielne miejsce przechowywania — język i motyw trzeba będzie ustawić ponownie przy pierwszym uruchomieniu.',
+    tapToCycle: 'dotknij, aby zmienić',
+    landingMadeBy: 'Stworzone przez',
+    authorName: 'Oleg Mokhniuk',
   },
   pt: {
     goodMorning: 'Bom dia',
@@ -1376,6 +1391,9 @@ const translations = {
     landingInstallAndroidStep2: 'Toque no menu de três pontos (⋮) no canto superior direito',
     landingInstallAndroidStep3: 'Selecione "Adicionar à tela inicial"',
     landingInstallNote: '* No navegador, todas as configurações feitas acima são aplicadas automaticamente. No iPhone e iPad, o app na tela inicial tem armazenamento próprio separado — idioma e tema precisarão ser configurados novamente no primeiro acesso.',
+    tapToCycle: 'toque para alternar',
+    landingMadeBy: 'Feito por',
+    authorName: 'Oleg Mokhniuk',
   },
 } as const;
 
