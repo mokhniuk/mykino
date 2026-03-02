@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -34,6 +34,7 @@ export default function TVShowPage() {
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(new Set());
   const [seasonDetails, setSeasonDetails] = useState<Record<number, TVSeasonDetail | null>>({});
   const [loadingSeasons, setLoadingSeasons] = useState<Set<number>>(new Set());
+  const runtimeFetchedRef = useRef<string | null>(null);
 
   const tracking = trackingList.find(t => t.tvId === id);
   const isCompleted = tracking?.status === 'completed';
@@ -52,6 +53,30 @@ export default function TVShowPage() {
     const avg = allEps.reduce((sum, ep) => sum + ep.runtime!, 0) / allEps.length;
     return Math.round(avg * showDetail.numberOfEpisodes);
   }, [showDetail, seasonDetails]);
+
+  // When TMDB doesn't provide a show-level average runtime, pre-fetch all seasons in
+  // the background so totalRuntime can be computed from per-episode data.
+  useEffect(() => {
+    if (!showDetail || showDetail.averageEpisodeRuntime) return;
+    const key = `${showDetail.id}_${lang}`;
+    if (runtimeFetchedRef.current === key) return;
+    runtimeFetchedRef.current = key;
+
+    const seasons = showDetail.seasons.filter(s => s.season_number > 0);
+    Promise.allSettled(
+      seasons.map(s => getTVSeasonDetail(showDetail.id, s.season_number, lang))
+    ).then(results => {
+      setSeasonDetails(prev => {
+        const next = { ...prev };
+        seasons.forEach((s, i) => {
+          if (s.season_number in next) return; // don't overwrite already-expanded seasons
+          const r = results[i];
+          next[s.season_number] = r.status === 'fulfilled' ? r.value : null;
+        });
+        return next;
+      });
+    });
+  }, [showDetail, lang]);
 
   useEffect(() => {
     if (!id) return;
