@@ -6,6 +6,7 @@ import CZ from 'country-flag-icons/react/3x2/CZ';
 import PL from 'country-flag-icons/react/3x2/PL';
 import BR from 'country-flag-icons/react/3x2/BR';
 import HR from 'country-flag-icons/react/3x2/HR';
+import IT from 'country-flag-icons/react/3x2/IT';
 import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
@@ -20,21 +21,21 @@ import { addToWatched, setContentPreferences, type MovieData } from '@/lib/db';
 import { searchMovies, getPopular } from '@/lib/api';
 
 const GENRES: { id: number; names: Record<Lang, string> }[] = [
-  { id: 28,    names: { en: 'Action',        ua: 'Бойовик',        de: 'Action',           cs: 'Akce',            pl: 'Action',        pt: 'Action',      hr: 'Akcija' } },
-  { id: 12,    names: { en: 'Adventure',     ua: 'Пригоди',        de: 'Abenteuer',        cs: 'Dobrodružství',   pl: 'Adventure',     pt: 'Adventure',   hr: 'Avantura' } },
-  { id: 16,    names: { en: 'Animation',     ua: 'Мультфільм',     de: 'Animation',        cs: 'Animace',         pl: 'Animation',     pt: 'Animation',   hr: 'Animacija' } },
-  { id: 35,    names: { en: 'Comedy',        ua: 'Комедія',        de: 'Komödie',          cs: 'Komedie',         pl: 'Comedy',        pt: 'Comedy',      hr: 'Komedija' } },
-  { id: 80,    names: { en: 'Crime',         ua: 'Кримінал',       de: 'Krimi',            cs: 'Krimi',           pl: 'Crime',         pt: 'Crime',       hr: 'Kriminal' } },
-  { id: 99,    names: { en: 'Documentary',   ua: 'Документальний', de: 'Dokumentarfilm',   cs: 'Dokument',        pl: 'Documentary',   pt: 'Documentary', hr: 'Dokumentarni' } },
-  { id: 18,    names: { en: 'Drama',         ua: 'Драма',          de: 'Drama',            cs: 'Drama',           pl: 'Drama',         pt: 'Drama',       hr: 'Drama' } },
-  { id: 14,    names: { en: 'Fantasy',       ua: 'Фентезі',        de: 'Fantasy',          cs: 'Fantasy',         pl: 'Fantasy',       pt: 'Fantasy',     hr: 'Fantastika' } },
-  { id: 27,    names: { en: 'Horror',        ua: 'Жахи',           de: 'Horror',           cs: 'Horor',           pl: 'Horror',        pt: 'Horror',      hr: 'Horor' } },
-  { id: 10749, names: { en: 'Romance',       ua: 'Мелодрама',      de: 'Romanze',          cs: 'Romantika',       pl: 'Romance',       pt: 'Romance',     hr: 'Romantika' } },
-  { id: 878,   names: { en: 'Sci-Fi',        ua: 'Фантастика',     de: 'Science-Fiction',  cs: 'Sci-Fi',          pl: 'Sci-Fi',        pt: 'Sci-Fi',      hr: 'Sci-Fi' } },
-  { id: 53,    names: { en: 'Thriller',      ua: 'Трилер',         de: 'Thriller',         cs: 'Thriller',        pl: 'Thriller',      pt: 'Thriller',    hr: 'Triler' } },
-  { id: 10751, names: { en: 'Family',        ua: 'Сімейний',       de: 'Familie',          cs: 'Rodina',          pl: 'Family',        pt: 'Family',      hr: 'Obiteljski' } },
-  { id: 36,    names: { en: 'History',       ua: 'Історичний',     de: 'Geschichte',       cs: 'Historie',        pl: 'History',       pt: 'History',     hr: 'Povijesni' } },
-  { id: 9648,  names: { en: 'Mystery',       ua: 'Містика',        de: 'Mystery',          cs: 'Mysteriózní',     pl: 'Mystery',       pt: 'Mystery',     hr: 'Misterij' } },
+  { id: 28,    names: { en: 'Action',        ua: 'Бойовик',        de: 'Action',           cs: 'Akce',            pl: 'Action',        pt: 'Action',      hr: 'Akcija',      it: 'Azione' } },
+  { id: 12,    names: { en: 'Adventure',     ua: 'Пригоди',        de: 'Abenteuer',        cs: 'Dobrodružství',   pl: 'Adventure',     pt: 'Adventure',   hr: 'Avantura',    it: 'Avventura' } },
+  { id: 16,    names: { en: 'Animation',     ua: 'Мультфільм',     de: 'Animation',        cs: 'Animace',         pl: 'Animation',     pt: 'Animation',   hr: 'Animacija',   it: 'Animazione' } },
+  { id: 35,    names: { en: 'Comedy',        ua: 'Комедія',        de: 'Komödie',          cs: 'Komedie',         pl: 'Comedy',        pt: 'Comedy',      hr: 'Komedija',    it: 'Commedia' } },
+  { id: 80,    names: { en: 'Crime',         ua: 'Кримінал',       de: 'Krimi',            cs: 'Krimi',           pl: 'Crime',         pt: 'Crime',       hr: 'Kriminal',    it: 'Crimine' } },
+  { id: 99,    names: { en: 'Documentary',   ua: 'Документальний', de: 'Dokumentarfilm',   cs: 'Dokument',        pl: 'Documentary',   pt: 'Documentary', hr: 'Dokumentarni', it: 'Documentario' } },
+  { id: 18,    names: { en: 'Drama',         ua: 'Драма',          de: 'Drama',            cs: 'Drama',           pl: 'Drama',         pt: 'Drama',       hr: 'Drama',       it: 'Dramma' } },
+  { id: 14,    names: { en: 'Fantasy',       ua: 'Фентезі',        de: 'Fantasy',          cs: 'Fantasy',         pl: 'Fantasy',       pt: 'Fantasy',     hr: 'Fantastika',  it: 'Fantasy' } },
+  { id: 27,    names: { en: 'Horror',        ua: 'Жахи',           de: 'Horror',           cs: 'Horor',           pl: 'Horror',        pt: 'Horror',      hr: 'Horor',       it: 'Horror' } },
+  { id: 10749, names: { en: 'Romance',       ua: 'Мелодрама',      de: 'Romanze',          cs: 'Romantika',       pl: 'Romance',       pt: 'Romance',     hr: 'Romantika',   it: 'Romantico' } },
+  { id: 878,   names: { en: 'Sci-Fi',        ua: 'Фантастика',     de: 'Science-Fiction',  cs: 'Sci-Fi',          pl: 'Sci-Fi',        pt: 'Sci-Fi',      hr: 'Sci-Fi',      it: 'Fantascienza' } },
+  { id: 53,    names: { en: 'Thriller',      ua: 'Трилер',         de: 'Thriller',         cs: 'Thriller',        pl: 'Thriller',      pt: 'Thriller',    hr: 'Triler',      it: 'Thriller' } },
+  { id: 10751, names: { en: 'Family',        ua: 'Сімейний',       de: 'Familie',          cs: 'Rodina',          pl: 'Family',        pt: 'Family',      hr: 'Obiteljski',  it: 'Famiglia' } },
+  { id: 36,    names: { en: 'History',       ua: 'Історичний',     de: 'Geschichte',       cs: 'Historie',        pl: 'History',       pt: 'History',     hr: 'Povijesni',   it: 'Storia' } },
+  { id: 9648,  names: { en: 'Mystery',       ua: 'Містика',        de: 'Mystery',          cs: 'Mysteriózní',     pl: 'Mystery',       pt: 'Mystery',     hr: 'Misterij',    it: 'Mistero' } },
 ];
 
 type FlagComponent = ComponentType<SVGProps<SVGSVGElement>>;
@@ -47,6 +48,7 @@ const LANG_OPTIONS: { value: Lang; label: string; Flag: FlagComponent }[] = [
   { value: 'pl', label: 'Polski',     Flag: PL },
   { value: 'pt', label: 'Português',  Flag: BR },
   { value: 'hr', label: 'Hrvatski',   Flag: HR },
+  { value: 'it', label: 'Italiano',   Flag: IT },
 ];
 
 // ── Floating poster rows for hero background ────────────────────────────────
