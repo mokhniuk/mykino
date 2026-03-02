@@ -38,60 +38,78 @@ const LANG_OPTIONS: { value: Lang; label: string; flag: string }[] = [
 ];
 
 // ── Floating poster rows for hero background ────────────────────────────────
-function FloatingPosters() {
+// POSTER_SLOT = w-[96px](96) + gap-3(12) = 108px — used to compute animation
+// duration so visual speed is consistent regardless of item count.
+const POSTER_SLOT = 108;
+const ROW_SPEEDS  = [48, 32, 42, 36]; // px/s per row — 4 rows, slow drift
+const MAX_POSTERS = 160;              // hard cap — keeps DOM node count bounded
+
+function FloatingPosters({ lang }: { lang: Lang }) {
   const [posters, setPosters] = useState<string[]>([]);
 
   useEffect(() => {
-    getPopular('en', 1)
-      .then(movies => {
-        setPosters(
-          movies
-            .filter(m => m.Poster && m.Poster !== 'N/A')
-            .map(m => m.Poster as string),
-        );
+    setPosters([]);
+    Promise.all([getPopular(lang, 1), getPopular(lang, 2), getPopular(lang, 3), getPopular(lang, 4)])
+      .then(pages => {
+        const seen = new Set<string>();
+        const urls: string[] = [];
+        outer: for (const movies of pages) {
+          for (const m of movies) {
+            if (m.Poster && m.Poster !== 'N/A' && !seen.has(m.Poster)) {
+              seen.add(m.Poster);
+              urls.push(m.Poster);
+              if (urls.length >= MAX_POSTERS) break outer;
+            }
+          }
+        }
+        setPosters(urls);
       })
       .catch(() => {});
-  }, []);
+  }, [lang]);
 
   if (posters.length < 9) return null;
 
-  const s = Math.ceil(posters.length / 3);
+  const s = Math.ceil(posters.length / 4);
   const rows = [
-    { items: posters.slice(0, s),     dir: 'ltr', dur: 38 },
-    { items: posters.slice(s, s * 2), dir: 'rtl', dur: 52 },
-    { items: posters.slice(s * 2),    dir: 'ltr', dur: 43 },
+    { items: posters.slice(0, s),         dir: 'ltr', speed: ROW_SPEEDS[0] },
+    { items: posters.slice(s, s * 2),     dir: 'rtl', speed: ROW_SPEEDS[1] },
+    { items: posters.slice(s * 2, s * 3), dir: 'ltr', speed: ROW_SPEEDS[2] },
+    { items: posters.slice(s * 3),        dir: 'rtl', speed: ROW_SPEEDS[3] },
   ];
 
   const rowMask = 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)';
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      <div className="flex flex-col justify-evenly h-full py-14">
-        {rows.map(({ items, dir, dur }, i) => (
-          <div
-            key={i}
-            className="overflow-hidden"
-            style={{ maskImage: rowMask, WebkitMaskImage: rowMask }}
-          >
+      <div className="flex flex-col justify-center items-stretch gap-4 h-full">
+        {rows.map(({ items, dir, speed }, i) => {
+          const dur = Math.round((items.length * POSTER_SLOT) / speed);
+          return (
             <div
-              className="flex gap-3"
-              style={{
-                width: 'max-content',
-                animation: `marquee-${dir} ${dur}s linear infinite`,
-              }}
+              key={i}
+              className="overflow-hidden"
+              style={{ maskImage: rowMask, WebkitMaskImage: rowMask }}
             >
-              {[...items, ...items].map((url, j) => (
-                <img
-                  key={j}
-                  src={url}
-                  alt=""
-                  className="w-[68px] h-[102px] rounded-lg object-cover flex-shrink-0 opacity-[0.18]"
-                  loading="lazy"
-                />
-              ))}
+              <div
+                className="flex gap-3"
+                style={{
+                  width: 'max-content',
+                  animation: `marquee-${dir} ${dur}s linear infinite`,
+                }}
+              >
+                {[...items, ...items].map((url, j) => (
+                  <img
+                    key={j}
+                    src={url}
+                    alt=""
+                    className="w-[96px] h-[144px] rounded-xl object-cover flex-shrink-0 opacity-[0.18]"
+                    loading="lazy"
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {/* top & bottom fade */}
       <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-background to-transparent" />
@@ -193,7 +211,7 @@ export default function Landing() {
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center justify-center min-h-screen px-6 text-center overflow-hidden">
-        <FloatingPosters />
+        <FloatingPosters lang={lang} />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden>
           <div className="w-[700px] h-[700px] rounded-full bg-primary/5 blur-3xl" />
         </div>
