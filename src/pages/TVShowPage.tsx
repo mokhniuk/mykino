@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Star, ChevronDown, ChevronUp, Tv2, Play,
-  CheckCircle2, Heart, BookmarkPlus, BookmarkCheck,
+  CheckCircle2, Heart, BookmarkPlus, BookmarkCheck, Clock,
 } from 'lucide-react';
+import { formatDate, formatRuntime } from '@/lib/format';
 import { useI18n } from '@/lib/i18n';
 import {
   getTVShowDetails, getTVSeasonDetail,
@@ -36,6 +37,21 @@ export default function TVShowPage() {
 
   const tracking = trackingList.find(t => t.tvId === id);
   const isCompleted = tracking?.status === 'completed';
+
+  // Total viewing time: use TMDB average runtime if available, otherwise derive from loaded season details
+  const totalRuntime = useMemo(() => {
+    if (!showDetail) return null;
+    if (showDetail.averageEpisodeRuntime && showDetail.numberOfEpisodes > 0) {
+      return showDetail.numberOfEpisodes * showDetail.averageEpisodeRuntime;
+    }
+    const allEps = Object.values(seasonDetails)
+      .filter((s): s is TVSeasonDetail => s !== null)
+      .flatMap(s => s.episodes)
+      .filter(ep => (ep.runtime ?? 0) > 0);
+    if (allEps.length === 0) return null;
+    const avg = allEps.reduce((sum, ep) => sum + ep.runtime!, 0) / allEps.length;
+    return Math.round(avg * showDetail.numberOfEpisodes);
+  }, [showDetail, seasonDetails]);
 
   useEffect(() => {
     if (!id) return;
@@ -362,6 +378,12 @@ export default function TVShowPage() {
                       {showDetail.showStatus}
                     </span>
                   )}
+                  {totalRuntime && (
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} />
+                      {formatRuntime(totalRuntime, lang)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -557,8 +579,8 @@ export default function TVShowPage() {
                                         {ep.name}
                                       </p>
                                       <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                                        {ep.air_date && <span>{ep.air_date}</span>}
-                                        {ep.runtime && <span>· {ep.runtime}m</span>}
+                                        {ep.air_date && <span>{formatDate(ep.air_date, lang)}</span>}
+                                        {ep.runtime && <span>· {formatRuntime(ep.runtime, lang)}</span>}
                                       </div>
                                     </div>
                                     <button

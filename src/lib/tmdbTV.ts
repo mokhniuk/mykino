@@ -10,6 +10,7 @@ const TMDB_LANG: Record<string, string> = {
   en: 'en-US',
   ua: 'uk-UA',
   de: 'de-DE',
+  cs: 'cs-CZ',
 };
 
 // v2 cache keys — invalidates old sparse caches
@@ -34,6 +35,7 @@ export interface TVShowDetail {
   seasons: TVSeasonMeta[];
   numberOfSeasons: number;
   numberOfEpisodes: number;
+  averageEpisodeRuntime?: number;
 }
 
 export interface TVSeasonDetail {
@@ -63,6 +65,7 @@ interface TmdbTVFull {
   spoken_languages: { english_name: string }[];
   production_countries: { name: string }[];
   seasons: { season_number: number; name: string; episode_count: number }[];
+  episode_run_time?: number[];
   credits: {
     cast: { name: string; order: number }[];
     crew: { job: string; name: string }[];
@@ -101,7 +104,7 @@ function getBestTrailer(videos?: { results: TmdbVideo[] }): string | undefined {
 export async function getTVShowDetails(id: string, lang = 'en'): Promise<TVShowDetail | null> {
   if (!API_KEY) return null;
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
-  const cacheKey = `tv_show2_${id}_${lang}`;
+  const cacheKey = `tv_show3_${id}_${lang}`;
 
   const cached = await getSetting(cacheKey);
   if (cached) {
@@ -163,6 +166,7 @@ export async function getTVShowDetails(id: string, lang = 'en'): Promise<TVShowD
       })),
       numberOfSeasons: detail.number_of_seasons,
       numberOfEpisodes: detail.number_of_episodes,
+      averageEpisodeRuntime: detail.episode_run_time?.[0] ?? undefined,
     };
 
     await setSetting(cacheKey, JSON.stringify({ data: result, ts: Date.now() }));

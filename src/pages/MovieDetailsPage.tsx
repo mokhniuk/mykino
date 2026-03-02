@@ -5,6 +5,7 @@ import {
   ArrowLeft, BookmarkPlus, BookmarkCheck, Star, Clock, CheckCircle2, Heart, Globe, ChevronDown,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { formatRuntimeStr } from '@/lib/format';
 import { getMovieDetails, getWatchProviders, detectCountry, PROVIDER_LOGO_BASE, type WatchProviderResult } from '@/lib/api';
 import {
   isInWatchlist, addToWatchlist,
@@ -215,7 +216,7 @@ export default function MovieDetailsPage() {
                   </p>
                   {movie.Runtime && movie.Runtime !== 'N/A' && (
                     <span className="flex items-center gap-1">
-                      <Clock size={12} /> {movie.Runtime}
+                      <Clock size={12} /> {formatRuntimeStr(movie.Runtime, lang)}
                     </span>
                   )}
                 </div>
