@@ -135,6 +135,13 @@ export default function Landing() {
   const { theme, setTheme }  = useTheme();
   const setupRef   = useRef<HTMLDivElement>(null);
 
+  // Landing is not part of the PWA — redirect straight to the app.
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      navigate('/app', { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Genre three-state: neutral → liked (+) → disliked (×) → neutral
   const [likedGenres,    setLikedGenres]    = useState<Set<number>>(new Set());
   const [dislikedGenres, setDislikedGenres] = useState<Set<number>>(new Set());
@@ -605,6 +612,9 @@ export default function Landing() {
                 </ol>
               </div>
             </div>
+            <p className="mt-8 text-xs text-muted-foreground/60 text-center max-w-xl mx-auto leading-relaxed">
+              {t('landingInstallNote')}
+            </p>
           </div>
         </div>
 
