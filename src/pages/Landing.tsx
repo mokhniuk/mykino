@@ -143,13 +143,31 @@ export default function Landing() {
   const navigate   = useNavigate();
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme }  = useTheme();
-  const setupRef   = useRef<HTMLDivElement>(null);
+  const setupRef     = useRef<HTMLDivElement>(null);
+  const heroRef      = useRef<HTMLElement>(null);
+  const finalCtaRef  = useRef<HTMLButtonElement>(null);
+  const [showFloating, setShowFloating] = useState(false);
 
   // Landing is not part of the PWA — redirect straight to the app.
   useEffect(() => {
     if (window.matchMedia('(display-mode: standalone)').matches) {
       navigate('/app', { replace: true });
     }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Floating CTA: visible after hero leaves, hidden once the final CTA enters viewport.
+  useEffect(() => {
+    const hero = heroRef.current;
+    const cta  = finalCtaRef.current;
+    if (!hero || !cta) return;
+    let heroVisible = true;
+    let ctaVisible  = false;
+    const update = () => setShowFloating(!heroVisible && !ctaVisible);
+    const heroObs = new IntersectionObserver(([e]) => { heroVisible = e.isIntersecting; update(); });
+    const ctaObs  = new IntersectionObserver(([e]) => { ctaVisible  = e.isIntersecting; update(); });
+    heroObs.observe(hero);
+    ctaObs.observe(cta);
+    return () => { heroObs.disconnect(); ctaObs.disconnect(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Genre three-state: neutral → liked (+) → disliked (×) → neutral
@@ -311,8 +329,20 @@ export default function Landing() {
         )}
       </div>
 
+      {/* ── Floating Enter button ────────────────────────────────────── */}
+      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+        showFloating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'
+      }`}>
+        <button
+          onClick={handleEnterApp}
+          className="flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity whitespace-nowrap"
+        >
+          {t('landingEnterApp')} →
+        </button>
+      </div>
+
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative flex flex-col items-center justify-center min-h-screen px-6 text-center overflow-hidden">
+      <section ref={heroRef} className="relative flex flex-col items-center justify-center min-h-screen px-6 text-center overflow-hidden">
         <FloatingPosters lang={lang} />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden>
           <div className="w-[700px] h-[700px] rounded-full bg-primary/5 blur-3xl" />
@@ -751,6 +781,7 @@ export default function Landing() {
           <h3 className="text-4xl md:text-5xl font-bold text-foreground mb-5">{t('landingDoneHeadline')}</h3>
           <p className="text-lg text-muted-foreground mb-10 max-w-md mx-auto leading-relaxed">{t('landingTagline')}</p>
           <button
+            ref={finalCtaRef}
             onClick={handleEnterApp}
             className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
           >
