@@ -1,12 +1,16 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { checkAndApplyUpdate } from "@/lib/sw-update";
 
 // If a JS chunk fails to load after a SW update (stale bundle hash),
 // redirect to root so the new SW serves fresh assets.
 window.addEventListener('vite:preloadError', () => {
   window.location.replace('/app');
 });
+
+// Check for a new version on every app start; reloads automatically if found.
+checkAndApplyUpdate();
 
 // ── Setup handoff ────────────────────────────────────────────────────────────
 // When navigating from the landing page to /app, all setup data is encoded in
