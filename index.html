@@ -18,9 +18,9 @@
           var isStandalone =
             window.matchMedia('(display-mode: standalone)').matches ||
             (window.navigator.standalone === true);
-          if (isStandalone) { window.location.replace('/app'); return; }
+          if (isStandalone) { window.history.replaceState(null, '', '/app'); return; }
           if (localStorage.getItem('hasSeenLanding') === 'true') {
-            window.location.replace('/app');
+            window.history.replaceState(null, '', '/app');
           }
         } catch(e) {}
       })();

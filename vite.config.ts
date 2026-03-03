@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
         background_color: "#111111",
         display: "standalone",
         scope: "/",
-        start_url: "/app",
+        start_url: "/",
         orientation: "any",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
