@@ -147,6 +147,8 @@ export default function Landing() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Genre three-state: neutral → liked (+) → disliked (×) → neutral
+  const [langOpen, setLangOpen] = useState(false);
+
   const [likedGenres,    setLikedGenres]    = useState<Set<number>>(new Set());
   const [dislikedGenres, setDislikedGenres] = useState<Set<number>>(new Set());
 
@@ -236,8 +238,41 @@ export default function Landing() {
     { value: 'dark',   icon: Moon,    label: t('darkMode')   },
   ];
 
+  const currentLang = LANG_OPTIONS.find(o => o.value === lang)!;
+
   return (
     <div className="bg-background min-h-screen">
+
+      {/* ── Language switcher (top-right) ─────────────────────────────── */}
+      {langOpen && (
+        <div className="absolute inset-0 z-[59]" onClick={() => setLangOpen(false)} />
+      )}
+      <div className="absolute top-4 right-4 z-[60]">
+        <button
+          onClick={() => setLangOpen(o => !o)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/80 backdrop-blur-sm border border-border text-foreground hover:bg-secondary/80 transition-colors shadow-sm"
+        >
+          <currentLang.Flag className="w-4 h-auto rounded-[2px]" />
+          <span className="text-xs font-medium">{currentLang.value.toUpperCase()}</span>
+          <ChevronDown size={11} className={`text-muted-foreground transition-transform ${langOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {langOpen && (
+          <div className="absolute right-0 top-full mt-1.5 bg-background border border-border rounded-xl shadow-lg py-1 min-w-[148px]">
+            {LANG_OPTIONS.map(({ value, label, Flag }) => (
+              <button
+                key={value}
+                onClick={() => { setLang(value); setLangOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-secondary ${
+                  lang === value ? 'text-primary font-semibold' : 'text-foreground'
+                }`}
+              >
+                <Flag className="w-4 h-auto rounded-[2px] flex-shrink-0" />
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center justify-center min-h-screen px-6 text-center overflow-hidden">
