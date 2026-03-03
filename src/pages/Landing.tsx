@@ -18,7 +18,9 @@ import type { Lang } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 import type { ThemePreference } from '@/lib/theme';
 import { addToWatched, setContentPreferences, type MovieData } from '@/lib/db';
-import { searchMovies, getPopular } from '@/lib/api';
+import { searchMovies, getPopular, getMovieDetails } from '@/lib/api';
+import { TOP_100_MOVIES } from '@/lib/top100';
+import type { TopMovie } from '@/lib/top100';
 
 const GENRES: { id: number; names: Record<Lang, string> }[] = [
   { id: 28,    names: { en: 'Action',        ua: 'Бойовик',        de: 'Action',           cs: 'Akce',            pl: 'Action',        pt: 'Action',      hr: 'Akcija',      it: 'Azione' } },
@@ -37,6 +39,10 @@ const GENRES: { id: number; names: Record<Lang, string> }[] = [
   { id: 36,    names: { en: 'History',       ua: 'Історичний',     de: 'Geschichte',       cs: 'Historie',        pl: 'History',       pt: 'History',     hr: 'Povijesni',   it: 'Storia' } },
   { id: 9648,  names: { en: 'Mystery',       ua: 'Містика',        de: 'Mystery',          cs: 'Mysteriózní',     pl: 'Mystery',       pt: 'Mystery',     hr: 'Misterij',    it: 'Mistero' } },
 ];
+
+function sampleN<T>(arr: T[], n: number): T[] {
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+}
 
 type FlagComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -170,6 +176,37 @@ export default function Landing() {
   const [watchedIds,    setWatchedIds]    = useState<Set<string>>(new Set());
   const [watchedMovies, setWatchedMovies] = useState<MovieData[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Top-100 suggestion slots ─────────────────────────────────────────────
+  const [slotState, setSlotState] = useState<{ slots: TopMovie[]; pool: TopMovie[] }>(() => {
+    const shuffled = [...TOP_100_MOVIES].sort(() => Math.random() - 0.5);
+    return { slots: shuffled.slice(0, 5), pool: shuffled.slice(5) };
+  });
+  const [slotData, setSlotData] = useState<Record<string, MovieData>>({});
+
+  useEffect(() => {
+    slotState.slots.forEach(m => {
+      if (slotData[m.imdbID]) return;
+      getMovieDetails(m.imdbID, lang).then(data => {
+        if (data) setSlotData(prev => ({ ...prev, [m.imdbID]: data }));
+      });
+    });
+  }, [slotState.slots]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTop100Watched = async (movie: MovieData, idx: number) => {
+    if (watchedIds.has(movie.imdbID)) return;
+    await addToWatched(movie);
+    const newWatchedIds = new Set(watchedIds).add(movie.imdbID);
+    setWatchedIds(newWatchedIds);
+    setWatchedMovies(l => [...l, movie]);
+    setSlotState(prev => {
+      const next = prev.pool.find(m => !newWatchedIds.has(m.imdbID));
+      if (!next) return prev;
+      const newSlots = [...prev.slots];
+      newSlots[idx] = next;
+      return { slots: newSlots, pool: prev.pool.filter(m => m.imdbID !== next.imdbID) };
+    });
+  };
 
   const handleSearch = (q: string) => {
     setSearchQuery(q);
@@ -501,7 +538,7 @@ export default function Landing() {
                 />
                 {searchLoading && <Loader2 size={15} className="text-muted-foreground animate-spin flex-shrink-0" />}
               </div>
-              {searchResults.length > 0 && (
+              {searchResults.length > 0 ? (
                 <div className="space-y-2 max-h-72 overflow-y-auto">
                   {searchResults.map(movie => {
                     const poster  = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
@@ -532,7 +569,53 @@ export default function Landing() {
                     );
                   })}
                 </div>
-              )}
+              ) : !searchQuery ? (
+                <>
+                  <p className="text-xs font-medium text-muted-foreground/50 mb-2 mt-0.5">{t('landingSuggestLabel')}</p>
+                  <div className="space-y-2">
+                    {slotState.slots.map((topMovie, i) => {
+                      const data = slotData[topMovie.imdbID];
+                      if (!data) {
+                        return (
+                          <div key={topMovie.imdbID} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border">
+                            <div className="w-9 h-14 rounded-lg bg-muted flex-shrink-0 animate-pulse" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-3.5 bg-muted rounded animate-pulse w-2/3" />
+                              <div className="h-3 bg-muted rounded animate-pulse w-1/3" />
+                            </div>
+                          </div>
+                        );
+                      }
+                      const poster = data.Poster && data.Poster !== 'N/A' ? data.Poster : null;
+                      const checked = watchedIds.has(topMovie.imdbID);
+                      return (
+                        <button
+                          key={topMovie.imdbID}
+                          onClick={() => handleTop100Watched(data, i)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-left ${
+                            checked
+                              ? 'bg-primary/10 border border-primary/20'
+                              : 'bg-card border border-border hover:border-primary/30'
+                          }`}
+                        >
+                          <div className="w-9 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                            {poster && <img src={poster} alt={data.Title} className="w-full h-full object-cover" loading="lazy" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{data.Title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{data.Year}</p>
+                          </div>
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                            checked ? 'bg-primary border-primary' : 'border-border'
+                          }`}>
+                            {checked && <Check size={12} className="text-primary-foreground" strokeWidth={3} />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
