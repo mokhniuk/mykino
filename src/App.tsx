@@ -21,6 +21,7 @@ import AchievementsMilestonesPage from "./pages/AchievementsMilestonesPage";
 import TVShowPage from "./pages/TVShowPage";
 import DirectorPage from "./pages/DirectorPage";
 import NotFound from "./pages/NotFound";
+import AdvisorPage from "./pages/AdvisorPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
                 <Route path="director/:slug" element={<DirectorPage />} />
                 <Route path="achievements/director/:slug" element={<AchievementsDirectorPage />} />
                 <Route path="achievements/milestones" element={<AchievementsMilestonesPage />} />
+                <Route path="advisor" element={<AdvisorPage />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
-import { Search, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
+import { Search, CheckCircle2, Settings, Clapperboard, List, Sparkles } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { addToWatched, setContentPreferences, setSetting } from '@/lib/db';
 
@@ -8,6 +8,7 @@ const navItems = [
   { path: '/app/watchlist', icon: List, labelKey: 'watchlist' as const },
   { path: '/app/watched', icon: CheckCircle2, labelKey: 'watched' as const },
   { path: '/app', icon: Clapperboard, labelKey: 'home' as const },
+  { path: '/app/advisor', icon: Sparkles, labelKey: 'advisor' as const },
   { path: '/app/search', icon: Search, labelKey: 'search' as const },
   { path: '/app/settings', icon: Settings, labelKey: 'settings' as const },
 ];
@@ -43,7 +44,7 @@ export default function Layout() {
         if (p.t) await setSetting('theme', p.t);
         if (p.lg?.length || p.dg?.length) {
           await setContentPreferences({
-            liked_genres:    p.lg ?? [],
+            liked_genres: p.lg ?? [],
             disliked_genres: p.dg ?? [],
             liked_countries: [], disliked_countries: [],
             liked_languages: [], disliked_languages: [],

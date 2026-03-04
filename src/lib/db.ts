@@ -2,7 +2,7 @@ import { openDB, IDBPDatabase } from 'idb';
 import type { TVSeriesTracking } from './tvTracking';
 
 const DB_NAME = 'movieapp';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export interface MovieData {
   imdbID: string;
@@ -65,10 +65,10 @@ async function runMigration(db: IDBPDatabase) {
       if (/^\d+$/.test(item.imdbID)) {
         const prefix = item.Type === 'series' || item.Type === 'tv' ? 'tv-' : 'm-';
         const newId = `${prefix}${item.imdbID}`;
-        
+
         // Delete old record
         await cursor.delete();
-        
+
         // Add new record with prefixed ID
         const newItem = { ...item, imdbID: newId };
         await store.put(newItem);
@@ -98,13 +98,16 @@ export function getDB() {
         if (oldVersion < 3) {
           db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
         }
+        if (oldVersion < 4) {
+          db.createObjectStore('advisor_cache', { keyPath: 'queryHash' });
+        }
       },
     });
-    
+
     // Chain migration to initialization so it only runs once per boot
     migrationPromise = dbPromise.then(runMigration);
   }
-  
+
   // Wait for migration to finish before returning DB in case callers need migrated data
   return migrationPromise ? migrationPromise.then(() => dbPromise!) : dbPromise;
 }

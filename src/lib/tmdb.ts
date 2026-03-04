@@ -13,6 +13,8 @@ const TMDB_LANG: Record<string, string> = {
   cs: 'cs-CZ',
   pl: 'pl-PL',
   pt: 'pt-BR',
+  hr: 'hr-HR',
+  it: 'it-IT',
 };
 
 
@@ -256,7 +258,7 @@ export async function searchMovies(query: string, page = 1, lang = 'en'): Promis
           Type: isTV ? 'series' : 'movie',
           imdbRating: r.vote_average ? r.vote_average.toFixed(1) : undefined,
           Plot: r.overview || undefined,
-          genre_ids: r.genre_ids,
+          original_language: r.original_language,
           origin_country: r.origin_country,
         };
       });
