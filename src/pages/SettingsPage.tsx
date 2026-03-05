@@ -1,15 +1,26 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X } from 'lucide-react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useI18n, type Lang } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
-import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences, getDBStats, type DBStats } from '@/lib/db';
+import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences, getDBStats, type DBStats, clearAllData } from '@/lib/db';
 import { clearRecommendationsCache } from '@/lib/recommendations';
 import { triggerSWUpdate } from '@/lib/sw-update';
 import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface CategoryPickerProps {
   label: string;
@@ -179,6 +190,14 @@ export default function SettingsPage() {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleClearAll = async () => {
+    await clearAllData();
+    toast.success(t('dataCleared'));
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 1500);
   };
 
   const themeOptions: { value: ThemePreference; label: string; icon: React.ReactNode }[] = [
@@ -351,6 +370,8 @@ export default function SettingsPage() {
               {importing ? '…' : t('importData')}
             </button>
           </div>
+          <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
+          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
 
           {stats && (
             <div className="pt-2 border-t border-border/50">
@@ -379,8 +400,30 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
-          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 text-sm font-medium transition-colors mt-1">
+                <Trash2 size={15} />
+                {t('clearAllData')}
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('clearAllWarning')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('clearAllWarningText')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearAll} className="bg-red-600 hover:bg-red-700 text-white">
+                  {t('confirmClear')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+
         </section>
 
         {/* App Info — full width */}

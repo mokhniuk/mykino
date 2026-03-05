@@ -250,6 +250,14 @@ export async function clearVolatileCaches() {
   }
 }
 
+export async function clearAllData() {
+  const db = await getDB();
+  const stores = ['movies', 'watchlist', 'watched', 'favourites', 'settings', 'tv_tracking'];
+  const tx = db.transaction(stores, 'readwrite');
+  await Promise.all(stores.map(store => tx.objectStore(store).clear()));
+  await tx.done;
+}
+
 export interface DBStats {
   movies: number;
   watchlist: number;
