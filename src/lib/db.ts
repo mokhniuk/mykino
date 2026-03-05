@@ -206,14 +206,15 @@ export async function isWatched(id: string): Promise<boolean> {
 // Export / Import
 export async function exportAllData() {
   const db = await getDB();
-  const [watchlist, watched, favourites, settings, tvTracking] = await Promise.all([
+  const [watchlist, watched, favourites, settings, tvTracking, movies] = await Promise.all([
     getWatchlist(),
     getWatched(),
     getFavourites(),
     db.getAll('settings'),
     db.getAll('tv_tracking'),
+    db.getAll('movies'),
   ]);
-  return { version: 1, exportedAt: Date.now(), watchlist, watched, favourites, settings, tvTracking };
+  return { version: 1, exportedAt: Date.now(), watchlist, watched, favourites, settings, tvTracking, movies };
 }
 
 export async function importAllData(data: {
