@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Search, Film, Heart, ChevronRight,
   ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem,
@@ -28,22 +29,22 @@ function useGreeting() {
 
 const SECTION_ICONS: Record<RecoSection['id'], React.ReactNode> = {
   becauseLiked: <ThumbsUp size={24} className="text-primary" />,
-  byGenre:      <Layers size={24} className="text-primary" />,
-  nowPlaying:   <Clapperboard size={24} className="text-primary" />,
-  trending:     <TrendingUp size={24} className="text-primary" />,
-  popular:      <Flame size={24} className="text-primary" />,
-  hiddenGems:   <Gem size={24} className="text-primary" />,
+  byGenre: <Layers size={24} className="text-primary" />,
+  nowPlaying: <Clapperboard size={24} className="text-primary" />,
+  trending: <TrendingUp size={24} className="text-primary" />,
+  popular: <Flame size={24} className="text-primary" />,
+  hiddenGems: <Gem size={24} className="text-primary" />,
 };
 
 type SectionTitleKey = 'sectionBecauseLiked' | 'sectionByGenre' | 'sectionNowPlaying' | 'sectionTrending' | 'sectionPopular' | 'sectionHiddenGems';
 
 const SECTION_TITLE_KEYS: Record<RecoSection['id'], SectionTitleKey> = {
   becauseLiked: 'sectionBecauseLiked',
-  byGenre:      'sectionByGenre',
-  nowPlaying:   'sectionNowPlaying',
-  trending:     'sectionTrending',
-  popular:      'sectionPopular',
-  hiddenGems:   'sectionHiddenGems',
+  byGenre: 'sectionByGenre',
+  nowPlaying: 'sectionNowPlaying',
+  trending: 'sectionTrending',
+  popular: 'sectionPopular',
+  hiddenGems: 'sectionHiddenGems',
 };
 
 function RecoSectionHeader({ section }: { section: RecoSection }) {
@@ -67,25 +68,19 @@ function RecoSectionHeader({ section }: { section: RecoSection }) {
 }
 
 const MILESTONE_ICONS: Record<MilestoneId, LucideIcon> = {
-  first_film:    Clapperboard,
-  ten_films:     Film,
-  fifty_films:   Star,
+  first_film: Clapperboard,
+  ten_films: Film,
+  fifty_films: Star,
   hundred_films: Trophy,
-  classic:       Clock,
-  world_explorer:Globe,
-  polyglot:      Languages,
-  genre_master:  Layers,
+  classic: Clock,
+  world_explorer: Globe,
+  polyglot: Languages,
+  genre_master: Layers,
 };
 
 export default function Index() {
   const { t, lang } = useI18n();
   const greeting = useGreeting();
-  const [watchlist, setWatchlist] = useState<MovieData[]>([]);
-  const [dbReady, setDbReady] = useState(false);
-  const [localizedWatchlist, setLocalizedWatchlist] = useState<MovieData[]>([]);
-  const [watchlistReady, setWatchlistReady] = useState(false);
-  const [localizedFavourites, setLocalizedFavourites] = useState<MovieData[]>([]);
-  const [favouritesReady, setFavouritesReady] = useState(false);
   const { sections: recoSections, isLoading: recoLoading } = useRecommendations();
   const { watched, directors, milestones, dailyPickMovie, dailyPickLoading, top100Progress } = useAchievements();
   const { trackingList } = useTVTracking();
@@ -106,15 +101,8 @@ export default function Index() {
     ).then(results => {
       setWatchingMovies(new Map(results.filter(([, m]) => !!m) as [string, MovieData][]));
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchingShows.length]);
-
-  useEffect(() => {
-    Promise.all([getWatchlist(), getWatched()]).then(([wl]) => {
-      setWatchlist(wl);
-      setDbReady(true);
-    });
-  }, []);
 
   const watchedIds = useMemo(() => new Set(watched.map(m => m.imdbID)), [watched]);
   const watchedTitles = useMemo(() => new Set([
@@ -125,48 +113,30 @@ export default function Index() {
   const isWatchedFn = (m: { imdbID: string; Title: string }) =>
     watchedIds.has(m.imdbID) || watchedTitles.has(m.Title.toLowerCase());
 
-  useEffect(() => {
-    if (!dbReady) return;
-    let cancelled = false;
-    const unwatched = watchlist.filter(m => !isWatchedFn(m));
-    if (unwatched.length === 0) {
-      setLocalizedWatchlist([]);
-      setWatchlistReady(true);
-      return;
-    }
-    Promise.all(
-      unwatched.slice(0, 10).map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
-    ).then(results => {
-      if (!cancelled) {
-        setLocalizedWatchlist(results);
-        setWatchlistReady(true);
-      }
-    });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchlist, lang, dbReady, watchedIds, watchedTitles]);
+  const { data: watchlistData, isLoading: watchlistLoading } = useQuery<MovieData[]>({
+    queryKey: ['movies', 'watchlist', 'page', lang, watched.length],
+    queryFn: async () => {
+      const list = await getWatchlist();
+      const unwatched = list.filter(m => !isWatchedFn(m));
+      return Promise.all(unwatched.slice(0, 10).map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m)));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    if (!dbReady) return;
-    let cancelled = false;
-    getFavourites().then(favs => {
-      if (cancelled) return;
-      if (favs.length === 0) {
-        setLocalizedFavourites([]);
-        setFavouritesReady(true);
-        return;
-      }
-      Promise.all(
-        favs.slice(0, 10).map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m))
-      ).then(results => {
-        if (!cancelled) {
-          setLocalizedFavourites(results);
-          setFavouritesReady(true);
-        }
-      });
-    });
-    return () => { cancelled = true; };
-  }, [dbReady, lang]);
+  const localizedWatchlist = watchlistData ?? [];
+  const watchlistReady = !watchlistLoading;
+
+  const { data: favouritesData, isLoading: favouritesLoading } = useQuery<MovieData[]>({
+    queryKey: ['movies', 'favourites', 'page', lang, watched.length],
+    queryFn: async () => {
+      const favs = await getFavourites();
+      return Promise.all(favs.slice(0, 10).map(m => getMovieDetails(m.imdbID, lang).then(data => data ?? m)));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const localizedFavourites = favouritesData ?? [];
+  const favouritesReady = !favouritesLoading;
 
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto space-y-8 animate-fade-in">
@@ -436,11 +406,10 @@ export default function Index() {
                 <Link
                   key={milestone.id}
                   to="/app/achievements/milestones"
-                  className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border transition-colors ${
-                    milestone.unlocked
-                      ? 'bg-primary/10 border-primary/20'
-                      : 'bg-secondary border-border opacity-40'
-                  }`}
+                  className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border transition-colors ${milestone.unlocked
+                    ? 'bg-primary/10 border-primary/20'
+                    : 'bg-secondary border-border opacity-40'
+                    }`}
                 >
                   <Icon
                     size={22}

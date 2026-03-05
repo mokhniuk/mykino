@@ -20,19 +20,23 @@ export function useAchievements() {
   const [dailyPickLoading, setDailyPickLoading] = useState(true);
 
   const { data: watched = [], isLoading } = useQuery<MovieData[]>({
-    queryKey: ['watched', lang],
+    queryKey: ['movies', 'watched', 'list', lang],
     queryFn: async () => {
       const list = await getWatched();
-      // Hydrate with full details to ensure Director and other metadata is present
-      return Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m)));
+      // Hydrate only if basic metadata is missing to avoid unnecessary DB/Network calls
+      return Promise.all(list.map(m => {
+        if (m.Director && m.Genre && m.Country) return m;
+        return getMovieDetails(m.imdbID, lang).then(d => d ?? m);
+      }));
     },
     staleTime: 60 * 60 * 1000,
   });
 
-  const unwatchedTop100 = useMemo(() => computeUnwatchedTop100(watched), [watched]);
-  const top100Progress = useMemo(() => computeTop100Progress(watched), [watched]);
-  const directors = useMemo<DirectorCompletion[]>(() => computeDirectorCompletions(watched), [watched]);
-  const milestones = useMemo<Milestone[]>(() => computeMilestones(watched), [watched]);
+  const watchedArray = Array.isArray(watched) ? watched : [];
+  const unwatchedTop100 = useMemo(() => computeUnwatchedTop100(watchedArray), [watchedArray]);
+  const top100Progress = useMemo(() => computeTop100Progress(watchedArray), [watchedArray]);
+  const directors = useMemo<DirectorCompletion[]>(() => computeDirectorCompletions(watchedArray), [watchedArray]);
+  const milestones = useMemo<Milestone[]>(() => computeMilestones(watchedArray), [watchedArray]);
 
   // Resolve the daily pick ID once watched list is ready
   useEffect(() => {

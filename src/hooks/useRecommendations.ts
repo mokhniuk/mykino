@@ -10,19 +10,19 @@ export function useRecommendations() {
   const prevCountsRef = useRef<{ watched: number; favourites: number } | null>(null);
 
   const { data: sections = [], isLoading, isFetching } = useQuery<RecoSection[]>({
-    queryKey: ['recommendations', lang],
+    queryKey: ['movies', 'recommendations', lang],
     queryFn: () => getHomeSections(lang),
     staleTime: Infinity,
   });
 
   const { data: watched } = useQuery({
-    queryKey: ['watched'],
+    queryKey: ['movies', 'watched', 'list'],
     queryFn: getWatched,
     staleTime: 60 * 60 * 1000,
   });
 
   const { data: favourites } = useQuery({
-    queryKey: ['favourites'],
+    queryKey: ['movies', 'favourites', 'list'],
     queryFn: getFavourites,
     staleTime: 60 * 60 * 1000,
   });
@@ -43,14 +43,14 @@ export function useRecommendations() {
     ) {
       prevCountsRef.current = { watched: watchedCount, favourites: favouritesCount };
       clearRecommendationsCache(lang).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['recommendations', lang] });
+        queryClient.invalidateQueries({ queryKey: ['movies', 'recommendations', lang] });
       });
     }
   }, [watched, favourites, lang, queryClient]);
 
   const refresh = async () => {
     await clearRecommendationsCache(lang);
-    queryClient.invalidateQueries({ queryKey: ['recommendations', lang] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'recommendations', lang] });
   };
 
   return { sections, isLoading, isFetching, refresh };

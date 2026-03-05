@@ -1,27 +1,61 @@
 import { useQuery } from '@tanstack/react-query';
 import { getGenres, getCountries, getLanguages } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
+import { getMetadata, saveMetadata } from '@/lib/db';
 
 export function useTmdbMetadata() {
     const { lang } = useI18n();
+    const [cachedData, setCachedData] = useState<{
+        genres: any,
+        countries: any,
+        languages: any
+    }>({ genres: null, countries: null, languages: null });
+
+    // Load from cache on mount (and lang change)
+    useEffect(() => {
+        const loadCache = async () => {
+            const [g, c, l] = await Promise.all([
+                getMetadata(`genres_${lang}`),
+                getMetadata(`countries_${lang}`),
+                getMetadata(`languages_${lang}`)
+            ]);
+            setCachedData({ genres: g, countries: c, languages: l });
+        };
+        loadCache();
+    }, [lang]);
 
     const genresQuery = useQuery({
-        queryKey: ['genres', lang],
-        queryFn: () => getGenres(lang),
+        queryKey: ['metadata', 'genres', lang],
+        queryFn: async () => {
+            const data = await getGenres(lang);
+            await saveMetadata(`genres_${lang}`, data);
+            return data;
+        },
         staleTime: 1000 * 60 * 60 * 24, // 24 hours
+        initialData: cachedData.genres || undefined,
     });
 
     const countriesQuery = useQuery({
-        queryKey: ['countries', lang],
-        queryFn: () => getCountries(lang),
+        queryKey: ['metadata', 'countries', lang],
+        queryFn: async () => {
+            const data = await getCountries(lang);
+            await saveMetadata(`countries_${lang}`, data);
+            return data;
+        },
         staleTime: 1000 * 60 * 60 * 24, // 24 hours
+        initialData: cachedData.countries || undefined,
     });
 
     const languagesQuery = useQuery({
-        queryKey: ['languages', lang],
-        queryFn: () => getLanguages(lang),
+        queryKey: ['metadata', 'languages', lang],
+        queryFn: async () => {
+            const data = await getLanguages(lang);
+            await saveMetadata(`languages_${lang}`, data);
+            return data;
+        },
         staleTime: 1000 * 60 * 60 * 24, // 24 hours
+        initialData: cachedData.languages || undefined,
     });
 
     // BCP 47 locale mapping

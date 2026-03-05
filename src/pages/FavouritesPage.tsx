@@ -21,7 +21,7 @@ export default function FavouritesPage() {
   const [tab, setTab] = useState<Tab>('movie');
 
   const { data, isLoading } = useQuery<FavouritesData>({
-    queryKey: ['favourites', lang],
+    queryKey: ['movies', 'favourites', 'page', lang],
     queryFn: async () => {
       const list = await getFavourites();
       const [movies, watchlistChecks] = await Promise.all([
@@ -41,24 +41,25 @@ export default function FavouritesPage() {
 
   const handleRemove = async (id: string) => {
     await removeFromFavourites(id);
-    queryClient.setQueryData<FavouritesData>(['favourites', lang], prev =>
+    queryClient.setQueryData<FavouritesData>(['movies', 'favourites', 'page', lang], prev =>
       prev ? { ...prev, movies: prev.movies.filter(m => m.imdbID !== id) } : prev
     );
-    queryClient.invalidateQueries({ queryKey: ['favourites'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'favourites'] });
   };
 
   const toggleWatchlist = async (movie: MovieData) => {
     if (watchlistIdSet.has(movie.imdbID)) {
       await removeFromWatchlist(movie.imdbID);
-      queryClient.setQueryData<FavouritesData>(['favourites', lang], prev =>
+      queryClient.setQueryData<FavouritesData>(['movies', 'favourites', 'page', lang], prev =>
         prev ? { ...prev, watchlistIds: prev.watchlistIds.filter(id => id !== movie.imdbID) } : prev
       );
     } else {
       await addToWatchlist(movie);
-      queryClient.setQueryData<FavouritesData>(['favourites', lang], prev =>
+      queryClient.setQueryData<FavouritesData>(['movies', 'favourites', 'page', lang], prev =>
         prev ? { ...prev, watchlistIds: [...prev.watchlistIds, movie.imdbID] } : prev
       );
     }
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const filtered = movies.filter((m) => (m.Type || 'movie') === tab);
@@ -80,11 +81,10 @@ export default function FavouritesPage() {
             <button
               key={tb.value}
               onClick={() => setTab(tb.value)}
-              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                tab === tb.value
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === tb.value
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               {tb.label}
             </button>

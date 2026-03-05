@@ -95,13 +95,14 @@ export default function MovieDetailsPage() {
     if (!movie) return;
     await addToWatchlist(movie);
     setInWatchlist(true);
-    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const toggleFavourite = async () => {
     if (!movie) return;
     if (inFavourites) { await removeFromFavourites(movie.imdbID); setInFavourites(false); }
     else { await addToFavourites(movie); setInFavourites(true); }
+    queryClient.invalidateQueries({ queryKey: ['movies', 'favourites'] });
   };
 
   const handleMarkWatched = async () => {
@@ -110,8 +111,8 @@ export default function MovieDetailsPage() {
     await removeFromWatchlist(movie.imdbID);
     setWatched(true);
     setInWatchlist(false);
-    queryClient.invalidateQueries({ queryKey: ['watched'] });
-    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const handleUnwatch = async () => {
@@ -120,8 +121,8 @@ export default function MovieDetailsPage() {
     await addToWatchlist(movie);
     setWatched(false);
     setInWatchlist(true);
-    queryClient.invalidateQueries({ queryKey: ['watched'] });
-    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   if (loading) {
@@ -236,7 +237,7 @@ export default function MovieDetailsPage() {
             {/* Action Buttons (shown when not watched) */}
             <div className={`flex gap-3 w-full transition-all duration-500 ${watched ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
               <button
-                onClick={inWatchlist ? () => removeFromWatchlist(movie.imdbID).then(() => { setInWatchlist(false); queryClient.invalidateQueries({ queryKey: ['watchlist'] }); }) : handleAddToWatchlist}
+                onClick={inWatchlist ? () => removeFromWatchlist(movie.imdbID).then(() => { setInWatchlist(false); queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] }); }) : handleAddToWatchlist}
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
                   ? 'w-[42px] bg-secondary text-primary'
                   : 'flex-1 bg-primary text-primary-foreground hover:opacity-90'

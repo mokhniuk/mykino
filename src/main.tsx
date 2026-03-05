@@ -5,7 +5,7 @@ import { checkAndApplyUpdate } from "@/lib/sw-update";
 import { clearVolatileCaches } from "@/lib/db";
 
 // ── Startup Recovery ──────────────────────────────────────────────────────────
-const DATA_VERSION = '4';
+const DATA_VERSION = '5';
 if (localStorage.getItem('data_version') !== DATA_VERSION) {
   clearVolatileCaches();
   localStorage.setItem('data_version', DATA_VERSION);

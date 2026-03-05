@@ -105,7 +105,7 @@ export default function SettingsPage() {
     setPrefs(newPrefs);
     await setContentPreferences(newPrefs);
     await clearRecommendationsCache();
-    queryClient.removeQueries({ queryKey: ['recommendations'] });
+    queryClient.removeQueries({ queryKey: ['movies', 'recommendations'] });
   };
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);

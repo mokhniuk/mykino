@@ -65,7 +65,7 @@ export default function Layout() {
           );
           // Invalidate the watched query so the director list, achievements,
           // and homepage all see the newly seeded movies immediately.
-          queryClient.invalidateQueries({ queryKey: ['watched'] });
+          queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
         }
       } catch {
         /* malformed — ignore */

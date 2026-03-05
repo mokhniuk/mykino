@@ -15,7 +15,7 @@ export default function AchievementsDirectorPage() {
   const director = directors.find(d => d.slug === slug);
 
   const { data: allTmdbMovies = [], isLoading: tmdbLoading } = useQuery({
-    queryKey: ['directorMovies', director?.name, lang],
+    queryKey: ['movies', 'director', director?.name, lang],
     queryFn: () => getDirectorMovies(director!.name, lang),
     enabled: !!director?.name,
     staleTime: 24 * 60 * 60 * 1000,

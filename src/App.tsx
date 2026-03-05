@@ -22,41 +22,45 @@ import TVShowPage from "./pages/TVShowPage";
 import DirectorPage from "./pages/DirectorPage";
 import NotFound from "./pages/NotFound";
 
+import ErrorBoundary from "@/components/ErrorBoundary";
+
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <I18nProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/app" element={<Layout />}>
-                <Route index element={<Index />} />
-                <Route path="search" element={<SearchPage />} />
-                <Route path="watchlist" element={<WatchlistPage />} />
-                <Route path="watched" element={<WatchedPage />} />
-                <Route path="movie/:id" element={<MovieDetailsPage />} />
-                <Route path="tv/:id" element={<TVShowPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="favourites" element={<FavouritesPage />} />
-                <Route path="section/:slug" element={<RecoSectionPage />} />
-                <Route path="achievements/top100" element={<AchievementsTop100Page />} />
-                <Route path="director/:slug" element={<DirectorPage />} />
-                <Route path="achievements/director/:slug" element={<AchievementsDirectorPage />} />
-                <Route path="achievements/milestones" element={<AchievementsMilestonesPage />} />
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <I18nProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/app" element={<Layout />}>
+                  <Route index element={<Index />} />
+                  <Route path="search" element={<SearchPage />} />
+                  <Route path="watchlist" element={<WatchlistPage />} />
+                  <Route path="watched" element={<WatchedPage />} />
+                  <Route path="movie/:id" element={<MovieDetailsPage />} />
+                  <Route path="tv/:id" element={<TVShowPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="favourites" element={<FavouritesPage />} />
+                  <Route path="section/:slug" element={<RecoSectionPage />} />
+                  <Route path="achievements/top100" element={<AchievementsTop100Page />} />
+                  <Route path="director/:slug" element={<DirectorPage />} />
+                  <Route path="achievements/director/:slug" element={<AchievementsDirectorPage />} />
+                  <Route path="achievements/milestones" element={<AchievementsMilestonesPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Route>
                 <Route path="*" element={<NotFound />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </I18nProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </I18nProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -24,7 +24,7 @@ export default function WatchedPage() {
   const trackingMap = Object.fromEntries(trackingList.map(tr => [tr.tvId, tr]));
 
   const { data, isLoading } = useQuery<WatchedData>({
-    queryKey: ['watched', lang],
+    queryKey: ['movies', 'watched', 'page', lang],
     queryFn: async () => {
       const list = await getWatched();
       const [movies, favChecks] = await Promise.all([

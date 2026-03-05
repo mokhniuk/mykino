@@ -2,8 +2,8 @@ import { openDB, IDBPDatabase } from 'idb';
 import type { TVSeriesTracking } from './tvTracking';
 
 const DB_NAME = 'movieapp';
-const DB_VERSION = 4;
-const APP_DATA_VERSION = 4;
+const DB_VERSION = 5;
+const APP_DATA_VERSION = 5;
 
 export interface MovieData {
   imdbID: string;
@@ -52,35 +52,44 @@ async function runMigration(db: IDBPDatabase) {
   const isMigrated = await db.get('settings', 'id_migration_done');
   if (isMigrated?.value === 'true') return;
 
+  // Collect items to migrate first to avoid cursor redundancy/looping
   const storesToMigrate = ['movies', 'watchlist', 'favourites', 'watched'];
   for (const storeName of storesToMigrate) {
     if (!db.objectStoreNames.contains(storeName)) continue;
 
+    const items = await db.getAll(storeName);
+    const toMigrate = items.filter(item => /^\d+$/.test(item.imdbID));
+
+    if (toMigrate.length === 0) continue;
+
     const tx = db.transaction(storeName, 'readwrite');
     const store = tx.objectStore(storeName);
-    let cursor = await store.openCursor();
 
-    while (cursor) {
-      const item = cursor.value as MovieData;
-      // If the ID is purely numeric, it's a legacy TMDB ID
-      if (/^\d+$/.test(item.imdbID)) {
-        const prefix = item.Type === 'series' || item.Type === 'tv' ? 'tv-' : 'm-';
-        const newId = `${prefix}${item.imdbID}`;
+    for (const item of toMigrate) {
+      const prefix = item.Type === 'series' || item.Type === 'tv' ? 'tv-' : 'm-';
+      const newId = `${prefix}${item.imdbID}`;
 
-        // Delete old record
-        await cursor.delete();
-
-        // Add new record with prefixed ID
-        const newItem = { ...item, imdbID: newId };
-        await store.put(newItem);
-      }
-      cursor = await cursor.continue();
+      await store.delete(item.imdbID);
+      await store.put({ ...item, imdbID: newId });
     }
+    await tx.done;
   }
 
   // Mark migration as complete
-  const txSettings = db.transaction('settings', 'readwrite');
-  await txSettings.objectStore('settings').put({ key: 'id_migration_done', value: 'true' });
+  try {
+    await db.put('settings', { key: 'id_migration_done', value: 'true' });
+  } catch (e) {
+    console.error('Failed to mark migration as done', e);
+  }
+}
+
+async function safeRunMigration(db: IDBPDatabase) {
+  try {
+    await runMigration(db);
+  } catch (e) {
+    console.error('Critical: Migration failed', e);
+    // We don't re-throw because we don't want to block the entire app
+  }
 }
 
 export function getDB() {
@@ -102,15 +111,17 @@ export function getDB() {
         if (oldVersion < 4) {
           // Placeholder for version 4 compatibility
         }
+        if (oldVersion < 5) {
+          db.createObjectStore('metadata', { keyPath: 'key' });
+        }
       },
     });
 
-    // Chain migration to initialization so it only runs once per boot
-    migrationPromise = dbPromise.then(runMigration);
+    // Fire migration in background
+    dbPromise.then(safeRunMigration);
   }
 
-  // Wait for migration to finish before returning DB in case callers need migrated data
-  return migrationPromise ? migrationPromise.then(() => dbPromise!) : dbPromise;
+  return dbPromise;
 }
 
 // Movies cache
@@ -305,4 +316,16 @@ export async function getContentPreferences(): Promise<ContentPreferences> {
 
 export async function setContentPreferences(prefs: ContentPreferences) {
   await setSetting('content_preferences', JSON.stringify(prefs));
+}
+
+// Metadata caching (genres, countries, languages)
+export async function getMetadata<T>(key: string): Promise<T | null> {
+  const db = await getDB();
+  const result = await db.get('metadata', key);
+  return result?.value ?? null;
+}
+
+export async function saveMetadata(key: string, value: any) {
+  const db = await getDB();
+  await db.put('metadata', { key, value, lastUpdated: Date.now() });
 }

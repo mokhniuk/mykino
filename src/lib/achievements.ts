@@ -38,9 +38,10 @@ export async function getDailyTop100Pick(unwatched: TopMovie[]): Promise<string 
 // ─── Top 100 Progress ─────────────────────────────────────────────────────────
 
 export function computeTop100Progress(watched: MovieData[]): number {
+  if (!Array.isArray(watched)) return 0;
   const watchedIds = new Set(watched.map(m => m.imdbID));
   const watchedTitles = new Set([
-    ...watched.map(m => m.Title.toLowerCase()),
+    ...watched.map(m => (m.Title || '').toLowerCase()),
     ...watched.flatMap(m => m.OriginalTitle ? [(m.OriginalTitle as string).toLowerCase()] : []),
   ]);
   return TOP_100_MOVIES.filter(
@@ -49,6 +50,7 @@ export function computeTop100Progress(watched: MovieData[]): number {
 }
 
 export function computeUnwatchedTop100(watched: MovieData[]): TopMovie[] {
+  if (!Array.isArray(watched)) return TOP_100_MOVIES;
   const watchedIds = new Set(watched.map(m => m.imdbID));
   const watchedTitles = new Set([
     ...watched.map(m => (m.Title || '').toLowerCase()),
@@ -89,6 +91,7 @@ export function slugifyDirector(name: string): string {
 }
 
 export function computeDirectorCompletions(watched: MovieData[]): DirectorCompletion[] {
+  if (!Array.isArray(watched)) return [];
   const byDirector = new Map<string, MovieData[]>();
 
   for (const movie of watched) {
@@ -135,6 +138,7 @@ export const MILESTONE_IDS = [
 export type MilestoneId = typeof MILESTONE_IDS[number];
 
 export function computeMilestones(watched: MovieData[]): Milestone[] {
+  if (!Array.isArray(watched)) return MILESTONE_IDS.map(id => ({ id, unlocked: false }));
   const count = watched.length;
 
   const countries = new Set<string>();

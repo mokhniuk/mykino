@@ -10,14 +10,14 @@ export function useTVTracking() {
   const queryClient = useQueryClient();
 
   const { data: trackingList = [], isLoading } = useQuery<TVSeriesTracking[]>({
-    queryKey: ['tv_tracking'],
+    queryKey: ['tv', 'tracking', 'list'],
     queryFn: getAllTVTracking,
     staleTime: 5 * 60 * 1000,
   });
 
   const updateTracking = async (tracking: TVSeriesTracking) => {
     await saveTVTracking(tracking);
-    queryClient.setQueryData<TVSeriesTracking[]>(['tv_tracking'], prev => {
+    queryClient.setQueryData<TVSeriesTracking[]>(['tv', 'tracking', 'list'], prev => {
       const list = prev ?? [];
       const idx = list.findIndex(t => t.tvId === tracking.tvId);
       if (idx >= 0) return list.map((t, i) => (i === idx ? tracking : t));
@@ -27,7 +27,7 @@ export function useTVTracking() {
 
   const removeTracking = async (tvId: string) => {
     await deleteTVTracking(tvId);
-    queryClient.setQueryData<TVSeriesTracking[]>(['tv_tracking'], prev =>
+    queryClient.setQueryData<TVSeriesTracking[]>(['tv', 'tracking', 'list'], prev =>
       (prev ?? []).filter(t => t.tvId !== tvId),
     );
   };

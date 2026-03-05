@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
+import { useQueryClient } from '@tanstack/react-query';
 
 function SearchResultCard({
   movie,
@@ -72,8 +74,6 @@ export default function SearchPage() {
   const [error, setError] = useState('');
   const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
-  const [genres, setGenres] = useState<{ id: number, name: string }[]>([]);
-  const [countries, setCountries] = useState<{ code: string, name: string }[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
@@ -82,25 +82,15 @@ export default function SearchPage() {
   const [hasMore, setHasMore] = useState(false);
   const [isDiscovery, setIsDiscovery] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
+  const { genres: tmdbGenres, countries: tmdbCountries } = useTmdbMetadata();
+  const queryClient = useQueryClient();
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
 
   const hasActiveFilters = selectedGenre !== null || selectedYear !== 'all' || selectedCountry !== 'all';
 
-  useEffect(() => {
-    Promise.all([getGenres(lang), getCountries(lang)]).then(([genreData, countryData]) => {
-      const allGenres = [...genreData.movie, ...genreData.tv];
-      const uniqueGenres = Array.from(new Map(allGenres.map(g => [g.id, g])).values())
-        .sort((a, b) => a.name.localeCompare(b.name));
-      setGenres(uniqueGenres);
-      const mappedCountries = countryData.map(c => ({
-        code: c.iso_3166_1,
-        name: c.native_name || c.english_name
-      })).sort((a, b) => a.name.localeCompare(b.name));
-      setCountries(mappedCountries);
-    });
-  }, [lang]);
+  // Metadata handled by useTmdbMetadata
 
   // Ref updated every render so the observer callback always has fresh state
   // without the observer needing to be recreated.
@@ -178,7 +168,7 @@ export default function SearchPage() {
       doFetch(query, 1, false);
     }, 400);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, selectedGenre, selectedYear, selectedCountry, lang]);
 
   // Keep loadMoreRef current every render — no dep array needed.
@@ -200,7 +190,7 @@ export default function SearchPage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleWatchlist = async (movie: MovieData) => {
@@ -211,6 +201,7 @@ export default function SearchPage() {
       await addToWatchlist(movie);
       setWatchlistIds(s => new Set(s).add(movie.imdbID));
     }
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const clearFilters = () => {
@@ -259,8 +250,8 @@ export default function SearchPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('anyGenre')}</SelectItem>
-              {genres.map(g => (
-                <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>
+              {tmdbGenres.map(g => (
+                <SelectItem key={g.id} value={g.id.toString()}>{g.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -283,8 +274,8 @@ export default function SearchPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('anyCountry')}</SelectItem>
-              {countries.map(c => (
-                <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+              {tmdbCountries.map(c => (
+                <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

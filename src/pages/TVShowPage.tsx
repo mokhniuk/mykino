@@ -133,7 +133,7 @@ export default function TVShowPage() {
       await addToWatchlist(buildMovieData());
       setInWatchlist(true);
     }
-    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const handleMarkCompleted = async () => {
@@ -141,11 +141,11 @@ export default function TVShowPage() {
     const current = getOrCreateTracking();
     await updateTracking({ ...current, status: 'completed', lastWatchedAt: Date.now() });
     await addToWatched(buildMovieData());
-    queryClient.invalidateQueries({ queryKey: ['watched'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
     if (inWatchlist) {
       await removeFromWatchlist(id!);
       setInWatchlist(false);
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
     }
   };
 
@@ -153,10 +153,10 @@ export default function TVShowPage() {
     const current = getOrCreateTracking();
     await updateTracking({ ...current, status: 'watching', lastWatchedAt: Date.now() });
     await removeFromWatched(id!);
-    queryClient.invalidateQueries({ queryKey: ['watched'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
     await addToWatchlist(buildMovieData());
     setInWatchlist(true);
-    queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const toggleFavourite = async () => {
@@ -168,7 +168,7 @@ export default function TVShowPage() {
       await addToFavourites(buildMovieData());
       setInFavourites(true);
     }
-    queryClient.invalidateQueries({ queryKey: ['favourites'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'favourites'] });
   };
 
   const toggleSeasonExpand = async (seasonNum: number) => {
@@ -239,18 +239,18 @@ export default function TVShowPage() {
       await addToWatched(buildMovieData());
       await removeFromWatchlist(id!);
       setInWatchlist(false);
-      queryClient.invalidateQueries({ queryKey: ['watched'] });
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
     } else if (newStatus === 'watching' && current.status === 'planned') {
       await addToWatchlist(buildMovieData());
       setInWatchlist(true);
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
     } else if (newStatus === 'watching' && current.status === 'completed') {
       await removeFromWatched(id!);
       await addToWatchlist(buildMovieData());
       setInWatchlist(true);
-      queryClient.invalidateQueries({ queryKey: ['watched'] });
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
     }
   };
 
@@ -288,18 +288,18 @@ export default function TVShowPage() {
       await addToWatched(buildMovieData());
       await removeFromWatchlist(id!);
       setInWatchlist(false);
-      queryClient.invalidateQueries({ queryKey: ['watched'] });
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
     } else if (newStatus === 'watching' && current.status === 'planned') {
       await addToWatchlist(buildMovieData());
       setInWatchlist(true);
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
     } else if (newStatus === 'watching' && current.status === 'completed') {
       await removeFromWatched(id!);
       await addToWatchlist(buildMovieData());
       setInWatchlist(true);
-      queryClient.invalidateQueries({ queryKey: ['watched'] });
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
+      queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
     }
   };
 
@@ -365,9 +365,8 @@ export default function TVShowPage() {
               </button>
               <button
                 onClick={toggleFavourite}
-                className={`p-2 rounded-full glass transition-colors ${
-                  inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
-                }`}
+                className={`p-2 rounded-full glass transition-colors ${inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
+                  }`}
               >
                 <Heart size={24} fill={inFavourites ? 'currentColor' : 'none'} />
               </button>
@@ -423,16 +422,14 @@ export default function TVShowPage() {
           {/* Action buttons — same animated layout as MovieDetailsPage */}
           <div className="relative h-[42px] w-full">
             {/* Not-completed state */}
-            <div className={`flex gap-3 w-full transition-all duration-500 ${
-              isCompleted ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
-            }`}>
+            <div className={`flex gap-3 w-full transition-all duration-500 ${isCompleted ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
+              }`}>
               <button
                 onClick={handleToggleWatchlist}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${
-                  inWatchlist
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
                     ? 'w-[42px] bg-secondary text-primary'
                     : 'flex-1 bg-primary text-primary-foreground hover:opacity-90'
-                }`}
+                  }`}
                 title={inWatchlist ? t('removeFromWatchlist') : t('addToWatchlist')}
               >
                 {inWatchlist
@@ -443,11 +440,10 @@ export default function TVShowPage() {
 
               <button
                 onClick={handleMarkCompleted}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${
-                  inWatchlist
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
                     ? 'flex-1 bg-primary text-primary-foreground hover:opacity-90'
                     : 'w-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
+                  }`}
                 title={t('tvStatus_completed')}
               >
                 <CheckCircle2 size={24} className="flex-shrink-0" />
@@ -456,9 +452,8 @@ export default function TVShowPage() {
             </div>
 
             {/* Completed state */}
-            <div className={`absolute inset-0 transition-all duration-500 ${
-              isCompleted ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'
-            }`}>
+            <div className={`absolute inset-0 transition-all duration-500 ${isCompleted ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'
+              }`}>
               <button
                 onClick={handleUnmarkCompleted}
                 className="w-full h-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors"

@@ -23,7 +23,7 @@ export default function WatchlistPage() {
   const trackingMap = Object.fromEntries(trackingList.map(tr => [tr.tvId, tr]));
 
   const { data: movies = [], isLoading } = useQuery<MovieData[]>({
-    queryKey: ['watchlist', lang],
+    queryKey: ['movies', 'watchlist', 'page', lang],
     queryFn: async () => {
       const list = await getWatchlist();
       return Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m)));
@@ -34,10 +34,11 @@ export default function WatchlistPage() {
   const handleMarkWatched = async (movie: MovieData) => {
     await addToWatched(movie);
     await removeFromWatchlist(movie.imdbID);
-    queryClient.setQueryData<MovieData[]>(['watchlist', lang], prev =>
+    queryClient.setQueryData<MovieData[]>(['movies', 'watchlist', 'page', lang], prev =>
       (prev ?? []).filter(m => m.imdbID !== movie.imdbID)
     );
-    queryClient.invalidateQueries({ queryKey: ['watched'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
+    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const filtered = filter === 'all' ? movies : movies.filter((m) => (m.Type || 'movie') === filter);

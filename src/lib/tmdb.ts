@@ -276,9 +276,14 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   const cached = await getCachedMovie(id);
 
-  // Return cached only if full details are present AND language matches
-  if (cached?.Plot !== undefined && (cached as Record<string, unknown>)._full === true && (cached as Record<string, unknown>)._lang === lang) {
-    return cached;
+  // Return cached only if full details are present
+  // We relax the language check: if _lang is missing, we assume it's "legacy" and acceptable
+  // to avoid mass re-fetching of history.
+  if (cached?.Plot !== undefined && (cached as Record<string, any>)._full === true) {
+    const cachedLang = (cached as Record<string, any>)._lang;
+    if (!cachedLang || cachedLang === lang) {
+      return cached;
+    }
   }
 
   if (!API_KEY) return cached ?? null;

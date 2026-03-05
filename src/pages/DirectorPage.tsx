@@ -29,7 +29,7 @@ export default function DirectorPage() {
   }, [lang, t]);
 
   const { data: watched = [], isLoading: watchedLoading } = useQuery<MovieData[]>({
-    queryKey: ['watched', lang],
+    queryKey: ['movies', 'watched', 'list', lang],
     queryFn: async () => {
       const list = await getWatched();
       // Hydrate with full details to ensure Director field is populated correctly
@@ -61,7 +61,7 @@ export default function DirectorPage() {
   }, [watched, directorName]);
 
   const { data: allTmdbMovies = [], isLoading: tmdbLoading } = useQuery({
-    queryKey: ['directorMovies', directorName, lang],
+    queryKey: ['movies', 'director', directorName, lang],
     queryFn: () => getDirectorMovies(directorName!, lang),
     enabled: !!directorName,
     staleTime: 24 * 60 * 60 * 1000,
