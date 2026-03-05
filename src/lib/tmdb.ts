@@ -31,6 +31,7 @@ interface TmdbSearchItem {
   genre_ids?: number[];
   origin_country?: string[];
   original_language?: string;
+  known_for?: TmdbSearchItem[];
 }
 
 interface TmdbGenre { id: number; name: string; }
@@ -238,28 +239,61 @@ export async function searchMovies(query: string, page = 1, lang = 'en'): Promis
   if (!API_KEY) return { Response: 'False', Error: 'VITE_TMDB_API_KEY is not configured' };
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {
-    const data = await tmdbFetch<{ results: TmdbSearchItem[]; total_results: number }>(
+    let data = await tmdbFetch<{ results: TmdbSearchItem[]; total_results: number }>(
       `/search/multi?query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
       tmdbLang
     );
 
-    const movies: MovieData[] = data.results
-      .filter(r => r.media_type === 'movie' || r.media_type === 'tv')
-      .map(r => {
-        const isTV = r.media_type === 'tv';
-        const prefix = isTV ? 'tv-' : 'm-';
-        return {
-          imdbID: `${prefix}${r.id}`,
-          Title: isTV ? (r.name ?? '') : (r.title ?? ''),
-          Year: (isTV ? r.first_air_date : r.release_date)?.slice(0, 4) ?? '',
-          Poster: posterUrl(r.poster_path),
-          Type: isTV ? 'series' : 'movie',
-          imdbRating: r.vote_average ? r.vote_average.toFixed(1) : undefined,
-          Plot: r.overview || undefined,
-          genre_ids: r.genre_ids,
-          origin_country: r.origin_country,
-        };
-      });
+    // Fallback if no results and query is long (potential specific title)
+    // /search/multi can sometimes be less precise for long strings than direct movie/tv search
+    if (data.results.length === 0 && query.trim().length > 15) {
+      try {
+        const movieResults = await tmdbFetch<{ results: TmdbSearchItem[]; total_results: number }>(
+          `/search/movie?query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
+          tmdbLang
+        );
+        if (movieResults.results.length > 0) {
+          data = {
+            results: movieResults.results.map(r => ({ ...r, media_type: 'movie' as const })),
+            total_results: movieResults.total_results
+          };
+        } else {
+          const tvResults = await tmdbFetch<{ results: TmdbSearchItem[]; total_results: number }>(
+            `/search/tv?query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
+            tmdbLang
+          );
+          if (tvResults.results.length > 0) {
+            data = {
+              results: tvResults.results.map(r => ({ ...r, media_type: 'tv' as const })),
+              total_results: tvResults.total_results
+            };
+          }
+        }
+      } catch (e) {
+        console.error('Search fallback failed:', e);
+      }
+    }
+
+    const allItems: TmdbSearchItem[] = [];
+    for (const r of data.results) {
+      if (r.media_type === 'movie' || r.media_type === 'tv') {
+        allItems.push(r);
+      } else if (r.media_type === 'person' && r.known_for) {
+        // Add person's known for items if they are movies or tv shows
+        allItems.push(...r.known_for.filter(kf => kf.media_type === 'movie' || kf.media_type === 'tv'));
+      }
+    }
+
+    // De-duplicate results by ID and media type
+    const seen = new Set<string>();
+    const uniqueItems = allItems.filter(item => {
+      const key = `${item.media_type}-${item.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const movies: MovieData[] = uniqueItems.map(r => mapTmdbItemToMovieData(r, r.media_type as 'movie' | 'tv'));
 
     for (const movie of movies) {
       const existing = await getCachedMovie(movie.imdbID);
