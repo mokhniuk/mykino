@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useI18n, type Lang } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
-import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences } from '@/lib/db';
+import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences, getDBStats, type DBStats } from '@/lib/db';
 import { clearRecommendationsCache } from '@/lib/recommendations';
 import { triggerSWUpdate } from '@/lib/sw-update';
 import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
@@ -81,11 +81,13 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [prefs, setPrefs] = useState<ContentPreferences | null>(null);
+  const [stats, setStats] = useState<DBStats | null>(null);
   const queryClient = useQueryClient();
   const { genres, countries, languages } = useTmdbMetadata();
 
   useEffect(() => {
     getContentPreferences().then(setPrefs);
+    getDBStats().then(setStats);
   }, []);
 
   const updatePrefs = async (newPrefs: ContentPreferences) => {
@@ -126,7 +128,7 @@ export default function SettingsPage() {
   const isStandalone = useMemo(() =>
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as unknown as { standalone?: boolean }).standalone === true
-  , []);
+    , []);
 
   const handleExport = async () => {
     const data = await exportAllData();
@@ -245,7 +247,7 @@ export default function SettingsPage() {
             </div>
             <CategoryPicker
               label={t('genres')}
-              items={genres}
+              items={genres.map(g => ({ ...g, id: String(g.id) }))}
               liked={prefs.liked_genres.map(String)}
               disliked={prefs.disliked_genres.map(String)}
               onAddLiked={id => updatePrefs({
@@ -349,6 +351,34 @@ export default function SettingsPage() {
               {importing ? '…' : t('importData')}
             </button>
           </div>
+
+          {stats && (
+            <div className="pt-2 border-t border-border/50">
+              <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">{t('statWatchlist')}</span>
+                  <span className="font-semibold tabular-nums text-foreground">{stats.watchlist}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">{t('statWatched')}</span>
+                  <span className="font-semibold tabular-nums text-foreground">{stats.watched}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">{t('statFavourites')}</span>
+                  <span className="font-semibold tabular-nums text-foreground">{stats.favourites}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">{t('statTVTracking')}</span>
+                  <span className="font-semibold tabular-nums text-foreground">{stats.tvTracking}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs col-span-2 pt-1">
+                  <span className="text-muted-foreground">{t('statMovies')}</span>
+                  <span className="font-semibold tabular-nums text-foreground">{stats.movies}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
           <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
         </section>

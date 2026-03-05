@@ -2,6 +2,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { checkAndApplyUpdate } from "@/lib/sw-update";
+import { clearVolatileCaches } from "@/lib/db";
+
+// ── Startup Recovery ──────────────────────────────────────────────────────────
+const DATA_VERSION = '4';
+if (localStorage.getItem('data_version') !== DATA_VERSION) {
+  clearVolatileCaches();
+  localStorage.setItem('data_version', DATA_VERSION);
+}
 
 // If a JS chunk fails to load after a SW update (stale bundle hash),
 // redirect to root so the new SW serves fresh assets.
@@ -25,7 +33,7 @@ function decodeSetupToken(token: string): string {
   while (base64.length % 4 !== 0) base64 += '=';
   // atob gives a binary string; feed through TextDecoder to recover UTF-8.
   const binary = atob(base64);
-  const bytes  = Uint8Array.from(binary, c => c.charCodeAt(0));
+  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
 

@@ -406,7 +406,7 @@ export async function getWatchProviders(
   if (!API_KEY) return null;
 
   try {
-    let tmdbId = id.replace(/^(m-|tv-)/, '');
+    let tmdbId = id.replace(/^(m-|tv-)+/, '');
     let mediaType = type === 'series' || id.startsWith('tv-') ? 'tv' : 'movie';
 
     if (id.startsWith('tt')) {
@@ -506,7 +506,7 @@ export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'mov
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {
     // We need to find the TMDB ID first if we only have imdbID
-    let tmdbId = id.replace(/^(m-|tv-)/, '');
+    let tmdbId = id.replace(/^(m-|tv-)+/, '');
     const actualType = id.startsWith('tv-') ? 'tv' : id.startsWith('m-') ? 'movie' : type;
 
     if (id.startsWith('tt')) {
@@ -529,7 +529,7 @@ export async function getRecommendations(id: string, type: 'movie' | 'tv' = 'mov
 export async function getSimilar(id: string, type: 'movie' | 'tv' = 'movie', lang = 'en', page = 1): Promise<MovieData[]> {
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {
-    let tmdbId = id.replace(/^(m-|tv-)/, '');
+    let tmdbId = id.replace(/^(m-|tv-)+/, '');
     const actualType = id.startsWith('tv-') ? 'tv' : id.startsWith('m-') ? 'movie' : type;
 
     if (id.startsWith('tt')) {

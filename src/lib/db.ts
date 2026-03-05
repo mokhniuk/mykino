@@ -2,7 +2,8 @@ import { openDB, IDBPDatabase } from 'idb';
 import type { TVSeriesTracking } from './tvTracking';
 
 const DB_NAME = 'movieapp';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
+const APP_DATA_VERSION = 4;
 
 export interface MovieData {
   imdbID: string;
@@ -65,10 +66,10 @@ async function runMigration(db: IDBPDatabase) {
       if (/^\d+$/.test(item.imdbID)) {
         const prefix = item.Type === 'series' || item.Type === 'tv' ? 'tv-' : 'm-';
         const newId = `${prefix}${item.imdbID}`;
-        
+
         // Delete old record
         await cursor.delete();
-        
+
         // Add new record with prefixed ID
         const newItem = { ...item, imdbID: newId };
         await store.put(newItem);
@@ -98,13 +99,16 @@ export function getDB() {
         if (oldVersion < 3) {
           db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
         }
+        if (oldVersion < 4) {
+          // Placeholder for version 4 compatibility
+        }
       },
     });
-    
+
     // Chain migration to initialization so it only runs once per boot
     migrationPromise = dbPromise.then(runMigration);
   }
-  
+
   // Wait for migration to finish before returning DB in case callers need migrated data
   return migrationPromise ? migrationPromise.then(() => dbPromise!) : dbPromise;
 }
@@ -231,6 +235,39 @@ export async function getSetting(key: string): Promise<string | undefined> {
 export async function setSetting(key: string, value: string) {
   const db = await getDB();
   await db.put('settings', { key, value });
+}
+
+export async function clearVolatileCaches() {
+  const db = await getDB();
+  const tx = db.transaction('settings', 'readwrite');
+  const store = tx.objectStore('settings');
+  let cursor = await store.openCursor();
+  while (cursor) {
+    if (cursor.key.toString().startsWith('reco_')) {
+      await cursor.delete();
+    }
+    cursor = await cursor.continue();
+  }
+}
+
+export interface DBStats {
+  movies: number;
+  watchlist: number;
+  watched: number;
+  favourites: number;
+  tvTracking: number;
+}
+
+export async function getDBStats(): Promise<DBStats> {
+  const db = await getDB();
+  const [movies, watchlist, watched, favourites, tvTracking] = await Promise.all([
+    db.count('movies'),
+    db.count('watchlist'),
+    db.count('watched'),
+    db.count('favourites'),
+    db.count('tv_tracking'),
+  ]);
+  return { movies, watchlist, watched, favourites, tvTracking };
 }
 
 // Content Preferences

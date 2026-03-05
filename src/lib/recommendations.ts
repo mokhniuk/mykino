@@ -24,11 +24,11 @@ export interface RecoSection {
 
 export const SECTION_SLUGS: Record<RecoSection['id'], string> = {
   becauseLiked: 'because-liked',
-  byGenre:      'by-genre',
-  nowPlaying:   'now-playing',
-  trending:     'trending',
-  popular:      'popular',
-  hiddenGems:   'hidden-gems',
+  byGenre: 'by-genre',
+  nowPlaying: 'now-playing',
+  trending: 'trending',
+  popular: 'popular',
+  hiddenGems: 'hidden-gems',
 };
 
 export const SLUG_TO_SECTION_ID: Record<string, RecoSection['id']> = Object.fromEntries(
@@ -38,11 +38,11 @@ export const SLUG_TO_SECTION_ID: Record<string, RecoSection['id']> = Object.from
 /** First page to request when loading more for each section (accounts for how many pages were pre-fetched). */
 export const SECTION_LOAD_MORE_START: Record<RecoSection['id'], number> = {
   becauseLiked: FETCH_PAGES + 1,
-  byGenre:      FETCH_PAGES + 1,
-  nowPlaying:   2,               // only page 1 is pre-fetched for nowPlaying
-  trending:     FETCH_PAGES + 1,
-  popular:      FETCH_PAGES + 1,
-  hiddenGems:   FETCH_PAGES + 1,
+  byGenre: FETCH_PAGES + 1,
+  nowPlaying: 2,               // only page 1 is pre-fetched for nowPlaying
+  trending: FETCH_PAGES + 1,
+  popular: FETCH_PAGES + 1,
+  hiddenGems: FETCH_PAGES + 1,
 };
 
 interface CachedSections {
@@ -51,10 +51,11 @@ interface CachedSections {
 }
 
 async function getSectionCache(lang: string): Promise<RecoSection[] | null> {
-  const raw = await getSetting(`reco_sections_${lang}`);
+  const raw = await getSetting(`reco_v3_${lang}`);
   if (!raw) return null;
   try {
-    const { sections, cachedAt } = JSON.parse(raw) as CachedSections;
+    const { sections, cachedAt, version } = JSON.parse(raw) as CachedSections & { version?: number };
+    if (version !== 3) return null;
     if (Date.now() - cachedAt > CACHE_TTL) return null;
     return sections;
   } catch {
@@ -63,14 +64,18 @@ async function getSectionCache(lang: string): Promise<RecoSection[] | null> {
 }
 
 async function setSectionCache(lang: string, sections: RecoSection[]): Promise<void> {
-  await setSetting(`reco_sections_${lang}`, JSON.stringify({ sections, cachedAt: Date.now() }));
+  await setSetting(`reco_v3_${lang}`, JSON.stringify({ sections, cachedAt: Date.now(), version: 3 }));
 }
 
 export async function clearRecommendationsCache(lang?: string): Promise<void> {
   if (lang) {
-    await setSetting(`reco_sections_${lang}`, '');
+    await setSetting(`reco_v3_${lang}`, '');
   } else {
-    await Promise.all(['en', 'ua', 'de', 'cs'].map(l => setSetting(`reco_sections_${l}`, '')));
+    // Clear all versions just in case
+    await Promise.all(['en', 'ua', 'de', 'cs', 'pl', 'pt', 'hr', 'it'].map(async l => {
+      await setSetting(`reco_sections_${l}`, '');
+      await setSetting(`reco_v3_${l}`, '');
+    }));
   }
   await invalidateTasteProfile();
 }
@@ -225,13 +230,13 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
       : Promise.resolve([]),
     topGenres.length > 0
       ? fetchPages(p => discoverMovies({
-          genre: topGenres.slice(0, 3).join('|'),
-          vote_average_gte: 6.5,
-          vote_count_gte: 200,
-          sort_by: 'popularity.desc',
-          lang,
-          page: p,
-        }).then(r => r.Search ?? []))
+        genre: topGenres.slice(0, 3).join('|'),
+        vote_average_gte: 6.5,
+        vote_count_gte: 200,
+        sort_by: 'popularity.desc',
+        lang,
+        page: p,
+      }).then(r => r.Search ?? []))
       : Promise.resolve([]),
     getNowPlaying(lang, 1),
     fetchPages(p => getTrending(lang, p)),
