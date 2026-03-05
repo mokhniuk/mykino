@@ -227,12 +227,20 @@ export async function importAllData(data: {
   const hasTVTracking = (data.tvTracking?.length ?? 0) > 0;
   const stores: string[] = ['watchlist', 'watched', 'favourites', 'settings'];
   if (hasTVTracking) stores.push('tv_tracking');
+
   const tx = db.transaction(stores, 'readwrite');
+
+  // Clear existing data to ensure a clean restore (replacement, not merge)
+  for (const store of stores) {
+    tx.objectStore(store).clear();
+  }
+
   for (const m of data.watchlist ?? []) tx.objectStore('watchlist').put(m);
   for (const m of data.watched ?? []) tx.objectStore('watched').put(m);
   for (const m of data.favourites ?? []) tx.objectStore('favourites').put(m);
   for (const s of data.settings ?? []) tx.objectStore('settings').put(s);
   for (const t of data.tvTracking ?? []) tx.objectStore('tv_tracking').put(t);
+
   await tx.done;
 }
 

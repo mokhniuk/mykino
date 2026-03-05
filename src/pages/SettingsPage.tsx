@@ -95,6 +95,7 @@ export default function SettingsPage() {
   const [stats, setStats] = useState<DBStats | null>(null);
   const queryClient = useQueryClient();
   const { genres, countries, languages } = useTmdbMetadata();
+  const [pendingImport, setPendingImport] = useState<any>(null);
 
   useEffect(() => {
     getContentPreferences().then(setPrefs);
@@ -168,26 +169,30 @@ export default function SettingsPage() {
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImporting(true);
     try {
       const text = await file.text();
       const data = JSON.parse(text);
       if (!data.watchlist && !data.watched && !data.favourites && !data.settings) throw new Error();
-      await importAllData(data);
+      setPendingImport(data);
+    } catch {
+      toast.error(t('importError'));
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
-      if (data.settings && Array.isArray(data.settings)) {
-        const langSetting = data.settings.find((s: any) => s.key === 'lang');
-        if (langSetting?.value) setLang(langSetting.value);
-
-        const themeSetting = data.settings.find((s: any) => s.key === 'theme');
-        if (themeSetting?.value) setTheme(themeSetting.value);
-      }
-
+  const confirmImport = async () => {
+    if (!pendingImport) return;
+    setImporting(true);
+    try {
+      await importAllData(pendingImport);
       toast.success(t('importSuccess'));
+      // Reload ensures all contexts (theme, i18n, query cache) are updated
+      setTimeout(() => window.location.reload(), 1000);
     } catch {
       toast.error(t('importError'));
     } finally {
       setImporting(false);
+      setPendingImport(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -425,6 +430,31 @@ export default function SettingsPage() {
 
 
         </section>
+
+        {/* Import Confirmation Dialog */}
+        <AlertDialog open={!!pendingImport} onOpenChange={(open) => !open && setPendingImport(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('importData')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('importWarningText') || 'This will replace all your current data (watchlist, watched, favorites, and settings) with the data from the backup file. This action cannot be undone.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={importing}>{t('cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  confirmImport();
+                }}
+                disabled={importing}
+                className="bg-primary text-primary-foreground"
+              >
+                {importing ? <Loader2 className="animate-spin" size={15} /> : t('confirmImport') || 'Import and Reload'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* App Info — full width */}
         <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
