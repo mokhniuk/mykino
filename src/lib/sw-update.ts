@@ -3,10 +3,15 @@ declare const __APP_VERSION__: string;
 /**
  * Trigger a service worker update and reload the page.
  * Used by the manual update button in Settings.
+ *
+ * We navigate to '/' instead of reload() to avoid hitting the server
+ * directly for an SPA route during the brief gap while the new SW activates.
+ * The root '/' is always in the SW precache and the nginx fallback,
+ * so it is safe to land on.
  */
 export async function triggerSWUpdate() {
   if (!('serviceWorker' in navigator)) {
-    window.location.reload();
+    window.location.replace('/');
     return;
   }
 
@@ -14,10 +19,10 @@ export async function triggerSWUpdate() {
   if (reg?.waiting) {
     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
+      window.location.replace('/');
     }, { once: true });
   } else {
-    window.location.reload();
+    window.location.replace('/');
   }
 }
 
@@ -41,19 +46,21 @@ export async function checkAndApplyUpdate(): Promise<void> {
     sessionStorage.setItem('_sw_update_v', version);
 
     if (!('serviceWorker' in navigator)) {
-      window.location.reload();
+      window.location.replace('/');
       return;
     }
 
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) {
-      window.location.reload();
+      window.location.replace('/');
       return;
     }
 
-    // Reload as soon as the new SW takes control of this page.
+    // Navigate to root as soon as the new SW takes control — using replace()
+    // instead of reload() ensures we land on a URL that is always in the
+    // precache, avoiding a raw network hit on SPA routes during SW activation.
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
+      window.location.replace('/');
     }, { once: true });
 
     if (reg.waiting) {
@@ -64,8 +71,8 @@ export async function checkAndApplyUpdate(): Promise<void> {
       // will call skipWaiting() itself, which fires controllerchange above.
       reg.update();
       // Fallback: if controllerchange never fires (very slow network / no update),
-      // reload anyway so the user isn't stuck waiting.
-      setTimeout(() => window.location.reload(), 10_000);
+      // just reload — the current SW is still in control so this is safe.
+      setTimeout(() => window.location.replace('/'), 10_000);
     }
   } catch {
     // Network unavailable or version.json missing — silent fail, keep running.

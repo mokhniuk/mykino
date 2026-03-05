@@ -37,7 +37,12 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         navigateFallback: "/index.html",
-        navigateFallbackAllowlist: [/^\/($|app(?:\/|$))/],
+        // Apply the navigateFallback to ALL navigation requests so any SPA
+        // route is always served index.html when the SW is active.
+        navigateFallbackAllowlist: [/^\/.*/],
+        // Claim existing clients immediately after activation — avoids the
+        // brief uncontrolled window that can cause a raw network hit on reload.
+        clientsClaim: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
         runtimeCaching: [
           {
