@@ -5,6 +5,11 @@ const DB_NAME = 'mykino';
 const DB_VERSION = 5;
 const APP_DATA_VERSION = 5;
 
+// Temporary export for debugging
+if (typeof window !== 'undefined') {
+  (window as any).getCurrentDBName = () => DB_NAME;
+}
+
 export interface MovieData {
   imdbID: string;
   Title: string;
@@ -47,6 +52,7 @@ export interface ContentPreferences {
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 let migrationPromise: Promise<void> | null = null;
+let dbNameMigrationDone = false;
 
 async function runMigration(db: IDBPDatabase) {
   const isMigrated = await db.get('settings', 'id_migration_done');
@@ -92,8 +98,88 @@ async function safeRunMigration(db: IDBPDatabase) {
   }
 }
 
-export function getDB() {
+async function migrateFromOldDatabase() {
+  if (dbNameMigrationDone) return;
+  dbNameMigrationDone = true;
+
+  try {
+    // Check if old database exists
+    const allDBs = await indexedDB.databases();
+    const hasOldDB = allDBs?.some(db => db.name === 'movieapp');
+    if (!hasOldDB) return;
+
+    const oldDB = await openDB('movieapp', 5);
+    const [watchlistCount, watchedCount, favouritesCount, settingsCount] = await Promise.all([
+      oldDB.count('watchlist'),
+      oldDB.count('watched'),
+      oldDB.count('favourites'),
+      oldDB.count('settings'),
+    ]);
+    
+    const hasData = watchlistCount > 0 || watchedCount > 0 || favouritesCount > 0 || settingsCount > 0;
+    
+    if (!hasData) {
+      oldDB.close();
+      indexedDB.deleteDatabase('movieapp');
+      return;
+    }
+
+    console.log('Migrating data from movieapp to mykino...');
+    const newDB = await openDB(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          db.createObjectStore('movies', { keyPath: 'imdbID' });
+          db.createObjectStore('watchlist', { keyPath: 'imdbID' });
+          db.createObjectStore('favourites', { keyPath: 'imdbID' });
+          db.createObjectStore('settings', { keyPath: 'key' });
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore('watched', { keyPath: 'imdbID' });
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
+        }
+        if (oldVersion < 4) {
+          // Placeholder for version 4 compatibility
+        }
+        if (oldVersion < 5) {
+          db.createObjectStore('metadata', { keyPath: 'key' });
+        }
+      },
+    });
+
+    // Copy all stores
+    const stores = ['movies', 'watchlist', 'watched', 'favourites', 'settings', 'tv_tracking', 'metadata'];
+    for (const storeName of stores) {
+      if (!oldDB.objectStoreNames.contains(storeName)) continue;
+      
+      const items = await oldDB.getAll(storeName);
+      if (items.length === 0) continue;
+
+      const tx = newDB.transaction(storeName, 'readwrite');
+      for (const item of items) {
+        await tx.objectStore(storeName).put(item);
+      }
+      await tx.done;
+      console.log(`Migrated ${items.length} items from ${storeName}`);
+    }
+
+    oldDB.close();
+    newDB.close();
+    
+    // Delete old database
+    indexedDB.deleteDatabase('movieapp');
+    console.log('Migration complete. Old database deleted.');
+  } catch (e) {
+    console.error('Database name migration failed:', e);
+  }
+}
+
+export async function getDB() {
   if (!dbPromise) {
+    // First migrate from old database name if needed - WAIT for it
+    await migrateFromOldDatabase();
+
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
