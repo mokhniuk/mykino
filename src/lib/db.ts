@@ -1,7 +1,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 import type { TVSeriesTracking } from './tvTracking';
 
-const DB_NAME = 'movieapp';
+const DB_NAME = 'mykino';
 const DB_VERSION = 5;
 const APP_DATA_VERSION = 5;
 
