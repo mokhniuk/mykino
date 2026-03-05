@@ -247,24 +247,26 @@ export default function Index() {
             ))}
           </div>
         </section>
-      ) : recoSections.map(section => (
-        <section key={section.id}>
-          <RecoSectionHeader section={section} />
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {section.movies.slice(0, 10).map((movie) => (
-              <MovieCard
-                key={movie.imdbID}
-                movie={movie}
-                size="sm"
-                progress={movie.Type === 'series' ? (() => {
-                  const tr = trackingMap[movie.imdbID];
-                  return tr ? { watched: tr.totalEpisodesWatched, total: tr.numberOfEpisodes ?? 0 } : undefined;
-                })() : undefined}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      ) : recoSections.length > 0 ? (
+        recoSections.map(section => (
+          <section key={section.id}>
+            <RecoSectionHeader section={section} />
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+              {section.movies.slice(0, 10).map((movie) => (
+                <MovieCard
+                  key={movie.imdbID}
+                  movie={movie}
+                  size="sm"
+                  progress={movie.Type === 'series' ? (() => {
+                    const tr = trackingMap[movie.imdbID];
+                    return tr ? { watched: tr.totalEpisodesWatched, total: tr.numberOfEpisodes ?? 0 } : undefined;
+                  })() : undefined}
+                />
+              ))}
+            </div>
+          </section>
+        ))
+      ) : null}
 
       {/* Something Familiar */}
       {!favouritesReady ? (

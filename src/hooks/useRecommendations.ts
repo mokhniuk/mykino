@@ -9,11 +9,26 @@ export function useRecommendations() {
   const queryClient = useQueryClient();
   const prevCountsRef = useRef<{ watched: number; favourites: number } | null>(null);
 
-  const { data: sections = [], isLoading, isFetching } = useQuery<RecoSection[]>({
+  const { data: sections = [], isLoading, isFetching, error } = useQuery<RecoSection[]>({
     queryKey: ['movies', 'recommendations', lang],
-    queryFn: () => getHomeSections(lang),
+    queryFn: async () => {
+      try {
+        const result = await getHomeSections(lang);
+        return result;
+      } catch (err) {
+        console.error('Recommendations error:', err);
+        throw err;
+      }
+    },
     staleTime: Infinity,
+    retry: 1,
   });
+
+  useEffect(() => {
+    if (error) {
+      console.error('Recommendations query error:', error);
+    }
+  }, [error]);
 
   const { data: watched } = useQuery({
     queryKey: ['movies', 'watched', 'list'],

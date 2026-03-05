@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain, Zap, Coffee } from 'lucide-react';
+import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain, Zap, Coffee, Film, Search, Lightbulb, Droplets, Laugh, AlertTriangle, Drama, Rocket, Wand2, Fingerprint, Users, Star, Clock, Gem } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
 import { type MovieData } from '@/lib/db';
@@ -27,20 +27,61 @@ interface MovieWithReason extends MovieData {
   isLoading?: boolean;
 }
 
+interface CachedSearchState {
+  query: string;
+  results: MovieWithReason[];
+  aiPage: number;
+  aiHasMore: boolean;
+  allAiRecommendations: MovieWithReason[];
+  useAI: boolean;
+  timestamp: number;
+}
+
+const CACHE_KEY = 'search_results_cache';
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
 export default function SearchPage() {
   const { t, lang } = useI18n();
   const [params, setParams] = useSearchParams();
-  const [query, setQuery] = useState(params.get('q') || '');
-  const [results, setResults] = useState<MovieWithReason[]>([]);
+  
+  // Try to restore from cache on mount
+  const getCachedState = (): CachedSearchState | null => {
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY);
+      if (!cached) return null;
+      
+      const state: CachedSearchState = JSON.parse(cached);
+      const age = Date.now() - state.timestamp;
+      
+      // Cache is valid for 10 minutes
+      if (age > CACHE_DURATION) {
+        sessionStorage.removeItem(CACHE_KEY);
+        return null;
+      }
+      
+      return state;
+    } catch {
+      return null;
+    }
+  };
+  
+  // Only restore from cache if there's a URL param (navigating back from movie page)
+  // Don't restore if URL is empty (user cleared search or fresh page load)
+  const urlQuery = params.get('q') || '';
+  const cachedState = urlQuery ? getCachedState() : null;
+  const shouldRestoreCache = cachedState && cachedState.query === urlQuery;
+  
+  const [query, setQuery] = useState(urlQuery);
+  const [results, setResults] = useState<MovieWithReason[]>(shouldRestoreCache ? cachedState.results : []);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchPending, setSearchPending] = useState(false);
   const [error, setError] = useState('');
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [useAI, setUseAI] = useState(false);
-  const [aiPage, setAiPage] = useState(1);
-  const [aiHasMore, setAiHasMore] = useState(false);
-  const [allAiRecommendations, setAllAiRecommendations] = useState<MovieWithReason[]>([]);
+  const [useAI, setUseAI] = useState(shouldRestoreCache ? cachedState.useAI : false);
+  const [aiPage, setAiPage] = useState(shouldRestoreCache ? cachedState.aiPage : 1);
+  const [aiHasMore, setAiHasMore] = useState(shouldRestoreCache ? cachedState.aiHasMore : false);
+  const [allAiRecommendations, setAllAiRecommendations] = useState<MovieWithReason[]>(shouldRestoreCache ? cachedState.allAiRecommendations : []);
 
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -52,6 +93,9 @@ export default function SearchPage() {
   const observerRef = useRef<HTMLDivElement>(null);
   const { genres: tmdbGenres, countries: tmdbCountries } = useTmdbMetadata();
   const queryClient = useQueryClient();
+  
+  // Track if this is initial mount (for cache restoration)
+  const isInitialMount = useRef(true);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
@@ -118,6 +162,22 @@ export default function SearchPage() {
 
   // Ref updated every render so the observer callback always has fresh state
   const loadMoreRef = useRef<(() => void) | null>(null);
+  
+  // Cache search results when they change
+  useEffect(() => {
+    if (results.length > 0 && useAI && query) {
+      const cacheState: CachedSearchState = {
+        query,
+        results,
+        aiPage,
+        aiHasMore,
+        allAiRecommendations,
+        useAI,
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheState));
+    }
+  }, [results, query, aiPage, aiHasMore, allAiRecommendations, useAI]);
 
   // AI search function
   const doAISearch = async (q: string, pageNum: number = 1) => {
@@ -125,6 +185,7 @@ export default function SearchPage() {
       setResults([]);
       setAiHasMore(false);
       setAllAiRecommendations([]);
+      sessionStorage.removeItem(CACHE_KEY);
       return;
     }
 
@@ -376,6 +437,26 @@ export default function SearchPage() {
     setPage(1);
     setAiPage(1);
     
+    // If query is empty, clear cache and results
+    if (!query.trim() && !hasActiveFilters) {
+      sessionStorage.removeItem(CACHE_KEY);
+      setResults([]);
+      setSearchPending(false);
+      setParams({}, { replace: true });
+      isInitialMount.current = false;
+      return;
+    }
+    
+    // Check if we have cached results (only on initial mount when navigating back)
+    if (isInitialMount.current && shouldRestoreCache && results.length > 0) {
+      // We already have cached results from navigation back, don't search again
+      console.log('📦 Using cached search results');
+      isInitialMount.current = false;
+      return;
+    }
+    
+    isInitialMount.current = false;
+    
     // Mark search as pending immediately
     if (query.trim() || hasActiveFilters) {
       setSearchPending(true);
@@ -540,7 +621,7 @@ export default function SearchPage() {
 
         {/* Mood Chips for AI */}
         {useAI && !query && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2 py-2">
             <button
               onClick={() => handleMoodClick(t('moodFun'))}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
@@ -582,6 +663,104 @@ export default function SearchPage() {
             >
               <Coffee size={14} />
               {t('moodChill')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodEpic'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Film size={14} />
+              {t('moodEpic')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodMystery'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Search size={14} />
+              {t('moodMystery')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodInspiring'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Lightbulb size={14} />
+              {t('moodInspiring')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodEmotional'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Droplets size={14} />
+              {t('moodEmotional')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodComedy'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Laugh size={14} />
+              {t('moodComedy')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodThriller'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <AlertTriangle size={14} />
+              {t('moodThriller')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodDrama'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Drama size={14} />
+              {t('moodDrama')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodSci'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Rocket size={14} />
+              {t('moodSci')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodFantasy'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Wand2 size={14} />
+              {t('moodFantasy')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodCrime'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Fingerprint size={14} />
+              {t('moodCrime')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodFamily'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Users size={14} />
+              {t('moodFamily')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodClassic'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Star size={14} />
+              {t('moodClassic')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodRecent'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Clock size={14} />
+              {t('moodRecent')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodUnderrated'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Gem size={14} />
+              {t('moodUnderrated')}
             </button>
           </div>
         )}

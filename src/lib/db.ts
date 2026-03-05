@@ -103,28 +103,45 @@ async function migrateFromOldDatabase() {
   dbNameMigrationDone = true;
 
   try {
-    // Check if old database exists
-    const allDBs = await indexedDB.databases();
-    const hasOldDB = allDBs?.some(db => db.name === 'movieapp');
-    if (!hasOldDB) return;
-
-    const oldDB = await openDB('movieapp', 5);
-    const [watchlistCount, watchedCount, favouritesCount, settingsCount] = await Promise.all([
-      oldDB.count('watchlist'),
-      oldDB.count('watched'),
-      oldDB.count('favourites'),
-      oldDB.count('settings'),
-    ]);
+    // Quick check with timeout
+    const dbCheckPromise = (async () => {
+      const allDBs = await indexedDB.databases();
+      const hasOldDB = allDBs?.some(db => db.name === 'movieapp');
+      if (!hasOldDB) return false;
+      
+      const oldDB = await openDB('movieapp', 5);
+      const [watchlistCount, watchedCount, favouritesCount, settingsCount] = await Promise.all([
+        oldDB.count('watchlist'),
+        oldDB.count('watched'),
+        oldDB.count('favourites'),
+        oldDB.count('settings'),
+      ]);
+      
+      const hasData = watchlistCount > 0 || watchedCount > 0 || favouritesCount > 0 || settingsCount > 0;
+      
+      if (!hasData) {
+        oldDB.close();
+        indexedDB.deleteDatabase('movieapp');
+        return false;
+      }
+      
+      return { oldDB, watchlistCount, watchedCount, favouritesCount, settingsCount };
+    })();
     
-    const hasData = watchlistCount > 0 || watchedCount > 0 || favouritesCount > 0 || settingsCount > 0;
+    const timeout = new Promise<false>((resolve) => setTimeout(() => resolve(false), 1000));
+    const result = await Promise.race([dbCheckPromise, timeout]);
     
-    if (!hasData) {
-      oldDB.close();
-      indexedDB.deleteDatabase('movieapp');
-      return;
-    }
+    if (!result) return; // No old DB or timed out
+    
+    const { oldDB, watchlistCount, watchedCount, favouritesCount, settingsCount } = result;
 
-    console.log('Migrating data from movieapp to mykino...');
+    console.log('Migrating data from movieapp to mykino...', {
+      watchlist: watchlistCount,
+      watched: watchedCount,
+      favourites: favouritesCount,
+      settings: settingsCount,
+    });
+    
     const newDB = await openDB(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
@@ -177,7 +194,7 @@ async function migrateFromOldDatabase() {
 
 export async function getDB() {
   if (!dbPromise) {
-    // First migrate from old database name if needed - WAIT for it
+    // Migrate from old database if needed (with 1s timeout for check)
     await migrateFromOldDatabase();
 
     dbPromise = openDB(DB_NAME, DB_VERSION, {
@@ -424,3 +441,7 @@ export async function saveMetadata(key: string, value: any) {
   const db = await getDB();
   await db.put('metadata', { key, value, lastUpdated: Date.now() });
 }
+
+// Repair corrupted watched table - REMOVED
+// This function was too aggressive and could delete data
+// Manual database deletion is safer

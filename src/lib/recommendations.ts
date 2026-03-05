@@ -51,13 +51,18 @@ interface CachedSections {
 }
 
 async function getSectionCache(lang: string): Promise<RecoSection[] | null> {
-  const raw = await getSetting(`reco_v3_${lang}`);
-  if (!raw) return null;
   try {
-    const { sections, cachedAt, version } = JSON.parse(raw) as CachedSections & { version?: number };
-    if (version !== 3) return null;
-    if (Date.now() - cachedAt > CACHE_TTL) return null;
-    return sections;
+    const raw = await getSetting(`reco_v3_${lang}`);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as CachedSections & { version?: number };
+      const { sections, cachedAt, version } = parsed;
+      if (version !== 3) return null;
+      if (Date.now() - cachedAt > CACHE_TTL) return null;
+      return sections;
+    } catch {
+      return null;
+    }
   } catch {
     return null;
   }
@@ -187,124 +192,198 @@ function filterAndScore(
 }
 
 export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
-  const cached = await getSectionCache(lang);
-  if (cached) return cached;
+  // TEMPORARY: Skip cache check due to IndexedDB hanging issue
+  // TODO: Fix IndexedDB getSetting hanging
+  
+  try {
+    // Test each DB call individually to identify which one is hanging
+    console.log('🔍 Testing DB calls individually...');
+    
+    let watched: MovieData[] = [];
+    let watchlist: MovieData[] = [];
+    let favourites: MovieData[] = [];
+    let prefs: ContentPreferences = {
+      liked_genres: [],
+      disliked_genres: [],
+      liked_countries: [],
+      disliked_countries: [],
+      liked_languages: [],
+      disliked_languages: [],
+    };
+    
+    // Test watched
+    try {
+      console.log('Testing getWatched()...');
+      const watchedPromise = getWatched();
+      const watchedTimeout = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 2000)
+      );
+      watched = await Promise.race([watchedPromise, watchedTimeout]);
+      console.log('✅ getWatched() OK:', watched.length, 'items');
+    } catch (err) {
+      console.error('❌ getWatched() FAILED - "watched" table has issues');
+      console.warn('⚠️ Please manually clear database: DevTools → Application → IndexedDB → Delete "mykino"');
+    }
+    
+    // Test watchlist
+    try {
+      console.log('Testing getWatchlist()...');
+      const watchlistPromise = getWatchlist();
+      const watchlistTimeout = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 2000)
+      );
+      watchlist = await Promise.race([watchlistPromise, watchlistTimeout]);
+      console.log('✅ getWatchlist() OK:', watchlist.length, 'items');
+    } catch (err) {
+      console.error('❌ getWatchlist() FAILED - "watchlist" table is corrupted!');
+    }
+    
+    // Test favourites
+    try {
+      console.log('Testing getFavourites()...');
+      const favouritesPromise = getFavourites();
+      const favouritesTimeout = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 2000)
+      );
+      favourites = await Promise.race([favouritesPromise, favouritesTimeout]);
+      console.log('✅ getFavourites() OK:', favourites.length, 'items');
+    } catch (err) {
+      console.error('❌ getFavourites() FAILED - "favourites" table is corrupted!');
+    }
+    
+    // Test prefs
+    try {
+      console.log('Testing getContentPreferences()...');
+      const prefsPromise = getContentPreferences();
+      const prefsTimeout = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 2000)
+      );
+      prefs = await Promise.race([prefsPromise, prefsTimeout]);
+      console.log('✅ getContentPreferences() OK');
+    } catch (err) {
+      console.error('❌ getContentPreferences() FAILED - "settings" table is corrupted!');
+    }
 
-  const [watched, watchlist, favourites, prefs] = await Promise.all([
-    getWatched(),
-    getWatchlist(),
-    getFavourites(),
-    getContentPreferences(),
-  ]);
+    console.log('📈 Data loaded:', {
+      watched: watched.length,
+      watchlist: watchlist.length,
+      favourites: favourites.length,
+    });
 
-  const excludeIds = new Set([
-    ...watched.map(m => m.imdbID),
-    ...watchlist.map(m => m.imdbID),
-  ]);
+    const excludeIds = new Set([
+      ...watched.map(m => m.imdbID),
+      ...watchlist.map(m => m.imdbID),
+    ]);
 
-  const [profile, dailySeed] = await Promise.all([
-    getOrBuildTasteProfile(),
-    getDailySeed(favourites),
-  ]);
+    const [profile, dailySeed] = await Promise.all([
+      getOrBuildTasteProfile(),
+      getDailySeed(favourites),
+    ]);
 
-  const topGenres = profile.topGenres;
+    const topGenres = profile.topGenres;
 
-  const seedId = dailySeed?.imdbID;
-  const seedType = dailySeed?.Type === 'series' ? 'tv' : 'movie';
+    const seedId = dailySeed?.imdbID;
+    const seedType = dailySeed?.Type === 'series' ? 'tv' : 'movie';
 
-  // Parallel fetch all sources — 5 pages each for rich results
-  const [
-    seedRecs,
-    seedSimilar,
-    genreDiscover,
-    nowPlayingMovies,
-    trendingMovies,
-    popularMovies,
-    hiddenGemsMovies,
-  ] = await Promise.all([
-    seedId
-      ? fetchPages(p => getRecommendations(seedId, seedType, lang, p))
-      : Promise.resolve([]),
-    seedId
-      ? fetchPages(p => getSimilar(seedId, seedType, lang, p))
-      : Promise.resolve([]),
-    topGenres.length > 0
-      ? fetchPages(p => discoverMovies({
-        genre: topGenres.slice(0, 3).join('|'),
-        vote_average_gte: 6.5,
-        vote_count_gte: 200,
-        sort_by: 'popularity.desc',
+    // Parallel fetch all sources — 5 pages each for rich results
+    const [
+      seedRecs,
+      seedSimilar,
+      genreDiscover,
+      nowPlayingMovies,
+      trendingMovies,
+      popularMovies,
+      hiddenGemsMovies,
+    ] = await Promise.all([
+      seedId
+        ? fetchPages(p => getRecommendations(seedId, seedType, lang, p)).catch(() => [])
+        : Promise.resolve([]),
+      seedId
+        ? fetchPages(p => getSimilar(seedId, seedType, lang, p)).catch(() => [])
+        : Promise.resolve([]),
+      topGenres.length > 0
+        ? fetchPages(p => discoverMovies({
+          genre: topGenres.slice(0, 3).join('|'),
+          vote_average_gte: 6.5,
+          vote_count_gte: 200,
+          sort_by: 'popularity.desc',
+          lang,
+          page: p,
+        }).then(r => r.Search ?? [])).catch(() => [])
+        : Promise.resolve([]),
+      getNowPlaying(lang, 1).catch(() => []),
+      fetchPages(p => getTrending(lang, p)).catch(() => []),
+      fetchPages(p => getPopular(lang, p)).catch(() => []),
+      fetchPages(p => discoverMovies({
+        vote_average_gte: 7.5,
+        vote_count_gte: 100,
+        vote_count_lte: 5000,
+        sort_by: 'vote_average.desc',
         lang,
         page: p,
-      }).then(r => r.Search ?? []))
-      : Promise.resolve([]),
-    getNowPlaying(lang, 1),
-    fetchPages(p => getTrending(lang, p)),
-    fetchPages(p => getPopular(lang, p)),
-    fetchPages(p => discoverMovies({
-      vote_average_gte: 7.5,
-      vote_count_gte: 100,
-      vote_count_lte: 5000,
-      sort_by: 'vote_average.desc',
-      lang,
-      page: p,
-    }).then(r => r.Search ?? [])),
-  ]);
+      }).then(r => r.Search ?? [])).catch(() => []),
+    ]);
 
-  const filter = (movies: MovieData[], limit = 100) =>
-    filterAndScore(
-      dedupeByImdbID(movies),
-      excludeIds,
-      profile,
-      prefs,
-      limit,
-    );
+    const filter = (movies: MovieData[], limit = 100) =>
+      filterAndScore(
+        dedupeByImdbID(movies),
+        excludeIds,
+        profile,
+        prefs,
+        limit,
+      );
 
-  const sections: RecoSection[] = [];
+    const sections: RecoSection[] = [];
 
-  // "Because you liked X"
-  if (dailySeed && (seedRecs.length > 0 || seedSimilar.length > 0)) {
-    const combined = dedupeByImdbID([...seedRecs, ...seedSimilar]);
-    const filtered = filter(combined);
-    if (filtered.length > 0) {
-      sections.push({ id: 'becauseLiked', seedTitle: dailySeed.Title, movies: filtered });
+    // "Because you liked X"
+    if (dailySeed && (seedRecs.length > 0 || seedSimilar.length > 0)) {
+      const combined = dedupeByImdbID([...seedRecs, ...seedSimilar]);
+      const filtered = filter(combined);
+      if (filtered.length > 0) {
+        sections.push({ id: 'becauseLiked', seedTitle: dailySeed.Title, movies: filtered });
+      }
     }
-  }
 
-  // "By Genre"
-  if (topGenres.length > 0) {
-    const filtered = filter(genreDiscover);
-    if (filtered.length > 0) {
-      sections.push({ id: 'byGenre', movies: filtered });
+    // "By Genre"
+    if (topGenres.length > 0) {
+      const filtered = filter(genreDiscover);
+      if (filtered.length > 0) {
+        sections.push({ id: 'byGenre', movies: filtered });
+      }
     }
-  }
 
-  // "Now Playing"
-  const nowPlayingFiltered = filter(nowPlayingMovies);
-  if (nowPlayingFiltered.length > 0) {
-    sections.push({ id: 'nowPlaying', movies: nowPlayingFiltered });
-  }
+    // "Now Playing"
+    const nowPlayingFiltered = filter(nowPlayingMovies);
+    if (nowPlayingFiltered.length > 0) {
+      sections.push({ id: 'nowPlaying', movies: nowPlayingFiltered });
+    }
 
-  // "Trending"
-  const trendingFiltered = filter(trendingMovies);
-  if (trendingFiltered.length > 0) {
-    sections.push({ id: 'trending', movies: trendingFiltered });
-  }
+    // "Trending"
+    const trendingFiltered = filter(trendingMovies);
+    if (trendingFiltered.length > 0) {
+      sections.push({ id: 'trending', movies: trendingFiltered });
+    }
 
-  // "Popular"
-  const popularFiltered = filter(popularMovies);
-  if (popularFiltered.length > 0) {
-    sections.push({ id: 'popular', movies: popularFiltered });
-  }
+    // "Popular"
+    const popularFiltered = filter(popularMovies);
+    if (popularFiltered.length > 0) {
+      sections.push({ id: 'popular', movies: popularFiltered });
+    }
 
-  // "Hidden Gems"
-  const hiddenGemsFiltered = filter(hiddenGemsMovies);
-  if (hiddenGemsFiltered.length > 0) {
-    sections.push({ id: 'hiddenGems', movies: hiddenGemsFiltered });
-  }
+    // "Hidden Gems"
+    const hiddenGemsFiltered = filter(hiddenGemsMovies);
+    if (hiddenGemsFiltered.length > 0) {
+      sections.push({ id: 'hiddenGems', movies: hiddenGemsFiltered });
+    }
 
-  await setSectionCache(lang, sections);
-  return sections;
+    // TEMPORARY: Skip cache save due to IndexedDB hanging issue
+    // await setSectionCache(lang, sections);
+    
+    return sections;
+  } catch (err) {
+    console.error('❌ getHomeSections failed:', err);
+    throw err;
+  }
 }
 
 /**
