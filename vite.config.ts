@@ -6,12 +6,18 @@ import pkg from "./package.json";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: "/",
   server: {
     host: "::",
     port: 8080,
     hmr: {
       overlay: false,
     },
+    historyApiFallback: true,
+  },
+  preview: {
+    port: 4173,
+    host: "::",
     historyApiFallback: true,
   },
   plugins: [
