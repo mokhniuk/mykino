@@ -20,8 +20,12 @@ export function useAchievements() {
   const [dailyPickLoading, setDailyPickLoading] = useState(true);
 
   const { data: watched = [], isLoading } = useQuery<MovieData[]>({
-    queryKey: ['watched'],
-    queryFn: getWatched,
+    queryKey: ['watched', lang],
+    queryFn: async () => {
+      const list = await getWatched();
+      // Hydrate with full details to ensure Director and other metadata is present
+      return Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m)));
+    },
     staleTime: 60 * 60 * 1000,
   });
 

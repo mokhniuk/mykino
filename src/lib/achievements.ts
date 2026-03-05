@@ -44,18 +44,18 @@ export function computeTop100Progress(watched: MovieData[]): number {
     ...watched.flatMap(m => m.OriginalTitle ? [(m.OriginalTitle as string).toLowerCase()] : []),
   ]);
   return TOP_100_MOVIES.filter(
-    m => watchedIds.has(m.imdbID) || watchedTitles.has(m.Title.toLowerCase())
+    m => watchedIds.has(m.imdbID) || (m.Title && watchedTitles.has(m.Title.toLowerCase()))
   ).length;
 }
 
 export function computeUnwatchedTop100(watched: MovieData[]): TopMovie[] {
   const watchedIds = new Set(watched.map(m => m.imdbID));
   const watchedTitles = new Set([
-    ...watched.map(m => m.Title.toLowerCase()),
+    ...watched.map(m => (m.Title || '').toLowerCase()),
     ...watched.flatMap(m => m.OriginalTitle ? [(m.OriginalTitle as string).toLowerCase()] : []),
   ]);
   return TOP_100_MOVIES.filter(
-    m => !watchedIds.has(m.imdbID) && !watchedTitles.has(m.Title.toLowerCase())
+    m => !watchedIds.has(m.imdbID) && !(m.Title && watchedTitles.has(m.Title.toLowerCase()))
   );
 }
 
@@ -68,11 +68,11 @@ export interface DirectorCompletion {
 }
 
 const CYRILLIC_MAP: Record<string, string> = {
-  'а':'a','б':'b','в':'v','г':'h','ґ':'g','д':'d','е':'e','є':'ie',
-  'ж':'zh','з':'z','и':'y','і':'i','ї':'yi','й':'i','к':'k','л':'l',
-  'м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u',
-  'ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ь':'',
-  'ю':'iu','я':'ia','ё':'io','ъ':'','ы':'y','э':'e',
+  'а': 'a', 'б': 'b', 'в': 'v', 'г': 'h', 'ґ': 'g', 'д': 'd', 'е': 'e', 'є': 'ie',
+  'ж': 'zh', 'з': 'z', 'и': 'y', 'і': 'i', 'ї': 'yi', 'й': 'i', 'к': 'k', 'л': 'l',
+  'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+  'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ь': '',
+  'ю': 'iu', 'я': 'ia', 'ё': 'io', 'ъ': '', 'ы': 'y', 'э': 'e',
 };
 
 export function slugifyDirector(name: string): string {
@@ -93,12 +93,13 @@ export function computeDirectorCompletions(watched: MovieData[]): DirectorComple
 
   for (const movie of watched) {
     if (!movie.Director || movie.Director === 'N/A') continue;
-    // Take only the first director (before the first comma)
-    const firstName = movie.Director.split(',')[0].trim();
-    if (!firstName) continue;
-    const existing = byDirector.get(firstName) ?? [];
-    existing.push(movie);
-    byDirector.set(firstName, existing);
+    // Split co-directors and give credit to each
+    const names = movie.Director.split(',').map(n => n.trim()).filter(Boolean);
+    for (const name of names) {
+      const existing = byDirector.get(name) ?? [];
+      existing.push(movie);
+      byDirector.set(name, existing);
+    }
   }
 
   const results: DirectorCompletion[] = [];
@@ -158,13 +159,13 @@ export function computeMilestones(watched: MovieData[]): Milestone[] {
   });
 
   return [
-    { id: 'first_film',    unlocked: count >= 1 },
-    { id: 'ten_films',     unlocked: count >= 10 },
-    { id: 'fifty_films',   unlocked: count >= 50 },
+    { id: 'first_film', unlocked: count >= 1 },
+    { id: 'ten_films', unlocked: count >= 10 },
+    { id: 'fifty_films', unlocked: count >= 50 },
     { id: 'hundred_films', unlocked: count >= 100 },
-    { id: 'classic',       unlocked: hasClassic },
-    { id: 'world_explorer',unlocked: countries.size >= 5 },
-    { id: 'polyglot',      unlocked: languages.size >= 5 },
-    { id: 'genre_master',  unlocked: genres.size >= 10 },
+    { id: 'classic', unlocked: hasClassic },
+    { id: 'world_explorer', unlocked: countries.size >= 5 },
+    { id: 'polyglot', unlocked: languages.size >= 5 },
+    { id: 'genre_master', unlocked: genres.size >= 10 },
   ];
 }

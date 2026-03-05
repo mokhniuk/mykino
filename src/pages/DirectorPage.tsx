@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Video } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
-import { getWatched } from '@/lib/db';
-import { getDirectorMovies } from '@/lib/api';
+import { getWatched, type MovieData } from '@/lib/db';
+import { getDirectorMovies, getMovieDetails } from '@/lib/api';
 import { slugifyDirector } from '@/lib/achievements';
 import MovieCard from '@/components/MovieCard';
 
@@ -28,9 +28,13 @@ export default function DirectorPage() {
     return n === 1 ? t('directorFilmsWatched_1') : t('directorFilmsWatched');
   }, [lang, t]);
 
-  const { data: watched = [], isLoading: watchedLoading } = useQuery({
-    queryKey: ['watched'],
-    queryFn: getWatched,
+  const { data: watched = [], isLoading: watchedLoading } = useQuery<MovieData[]>({
+    queryKey: ['watched', lang],
+    queryFn: async () => {
+      const list = await getWatched();
+      // Hydrate with full details to ensure Director field is populated correctly
+      return Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m)));
+    },
     staleTime: 60 * 60 * 1000,
   });
 
@@ -39,8 +43,10 @@ export default function DirectorPage() {
     if (!slug) return null;
     for (const movie of watched) {
       if (!movie.Director || movie.Director === 'N/A') continue;
-      const first = movie.Director.split(',')[0].trim();
-      if (slugifyDirector(first) === slug) return first;
+      const names = movie.Director.split(',').map(n => n.trim()).filter(Boolean);
+      for (const name of names) {
+        if (slugifyDirector(name) === slug) return name;
+      }
     }
     return null;
   }, [watched, slug]);
@@ -49,7 +55,8 @@ export default function DirectorPage() {
     if (!directorName) return [];
     return watched.filter(m => {
       if (!m.Director || m.Director === 'N/A') return false;
-      return m.Director.split(',')[0].trim() === directorName;
+      const names = m.Director.split(',').map(n => n.trim()).filter(Boolean);
+      return names.includes(directorName);
     });
   }, [watched, directorName]);
 

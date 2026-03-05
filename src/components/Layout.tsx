@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Search, CheckCircle2, Settings, Clapperboard, List } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import { addToWatched, setContentPreferences, setSetting } from '@/lib/db';
 
@@ -16,6 +17,7 @@ export default function Layout() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const prevPathnameRef = useRef(location.pathname);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function Layout() {
         if (p.t) await setSetting('theme', p.t);
         if (p.lg?.length || p.dg?.length) {
           await setContentPreferences({
-            liked_genres:    p.lg ?? [],
+            liked_genres: p.lg ?? [],
             disliked_genres: p.dg ?? [],
             liked_countries: [], disliked_countries: [],
             liked_languages: [], disliked_languages: [],
@@ -61,6 +63,9 @@ export default function Layout() {
               }),
             ),
           );
+          // Invalidate the watched query so the director list, achievements,
+          // and homepage all see the newly seeded movies immediately.
+          queryClient.invalidateQueries({ queryKey: ['watched'] });
         }
       } catch {
         /* malformed — ignore */
