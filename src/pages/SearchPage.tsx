@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, BookmarkPlus, BookmarkCheck, Film, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain, Zap, Coffee } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
-import {
-  addToWatchlist, removeFromWatchlist, isInWatchlist,
-  type MovieData,
-} from '@/lib/db';
+import { type MovieData } from '@/lib/db';
+import { getAIRecommendations, isAIEnabled, type AIRecommendation } from '@/lib/ai';
+import { getOrBuildTasteProfile } from '@/lib/tasteProfile';
+import { getContentPreferences, getFavourites, getWatchlist } from '@/lib/db';
+import { getMovieDetails } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -17,62 +19,28 @@ import {
 } from '@/components/ui/select';
 import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
 import { useQueryClient } from '@tanstack/react-query';
+import SearchResultCard from '@/components/SearchResultCard';
+import { toast } from 'sonner';
 
-function SearchResultCard({
-  movie,
-  inWatchlist,
-  onToggleWatchlist,
-}: {
-  movie: MovieData;
-  inWatchlist: boolean;
-  onToggleWatchlist: () => void;
-}) {
-  const poster = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
-  const typeLabel = movie.Type === 'series' ? 'Series' : movie.Type === 'episode' ? 'Episode' : 'Movie';
-
-  return (
-    <div className="flex items-stretch rounded-xl overflow-hidden bg-secondary/60 hover:bg-secondary transition-colors">
-      <Link to={movie.Type === 'series' ? `/app/tv/${movie.imdbID}` : `/app/movie/${movie.imdbID}`} className="flex-shrink-0 w-[80px] aspect-[2/3]">
-        {poster ? (
-          <img src={poster} alt={movie.Title} className="w-full h-full object-cover" loading="lazy" />
-        ) : (
-          <div className="w-full h-full bg-muted flex items-center justify-center">
-            <Film size={20} className="text-muted-foreground/30" />
-          </div>
-        )}
-      </Link>
-
-      <Link to={movie.Type === 'series' ? `/app/tv/${movie.imdbID}` : `/app/movie/${movie.imdbID}`} className="flex-1 min-w-0 flex items-center px-3">
-        <div className="min-w-0 w-full">
-          <span className="inline-block text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded mb-1.5">{typeLabel}</span>
-          <p className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">{movie.Title}</p>
-          <p className="text-xs text-muted-foreground mt-1">{movie.Year}</p>
-        </div>
-      </Link>
-
-      <div className="flex items-center flex-shrink-0">
-        <button
-          onClick={(e) => { e.preventDefault(); onToggleWatchlist(); }}
-          className={`p-2.5 h-full rounded-r-xl transition-colors ${inWatchlist
-            ? 'text-foreground bg-primary/10'
-            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-            }`}
-        >
-          {inWatchlist ? <BookmarkCheck size={24} /> : <BookmarkPlus size={24} />}
-        </button>
-      </div>
-    </div>
-  );
+interface MovieWithReason extends MovieData {
+  aiReason?: string;
+  isLoading?: boolean;
 }
 
 export default function SearchPage() {
   const { t, lang } = useI18n();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get('q') || '');
-  const [results, setResults] = useState<MovieData[]>([]);
+  const [results, setResults] = useState<MovieWithReason[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [searchPending, setSearchPending] = useState(false);
   const [error, setError] = useState('');
-  const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [useAI, setUseAI] = useState(false);
+  const [aiPage, setAiPage] = useState(1);
+  const [aiHasMore, setAiHasMore] = useState(false);
+  const [allAiRecommendations, setAllAiRecommendations] = useState<MovieWithReason[]>([]);
 
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -90,11 +58,268 @@ export default function SearchPage() {
 
   const hasActiveFilters = selectedGenre !== null || selectedYear !== 'all' || selectedCountry !== 'all';
 
-  // Metadata handled by useTmdbMetadata
+  // Check if AI is enabled and restore toggle state
+  useEffect(() => {
+    const checkAI = async () => {
+      const enabled = await isAIEnabled();
+      setAiEnabled(enabled);
+      
+      if (enabled) {
+        // Check if user has a saved preference
+        const savedToggle = localStorage.getItem('search_use_ai');
+        if (savedToggle !== null) {
+          // User has made a choice, respect it
+          setUseAI(savedToggle === 'true');
+        } else {
+          // AI is enabled and user hasn't made a choice, default to ON
+          setUseAI(true);
+          localStorage.setItem('search_use_ai', 'true');
+        }
+      } else {
+        setUseAI(false);
+      }
+    };
+    
+    checkAI();
+    
+    // Listen for AI config changes from settings
+    const handleAIConfigChange = (e: CustomEvent) => {
+      const config = e.detail;
+      const enabled = config.enabled && !!config.apiKey;
+      setAiEnabled(enabled);
+      
+      if (enabled) {
+        // Check if user has a saved preference
+        const savedToggle = localStorage.getItem('search_use_ai');
+        if (savedToggle !== null) {
+          // User has made a choice, respect it
+          setUseAI(savedToggle === 'true');
+        } else {
+          // AI just got enabled, default to ON
+          setUseAI(true);
+          localStorage.setItem('search_use_ai', 'true');
+        }
+      } else {
+        // AI is disabled, turn off the toggle
+        setUseAI(false);
+      }
+    };
+    
+    window.addEventListener('ai-config-changed', handleAIConfigChange as EventListener);
+    return () => window.removeEventListener('ai-config-changed', handleAIConfigChange as EventListener);
+  }, []);
+
+  // Save AI toggle state when user manually changes it
+  useEffect(() => {
+    if (aiEnabled) {
+      localStorage.setItem('search_use_ai', String(useAI));
+    }
+  }, [useAI, aiEnabled]);
 
   // Ref updated every render so the observer callback always has fresh state
-  // without the observer needing to be recreated.
   const loadMoreRef = useRef<(() => void) | null>(null);
+
+  // AI search function
+  const doAISearch = async (q: string, pageNum: number = 1) => {
+    if (!q.trim()) {
+      setResults([]);
+      setAiHasMore(false);
+      setAllAiRecommendations([]);
+      return;
+    }
+
+    // Use loadingMore for pagination, loading for initial search
+    if (pageNum === 1) {
+      setLoading(true);
+      setResults([]); // Clear results immediately
+    } else {
+      setLoadingMore(true);
+    }
+    setError('');
+
+    try {
+      console.log('🔍 Starting AI search...');
+      const [tasteProfile, contentPreferences, favourites, watchlist, watched] = await Promise.all([
+        getOrBuildTasteProfile(),
+        getContentPreferences(),
+        getFavourites(),
+        getWatchlist(),
+        queryClient.fetchQuery({ 
+          queryKey: ['movies', 'watched'], 
+          queryFn: async () => {
+            const { getWatched } = await import('@/lib/db');
+            return getWatched();
+          }
+        }),
+      ]);
+
+      console.log(`📊 Data loaded: ${watched.length} watched, ${watchlist.length} in watchlist`);
+
+      console.log('🤖 Requesting AI recommendations...');
+      console.log('Exclusions being sent to AI:', {
+        watchedCount: watched.slice(0, 100).length,
+        watchlistCount: watchlist.slice(0, 100).length,
+        dislikedCountries: contentPreferences.disliked_countries,
+        dislikedLanguages: contentPreferences.disliked_languages,
+      });
+      
+      const aiRecommendations = await getAIRecommendations({
+        query: `${q}. Respond in ${lang === 'en' ? 'English' : lang === 'ua' ? 'Ukrainian' : lang === 'de' ? 'German' : lang === 'cs' ? 'Czech' : lang === 'pl' ? 'Polish' : lang === 'pt' ? 'Portuguese' : lang === 'hr' ? 'Croatian' : 'Italian'}. IMPORTANT: Use ENGLISH or ORIGINAL movie titles in your JSON response (not translated titles). For example: "Star Trek: Picard" not "Стартрек: Піккард". Give exactly ${pageNum === 1 ? '30' : '20'} unique high-quality diverse recommendations.`,
+        tasteProfile,
+        contentPreferences,
+        favourites: favourites.slice(0, 10).map(m => ({ Title: m.Title, Year: m.Year, Genre: m.Genre })),
+        watchlist: watchlist.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })),
+        watched: watched.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })),
+      });
+
+      console.log(`✅ AI returned ${aiRecommendations.length} recommendations`);
+      
+      // DEDUPLICATE AI recommendations by title BEFORE fetching movie data
+      const uniqueAiRecs = aiRecommendations.filter((rec, index, self) => 
+        index === self.findIndex(r => r.title.toLowerCase() === rec.title.toLowerCase())
+      );
+      
+      console.log(`After deduplication: ${uniqueAiRecs.length} unique titles from ${aiRecommendations.length} total`);
+      
+      if (uniqueAiRecs.length < 10) {
+        console.warn(`⚠️ WARNING: AI only provided ${uniqueAiRecs.length} unique movies out of ${aiRecommendations.length} requested!`);
+      }
+
+      // Fetch movie data in parallel
+      const movieDataPromises = uniqueAiRecs.map(async (rec, index) => {
+        try {
+          console.log(`🔎 Searching for: "${rec.title}" (${rec.year})`);
+          const searchResult = await searchMovies(rec.title, 1, lang);
+          const movies = searchResult?.Search || [];
+          
+          if (movies.length === 0) {
+            console.warn(`⚠️ NOT FOUND in TMDB: "${rec.title}" (${rec.year})`);
+            return { index, movieData: null, reason: rec.reason };
+          }
+          
+          const movie = movies[0];
+          console.log(`✓ Found: "${movie.Title}" for search "${rec.title}"`);
+          const details = await getMovieDetails(movie.imdbID, lang);
+          return { index, movieData: details || movie, reason: rec.reason };
+        } catch (e) {
+          console.error(`❌ Error fetching "${rec.title}":`, e);
+          return { index, movieData: null, reason: rec.reason };
+        }
+      });
+
+      const movieResults = await Promise.all(movieDataPromises);
+      
+      console.log('Content preferences:', contentPreferences);
+      console.log('Disliked countries:', contentPreferences.disliked_countries);
+      console.log('Disliked languages:', contentPreferences.disliked_languages);
+      console.log(`Fetched ${movieResults.length} movie details`);
+      
+      // Get watchlist and watched movie IDs for filtering
+      const watchlistIds = new Set(watchlist.map(m => m.imdbID));
+      const watchedIds = new Set(watched.map(m => m.imdbID));
+      
+      let blockedCount = { watched: 0, watchlist: 0, country: 0, language: 0, noData: 0 };
+      
+      // Filter out movies from disliked countries and languages CLIENT-SIDE
+      const filteredResults = movieResults.filter(r => {
+        if (!r.movieData) {
+          blockedCount.noData++;
+          return false;
+        }
+        
+        const movie = r.movieData;
+        
+        // BLOCK if already in watchlist
+        if (watchlistIds.has(movie.imdbID)) {
+          console.log(`🚫 BLOCKED: ${movie.Title} - Already in watchlist`);
+          blockedCount.watchlist++;
+          return false;
+        }
+        
+        // BLOCK if already watched
+        if (watchedIds.has(movie.imdbID)) {
+          console.log(`🚫 BLOCKED: ${movie.Title} - Already watched`);
+          blockedCount.watched++;
+          return false;
+        }
+        
+        // HARD BLOCK: Check if movie is from a disliked country (complete block)
+        if (movie.Country && contentPreferences.disliked_countries.length > 0) {
+          const movieCountries = movie.Country.toLowerCase();
+          const hasDislikedCountry = contentPreferences.disliked_countries.some(dc => {
+            const dislikedCountry = dc.toLowerCase();
+            const match = movieCountries.includes(dislikedCountry);
+            if (match) {
+              console.log(`🚫 BLOCKED: ${movie.Title} - Country: ${movie.Country} matches disliked: ${dc}`);
+              blockedCount.country++;
+            }
+            return match;
+          });
+          if (hasDislikedCountry) return false;
+        }
+        
+        // SOFT BLOCK: Check if movie is ONLY in disliked languages (allow if it has other languages)
+        if (movie.Language && contentPreferences.disliked_languages.length > 0) {
+          const movieLanguages = movie.Language.split(',').map(l => l.trim().toLowerCase());
+          
+          // Check if ALL languages are disliked
+          const allLanguagesDisliked = movieLanguages.every(ml => 
+            contentPreferences.disliked_languages.some(dl => 
+              ml.includes(dl.toLowerCase()) || dl.toLowerCase().includes(ml)
+            )
+          );
+          
+          if (allLanguagesDisliked) {
+            console.log(`🚫 BLOCKED: ${movie.Title} - ALL languages (${movie.Language}) are disliked`);
+            blockedCount.language++;
+            return false;
+          }
+        }
+        
+        console.log(`✅ ALLOWED: ${movie.Title} - Country: ${movie.Country}, Language: ${movie.Language}`);
+        return true;
+      });
+      
+      console.log(`📊 Filtering summary:`, blockedCount);
+      console.log(`After filtering: ${filteredResults.length} results from ${movieResults.length} total`);
+      
+      const newResults: MovieWithReason[] = filteredResults
+        .map(r => ({ ...r.movieData!, aiReason: r.reason }));
+      
+      if (pageNum === 1) {
+        // Remove duplicates by imdbID
+        const uniqueResults = newResults.filter((movie, index, self) => 
+          index === self.findIndex(m => m.imdbID === movie.imdbID)
+        );
+        setResults(uniqueResults);
+        setAllAiRecommendations(uniqueResults);
+        setAiHasMore(uniqueResults.length >= 10);
+      } else {
+        // Merge with existing results and remove duplicates
+        const combined = [...allAiRecommendations, ...newResults];
+        const uniqueResults = combined.filter((movie, index, self) => 
+          index === self.findIndex(m => m.imdbID === movie.imdbID)
+        );
+        setResults(uniqueResults);
+        setAllAiRecommendations(uniqueResults);
+        setAiHasMore(newResults.length >= 10);
+      }
+    } catch (error) {
+      console.error('AI search error:', error);
+      toast.error(t('aiError'));
+      setResults([]);
+      setAiHasMore(false);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreAI = () => {
+    const nextPage = aiPage + 1;
+    setAiPage(nextPage);
+    doAISearch(query, nextPage);
+  };
 
   // Core fetch — not useCallback, so it never becomes a stale dep itself.
   // Filters are applied client-side when a query is active (TMDB /search/multi
@@ -139,17 +364,6 @@ export default function SearchPage() {
 
       setResults(prev => append ? [...prev, ...items] : items);
       setHasMore(data.Search.length >= 20);
-
-      // Check watchlist status without closing over watchlistIds state
-      const newIds = new Set<string>();
-      for (const m of data.Search) {
-        if (await isInWatchlist(m.imdbID)) newIds.add(m.imdbID);
-      }
-      setWatchlistIds(prev => {
-        const merged = new Set(append ? prev : []);
-        for (const id of newIds) merged.add(id);
-        return merged;
-      });
     } else {
       if (!append) setResults([]);
       setHasMore(false);
@@ -158,22 +372,43 @@ export default function SearchPage() {
   };
 
   // Trigger search/discovery when query or filters change.
-  // doFetch is intentionally omitted from deps — it's redefined every render
-  // with fresh closure values, and all its external deps are listed here directly.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setPage(1);
+    setAiPage(1);
+    
+    // Mark search as pending immediately
+    if (query.trim() || hasActiveFilters) {
+      setSearchPending(true);
+    } else {
+      setSearchPending(false);
+    }
+    
     const timer = setTimeout(() => {
       setParams(query ? { q: query } : {}, { replace: true });
-      doFetch(query, 1, false);
+      setSearchPending(false);
+      
+      // Use AI search if enabled and toggle is on
+      if (useAI && query.trim()) {
+        doAISearch(query, 1);
+      } else {
+        doFetch(query, 1, false);
+      }
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      setSearchPending(false);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, selectedGenre, selectedYear, selectedCountry, lang]);
+  }, [query, selectedGenre, selectedYear, selectedCountry, lang, useAI]);
+
+  // Handle mood chip clicks
+  const handleMoodClick = (mood: string) => {
+    setQuery(mood);
+  };
 
   // Keep loadMoreRef current every render — no dep array needed.
   loadMoreRef.current = () => {
-    if (!hasMore || loading) return;
+    if (!hasMore || loading || useAI) return; // Disable infinite scroll for AI results
     const nextPage = page + 1;
     setPage(nextPage);
     doFetch(query, nextPage, true);
@@ -193,17 +428,6 @@ export default function SearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const toggleWatchlist = async (movie: MovieData) => {
-    if (watchlistIds.has(movie.imdbID)) {
-      await removeFromWatchlist(movie.imdbID);
-      setWatchlistIds(s => { const n = new Set(s); n.delete(movie.imdbID); return n; });
-    } else {
-      await addToWatchlist(movie);
-      setWatchlistIds(s => new Set(s).add(movie.imdbID));
-    }
-    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
-  };
-
   const clearFilters = () => {
     setSelectedGenre(null);
     setSelectedYear('all');
@@ -215,81 +439,152 @@ export default function SearchPage() {
       <div className="pt-4 md:pt-8 space-y-4">
         {/* Search Input */}
         <form onSubmit={(e) => e.preventDefault()}>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
-            <SearchIcon size={18} className="text-muted-foreground" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('typeToSearch')}
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-              autoFocus
-            />
-            {query && !loading && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
+              {useAI ? (
+                <Sparkles size={18} className="text-primary" />
+              ) : (
+                <SearchIcon size={18} className="text-muted-foreground" />
+              )}
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={useAI ? t('aiSearchPlaceholder') : t('typeToSearch')}
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                autoFocus
+              />
+              {query && !loading && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-md hover:bg-secondary-foreground/10"
+                  aria-label="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+              {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
+            </div>
+            
+            {aiEnabled && (
               <button
                 type="button"
-                onClick={() => setQuery('')}
-                className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-md hover:bg-secondary-foreground/10"
-                aria-label="Clear search"
+                onClick={() => setUseAI(!useAI)}
+                className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors ${
+                  useAI 
+                    ? 'bg-primary/10 border-primary/40 text-primary' 
+                    : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                }`}
+                aria-label={t('aiAdvisor')}
               >
-                <X size={16} />
+                <Sparkles size={18} />
               </button>
             )}
-            {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
           </div>
         </form>
 
         {/* Filters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <Select
-            value={selectedGenre?.toString() || 'all'}
-            onValueChange={(val) => setSelectedGenre(val === 'all' ? null : Number(val))}
-          >
-            <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
-              <SelectValue placeholder={t('filterGenre')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('anyGenre')}</SelectItem>
-              {tmdbGenres.map(g => (
-                <SelectItem key={g.id} value={g.id.toString()}>{g.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {!useAI && (
+          <div className="flex items-center gap-2">
+            <Select
+              value={selectedGenre?.toString() || 'all'}
+              onValueChange={(val) => setSelectedGenre(val === 'all' ? null : Number(val))}
+            >
+              <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0 flex-1">
+                <SelectValue placeholder={t('filterGenre')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('anyGenre')}</SelectItem>
+                {tmdbGenres.map(g => (
+                  <SelectItem key={g.id} value={g.id.toString()}>{g.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
-              <SelectValue placeholder={t('filterYear')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('allYears')}</SelectItem>
-              {years.map(y => (
-                <SelectItem key={y} value={y}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0 flex-1">
+                <SelectValue placeholder={t('filterYear')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allYears')}</SelectItem>
+                {years.map(y => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-            <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0">
-              <SelectValue placeholder={t('filterCountry')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('anyCountry')}</SelectItem>
-              {tmdbCountries.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+              <SelectTrigger className="h-9 glass border-none bg-secondary/50 text-xs text-muted-foreground focus:ring-0 flex-1">
+                <SelectValue placeholder={t('filterCountry')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('anyCountry')}</SelectItem>
+                {tmdbCountries.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            disabled={!hasActiveFilters}
-            className={`h-9 text-xs transition-opacity ${hasActiveFilters ? 'opacity-100' : 'opacity-0'}`}
-          >
-            {t('clearFilters')}
-          </Button>
-        </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              disabled={!hasActiveFilters}
+              className={`h-9 text-xs transition-opacity ${hasActiveFilters ? 'opacity-100' : 'opacity-0'}`}
+            >
+              {t('clearFilters')}
+            </Button>
+          </div>
+        )}
+
+        {/* Mood Chips for AI */}
+        {useAI && !query && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => handleMoodClick(t('moodFun'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Smile size={14} />
+              {t('moodFun')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodScary'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Ghost size={14} />
+              {t('moodScary')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodRomantic'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Heart size={14} />
+              {t('moodRomantic')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodThinking'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Brain size={14} />
+              {t('moodThinking')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodAction'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Zap size={14} />
+              {t('moodAction')}
+            </button>
+            <button
+              onClick={() => handleMoodClick(t('moodChill'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
+            >
+              <Coffee size={14} />
+              {t('moodChill')}
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
@@ -297,25 +592,74 @@ export default function SearchPage() {
       {results.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground pb-1">
-            {isDiscovery ? t('popularResults') : t('searchResults')}
+            {useAI ? `${t('searchResults')} "${query}"` : isDiscovery ? t('popularResults') : t('searchResults')}
           </p>
-          {results.map((movie) => (
-            <SearchResultCard
-              key={`${movie.imdbID}-${movie.Type}`}
-              movie={movie}
-              inWatchlist={watchlistIds.has(movie.imdbID)}
-              onToggleWatchlist={() => toggleWatchlist(movie)}
-            />
+          {results.map((movie, index) => (
+            movie.isLoading ? (
+              <div key={`loading-${index}`} className="flex items-stretch rounded-xl overflow-hidden bg-secondary/60 animate-pulse">
+                <div className="flex-shrink-0 w-[80px] aspect-[2/3] bg-muted" />
+                <div className="flex-1 min-w-0 flex items-center px-3">
+                  <div className="min-w-0 w-full space-y-2">
+                    <div className="h-3 bg-muted rounded w-3/4" />
+                    <div className="h-2 bg-muted rounded w-1/2" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <SearchResultCard
+                key={`${movie.imdbID}-${movie.Type}-${index}`}
+                movie={movie}
+                aiReason={movie.aiReason}
+                onWatchlistChange={() => queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] })}
+                onWatchedChange={() => queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] })}
+              />
+            )
           ))}
         </div>
       )}
 
       {/* Infinite scroll sentinel */}
-      <div ref={observerRef} className="h-20 flex items-center justify-center">
-        {loading && <Loader2 size={24} className="text-muted-foreground/40 animate-spin" />}
-      </div>
+      {!useAI && (
+        <div ref={observerRef} className="h-20 flex items-center justify-center">
+          {loading && <Loader2 size={24} className="text-muted-foreground/40 animate-spin" />}
+        </div>
+      )}
 
-      {!loading && results.length === 0 && (query || hasActiveFilters) && (
+      {/* Load More button for AI */}
+      {useAI && aiHasMore && results.length > 0 && (
+        <div className="flex justify-center py-4">
+          <Button
+            onClick={loadMoreAI}
+            variant="outline"
+            className="gap-2"
+            disabled={loadingMore}
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {t('aiSearching')}
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} />
+                {t('loadMore')}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Loading state for AI search - SHOW THIS FIRST */}
+      {(loading || searchPending) && useAI && query ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
+            <Loader2 size={28} className="text-primary animate-spin" />
+          </div>
+          <h2 className="text-base font-semibold text-foreground mb-1.5">{t('aiSearching')}</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">{t('aiSearchingDesc')}</p>
+        </div>
+      ) : !loading && !loadingMore && !searchPending && results.length === 0 && (query || hasActiveFilters) ? (
+        /* Nothing found - ONLY show when NOT loading AND NOT pending AND no results */
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <X size={28} className="text-muted-foreground/40" />
@@ -323,9 +667,8 @@ export default function SearchPage() {
           <h2 className="text-base font-semibold text-foreground mb-1.5">{t('noResults')}</h2>
           <p className="text-sm text-muted-foreground max-w-xs">{t('searchEmptyBody')}</p>
         </div>
-      )}
-
-      {!loading && !query && !hasActiveFilters && (
+      ) : !loading && !searchPending && !query && !hasActiveFilters && results.length === 0 ? (
+        /* Empty state - ONLY show when NOT loading and no query */
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <SearchIcon size={28} className="text-muted-foreground/40" />
@@ -333,7 +676,7 @@ export default function SearchPage() {
           <h2 className="text-base font-semibold text-foreground mb-1.5">{t('searchEmptyTitle')}</h2>
           <p className="text-sm text-muted-foreground max-w-xs">{t('searchEmptyBody')}</p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

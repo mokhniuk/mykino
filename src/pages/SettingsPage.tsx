@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2 } from 'lucide-react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useI18n, type Lang } from '@/lib/i18n';
@@ -8,7 +8,10 @@ import { exportAllData, importAllData, getContentPreferences, setContentPreferen
 import { clearRecommendationsCache } from '@/lib/recommendations';
 import { triggerSWUpdate } from '@/lib/sw-update';
 import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
+import { getAIConfig, setAIConfig, type AIConfig, type AIProvider } from '@/lib/ai';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -93,6 +96,9 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false);
   const [prefs, setPrefs] = useState<ContentPreferences | null>(null);
   const [stats, setStats] = useState<DBStats | null>(null);
+  const [aiConfig, setAiConfigState] = useState<AIConfig | null>(null);
+  const [tempAiConfig, setTempAiConfig] = useState<AIConfig | null>(null);
+  const [savingAI, setSavingAI] = useState(false);
   const queryClient = useQueryClient();
   const { genres, countries, languages } = useTmdbMetadata();
   const [pendingImport, setPendingImport] = useState<any>(null);
@@ -100,6 +106,10 @@ export default function SettingsPage() {
   useEffect(() => {
     getContentPreferences().then(setPrefs);
     getDBStats().then(setStats);
+    getAIConfig().then(config => {
+      setAiConfigState(config);
+      setTempAiConfig(config);
+    });
   }, []);
 
   const updatePrefs = async (newPrefs: ContentPreferences) => {
@@ -107,6 +117,58 @@ export default function SettingsPage() {
     await setContentPreferences(newPrefs);
     await clearRecommendationsCache();
     queryClient.removeQueries({ queryKey: ['movies', 'recommendations'] });
+  };
+
+  const saveAIConfig = async () => {
+    if (!tempAiConfig) return;
+    setSavingAI(true);
+    try {
+      await setAIConfig(tempAiConfig);
+      setAiConfigState(tempAiConfig);
+      toast.success(t('aiConfigSaved'));
+      // Notify other components that AI config changed
+      window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: tempAiConfig }));
+    } catch (error) {
+      toast.error(t('aiError'));
+    } finally {
+      setSavingAI(false);
+    }
+  };
+
+  const handleAIToggle = async (enabled: boolean) => {
+    const newConfig = { ...tempAiConfig!, enabled };
+    setTempAiConfig(newConfig);
+    
+    // If disabling, save immediately
+    if (!enabled) {
+      setSavingAI(true);
+      try {
+        await setAIConfig(newConfig);
+        setAiConfigState(newConfig);
+        toast.success(t('aiConfigSaved'));
+        // Notify other components that AI config changed
+        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
+      } catch (error) {
+        toast.error(t('aiError'));
+      } finally {
+        setSavingAI(false);
+      }
+    }
+    // If enabling and API key already exists, save immediately
+    else if (enabled && newConfig.apiKey) {
+      setSavingAI(true);
+      try {
+        await setAIConfig(newConfig);
+        setAiConfigState(newConfig);
+        toast.success(t('aiConfigSaved'));
+        // Notify other components that AI config changed
+        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
+      } catch (error) {
+        toast.error(t('aiError'));
+      } finally {
+        setSavingAI(false);
+      }
+    }
   };
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -338,6 +400,94 @@ export default function SettingsPage() {
               includeLabel={t('include')}
               excludeLabel={t('exclude')}
             />
+          </section>
+        )}
+
+        {/* AI Settings — full width */}
+        {tempAiConfig && (
+          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-foreground">
+                <Sparkles size={16} className="text-primary" />
+                <h2 className="text-sm font-semibold">{t('aiSettings')}</h2>
+              </div>
+              <Switch
+                checked={tempAiConfig.enabled}
+                onCheckedChange={handleAIToggle}
+                disabled={savingAI}
+              />
+            </div>
+
+            {tempAiConfig.enabled && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('aiProvider')}</label>
+                  <Select
+                    value={tempAiConfig.provider}
+                    onValueChange={(provider: AIProvider) => setTempAiConfig({ ...tempAiConfig, provider })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                      <SelectItem value="gemini">Google Gemini</SelectItem>
+                      <SelectItem value="mistral">Mistral AI</SelectItem>
+                      <SelectItem value="ollama">Ollama (Local)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('aiApiKey')}</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      value={tempAiConfig.apiKey}
+                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, apiKey: e.target.value })}
+                      placeholder={tempAiConfig.provider === 'ollama' ? t('aiOptional') : t('aiApiKeyPlaceholder')}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={saveAIConfig} 
+                      disabled={savingAI || (!tempAiConfig.apiKey && tempAiConfig.provider !== 'ollama')}
+                      size="sm"
+                    >
+                      {savingAI ? <Loader2 className="animate-spin" size={16} /> : t('save')}
+                    </Button>
+                  </div>
+                </div>
+
+                {tempAiConfig.provider === 'ollama' && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">{t('aiOllamaUrl')}</label>
+                    <Input
+                      value={tempAiConfig.ollamaUrl || 'http://localhost:11434'}
+                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, ollamaUrl: e.target.value })}
+                      placeholder="http://localhost:11434"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('aiModel')} ({t('aiOptional')})</label>
+                  <Input
+                    value={tempAiConfig.model || ''}
+                    onChange={(e) => setTempAiConfig({ ...tempAiConfig, model: e.target.value })}
+                    placeholder={
+                      tempAiConfig.provider === 'openai' ? 'gpt-4o-mini' :
+                      tempAiConfig.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
+                      tempAiConfig.provider === 'gemini' ? 'gemini-1.5-flash' :
+                      tempAiConfig.provider === 'mistral' ? 'mistral-small-latest' :
+                      'llama3.2'
+                    }
+                  />
+                </div>
+
+                <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
+              </div>
+            )}
           </section>
         )}
 

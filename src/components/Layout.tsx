@@ -5,20 +5,20 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import { addToWatched, setContentPreferences, setSetting } from '@/lib/db';
 
-const navItems = [
-  { path: '/app/watchlist', icon: List, labelKey: 'watchlist' as const },
-  { path: '/app/watched', icon: CheckCircle2, labelKey: 'watched' as const },
-  { path: '/app', icon: Clapperboard, labelKey: 'home' as const },
-  { path: '/app/search', icon: Search, labelKey: 'search' as const },
-  { path: '/app/settings', icon: Settings, labelKey: 'settings' as const },
-];
-
 export default function Layout() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const prevPathnameRef = useRef(location.pathname);
+
+  const navItems = [
+    { path: '/app/watchlist', icon: List, labelKey: 'watchlist' as const },
+    { path: '/app/watched', icon: CheckCircle2, labelKey: 'watched' as const },
+    { path: '/app', icon: Clapperboard, labelKey: 'home' as const },
+    { path: '/app/search', icon: Search, labelKey: 'search' as const },
+    { path: '/app/settings', icon: Settings, labelKey: 'settings' as const },
+  ];
 
   useEffect(() => {
     const prev = prevPathnameRef.current;
