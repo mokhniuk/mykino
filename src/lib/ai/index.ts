@@ -8,23 +8,28 @@ import { OllamaClient } from './clients/ollama';
 
 const AI_CONFIG_KEY = 'ai_config';
 
+function envDefaults(): Partial<AIConfig> {
+  const e = (window as Record<string, any>).__ENV__;
+  if (!e?.AI_API_KEY) return {};
+  return {
+    enabled: true,
+    provider: (e.AI_PROVIDER as AIProvider) || 'openai',
+    apiKey: e.AI_API_KEY,
+    model: e.AI_MODEL || undefined,
+    ollamaUrl: e.OLLAMA_URL || undefined,
+  };
+}
+
 export async function getAIConfig(): Promise<AIConfig> {
   const raw = await getSetting(AI_CONFIG_KEY);
-  if (!raw) {
-    return {
-      enabled: false,
-      provider: 'openai',
-      apiKey: '',
-    };
-  }
+  const defaults = envDefaults();
+  const base: AIConfig = { enabled: false, provider: 'openai', apiKey: '', ...defaults };
+  if (!raw) return base;
   try {
-    return JSON.parse(raw);
+    // Stored config takes priority over env defaults
+    return { ...defaults, ...JSON.parse(raw) };
   } catch {
-    return {
-      enabled: false,
-      provider: 'openai',
-      apiKey: '',
-    };
+    return base;
   }
 }
 

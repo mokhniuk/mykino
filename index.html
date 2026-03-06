@@ -45,6 +45,8 @@
   </head>
 
   <body>
+    <!-- Runtime env vars injected by docker-entrypoint.sh (no-op outside Docker) -->
+    <script src="/config.js" onerror="window.__ENV__=window.__ENV__||{}"></script>
     <div id="root"></div>
 <script type="module" src="/src/main.tsx"></script>
     <script defer src="https://umami.mokhni.uk/script.js" data-website-id="36b2fed3-e325-4e17-b7e1-1fdcfdd3ef1c"></script>

@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  mykino:
+    image: mykino:latest
+    container_name: mykino
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - TMDB_API_KEY=${TMDB_API_KEY:-}
+      - AI_PROVIDER=${AI_PROVIDER:-openai}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_MODEL=${AI_MODEL:-}
+      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: mykino
+  store_app_id: mykino
+  description:
+    en_us: "MyKino — personal movie & TV tracker. Track watchlists, ratings, and get AI-powered recommendations."
+  tagline:
+    en_us: "Your personal movie tracker"
+  icon: "https://raw.githubusercontent.com/your-repo/mykino/main/public/apple-touch-icon.png"
+  port_map: "3000"
+  envs:
+    - container: TMDB_API_KEY
+      description: "TMDB API Key — get yours free at themoviedb.org"
+    - container: AI_PROVIDER
+      description: "AI provider: openai | anthropic | gemini | mistral | ollama"
+    - container: AI_API_KEY
+      description: "API key for your chosen AI provider"
+    - container: AI_MODEL
+      description: "Model name (leave blank for provider default)"
+    - container: OLLAMA_URL
+      description: "Ollama base URL (only if using Ollama)"
