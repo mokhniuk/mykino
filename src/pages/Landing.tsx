@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
   Search, Loader2, Sun, Moon, Monitor,
-  ShieldCheck, Globe, RefreshCw, BarChart2, Heart, Smartphone,
+  ShieldCheck, Globe, RefreshCw, BarChart2, Heart, Smartphone, Sparkles,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Lang } from '@/lib/i18n';
@@ -647,6 +647,37 @@ export default function Landing() {
                 </>
               ) : null}
             </div>
+          </div>
+        </div>
+
+        {/* ── AI Feature Spotlight ── */}
+        <div className="w-full py-20 lg:py-28">
+          <div className="max-w-4xl mx-auto px-6 text-center">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-6">
+              <Sparkles size={11} />
+              {t('landingAiBadge')}
+            </span>
+            <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-5">
+              {t('landingAiTitle')}
+            </h3>
+            <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-12 max-w-2xl mx-auto">
+              {t('landingAiDesc')}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 max-w-3xl mx-auto mb-8">
+              {[
+                { name: 'OpenAI',         dot: 'bg-emerald-500', bg: 'bg-emerald-500/8 border-emerald-500/20' },
+                { name: 'Anthropic',      dot: 'bg-orange-500',  bg: 'bg-orange-500/8 border-orange-500/20'  },
+                { name: 'Google Gemini',  dot: 'bg-blue-500',    bg: 'bg-blue-500/8 border-blue-500/20'      },
+                { name: 'Mistral',        dot: 'bg-rose-500',    bg: 'bg-rose-500/8 border-rose-500/20'      },
+                { name: 'Ollama (Local)', dot: 'bg-purple-500',  bg: 'bg-purple-500/8 border-purple-500/20'  },
+              ].map(({ name, dot, bg }) => (
+                <div key={name} className={`flex items-center gap-2.5 px-4 py-3.5 rounded-xl border ${bg}`}>
+                  <span className={`w-2 h-2 rounded-full ${dot} flex-shrink-0`} />
+                  <span className="text-sm font-medium text-foreground">{name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground/60">{t('landingAiHint')}</p>
           </div>
         </div>
 
