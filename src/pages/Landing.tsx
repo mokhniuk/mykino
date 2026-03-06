@@ -7,6 +7,7 @@ import PL from 'country-flag-icons/react/3x2/PL';
 import BR from 'country-flag-icons/react/3x2/BR';
 import HR from 'country-flag-icons/react/3x2/HR';
 import IT from 'country-flag-icons/react/3x2/IT';
+import ES from 'country-flag-icons/react/3x2/ES';
 import { useNavigate } from 'react-router-dom';
 import {
   Check, ChevronDown, Lock, WifiOff, UserX,
@@ -55,6 +56,7 @@ const LANG_OPTIONS: { value: Lang; label: string; Flag: FlagComponent }[] = [
   { value: 'pt', label: 'Português',  Flag: BR },
   { value: 'hr', label: 'Hrvatski',   Flag: HR },
   { value: 'it', label: 'Italiano',   Flag: IT },
+  { value: 'es', label: 'Español',    Flag: ES },
 ];
 
 // ── Floating poster rows for hero background ────────────────────────────────
