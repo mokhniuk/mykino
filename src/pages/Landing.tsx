@@ -59,83 +59,194 @@ const LANG_OPTIONS: { value: Lang; label: string; Flag: FlagComponent }[] = [
   { value: 'es', label: 'Español',    Flag: ES },
 ];
 
-// ── Floating poster rows for hero background ────────────────────────────────
-// POSTER_SLOT = w-[96px](96) + gap-3(12) = 108px — used to compute animation
-// duration so visual speed is consistent regardless of item count.
-const POSTER_SLOT = 108;
-const ROW_SPEEDS  = [48, 32, 42, 36]; // px/s per row — 4 rows, slow drift
-const MAX_POSTERS = 160;              // hard cap — keeps DOM node count bounded
+// ── Sphere poster background ─────────────────────────────────────────────────
+// Viewer sits at the origin, sphere surface at radius 1.
+// POSTER_W / POSTER_H are angular sizes in sphere-radius units.
+// GAP is the physical gap between neighbours on the sphere surface.
+// At rz=1 (directly ahead) a poster appears focal*POSTER_W pixels wide.
+const POSTER_W  = 0.18; // width  in sphere-radius units
+const POSTER_H  = 0.27; // height (2:3 portrait ratio)
+const GAP       = 0.07; // physical gap between covers on sphere surface
+const MAX_PAGES = 7;    // pages to load progressively
+
+/**
+ * Latitude-band tiling: divides the sphere into horizontal rings sized so every
+ * poster has the same angular footprint and the same gap between neighbours.
+ * Bands are stored equator-first so the most-visible slots get images soonest.
+ */
+function buildSphereGrid() {
+  const dPhi   = POSTER_H + GAP;
+  const nBands = Math.floor(Math.PI / dPhi);
+  // Reorder bands equator → poles so equatorial positions (most visible) get
+  // the first poster URLs assigned during progressive load.
+  const order = Array.from({ length: nBands }, (_, i) => i)
+    .sort((a, b) => Math.abs(a - (nBands - 1) / 2) - Math.abs(b - (nBands - 1) / 2));
+
+  const positions: { x: number; y: number; z: number }[] = [];
+  for (const b of order) {
+    const phi  = -Math.PI / 2 + (b + 0.5) * dPhi;
+    const cosP = Math.cos(phi);
+    const sinP = Math.sin(phi);
+    const n    = Math.max(1, Math.round((2 * Math.PI * cosP) / (POSTER_W + GAP)));
+    const off  = (b & 1) ? Math.PI / n : 0; // stagger alternate rows
+    for (let i = 0; i < n; i++) {
+      const theta = off + (2 * Math.PI * i) / n;
+      positions.push({ x: cosP * Math.cos(theta), y: sinP, z: cosP * Math.sin(theta) });
+    }
+  }
+  return positions;
+}
+
+// Pre-computed once; ~130 slots for the chosen constants.
+const SPHERE_POSITIONS = buildSphereGrid();
 
 function FloatingPosters({ lang }: { lang: Lang }) {
-  const [posters, setPosters] = useState<string[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Images stored in a ref so the render loop picks up new arrivals each frame
+  // without re-triggering the animation effect.
+  const imgsRef   = useRef<(HTMLImageElement | null)[]>([]);
+  const [ready, setReady] = useState(false);
 
+  // Load pages one-by-one; images start painting in as soon as each page arrives.
   useEffect(() => {
-    setPosters([]);
-    Promise.all([getPopular(lang, 1), getPopular(lang, 2), getPopular(lang, 3), getPopular(lang, 4)])
-      .then(pages => {
-        const seen = new Set<string>();
-        const urls: string[] = [];
-        outer: for (const movies of pages) {
+    let cancelled = false;
+    imgsRef.current = [];
+    setReady(false);
+    let isReady = false;
+
+    (async () => {
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        if (cancelled) break;
+        try {
+          const movies = await getPopular(lang, page);
+          if (cancelled) break;
           for (const m of movies) {
-            if (m.Poster && m.Poster !== 'N/A' && !seen.has(m.Poster)) {
-              seen.add(m.Poster);
-              urls.push(m.Poster);
-              if (urls.length >= MAX_POSTERS) break outer;
-            }
+            if (!m.Poster || m.Poster === 'N/A') continue;
+            const idx = imgsRef.current.length;
+            imgsRef.current.push(null);
+            const img = new Image();
+            img.onload = () => { imgsRef.current[idx] = img; };
+            img.src = m.Poster;
           }
-        }
-        setPosters(urls);
-      })
-      .catch(() => {});
+          if (!isReady && imgsRef.current.length >= 9) {
+            isReady = true;
+            if (!cancelled) setReady(true);
+          }
+        } catch { /* network errors are non-fatal */ }
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [lang]);
 
-  if (posters.length < 9) return null;
+  // Single animation loop — deps only on [ready] so progressive image arrivals
+  // never restart the loop; the loop reads imgsRef.current every frame.
+  useEffect(() => {
+    if (!ready) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const s = Math.ceil(posters.length / 4);
-  const rows = [
-    { items: posters.slice(0, s),         dir: 'ltr', speed: ROW_SPEEDS[0] },
-    { items: posters.slice(s, s * 2),     dir: 'rtl', speed: ROW_SPEEDS[1] },
-    { items: posters.slice(s * 2, s * 3), dir: 'ltr', speed: ROW_SPEEDS[2] },
-    { items: posters.slice(s * 3),        dir: 'rtl', speed: ROW_SPEEDS[3] },
-  ];
+    const syncSize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    syncSize();
+    const ro = new ResizeObserver(syncSize);
+    ro.observe(canvas);
 
-  const rowMask = 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)';
+    let angle = 0;
+    let rafId = 0;
+
+    const draw = () => {
+      const W   = canvas.width;
+      const H   = canvas.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx || W === 0 || H === 0) { rafId = requestAnimationFrame(draw); return; }
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Slow Y-axis spin + gentle X wobble
+      angle += 0.0008;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      const tilt  = Math.sin(angle * 0.17) * 0.12;
+      const cosT  = Math.cos(tilt);
+      const sinT  = Math.sin(tilt);
+
+      const cx    = W / 2;
+      const cy    = H / 2;
+      // focal = how many pixels wide a poster at rz=1 (dead-ahead) will be / POSTER_W.
+      // 0.60 × H gives ~97px wide covers with 38px gaps at center (≈2rem).
+      const focal = Math.min(W, H) * 0.60;
+      const imgs  = imgsRef.current;
+
+      type PItem = { img: HTMLImageElement | null; rx: number; ry: number; rz: number };
+      const items: PItem[] = SPHERE_POSITIONS.map((p, i) => {
+        const rx  = p.x * cosA - p.z * sinA;        // Y-axis spin
+        const rz0 = p.x * sinA + p.z * cosA;
+        const ry  = p.y * cosT - rz0 * sinT;         // X-axis wobble
+        const rz  = p.y * sinT + rz0 * cosT;
+        return { img: imgs[i] ?? null, rx, ry, rz };
+      });
+
+      // Painter's algorithm: from inside the sphere every poster is on the surface at radius 1.
+      // Draw low-rz posters first (they're at the visual periphery in screen space)
+      // so that the central, high-rz posters render on top of any screen-space overlap.
+      items.sort((a, b) => a.rz - b.rz);
+
+      items.forEach(({ img, rx, ry, rz }) => {
+        // Only render the forward hemisphere; rz < 0.15 produces extreme fish-eye distortion.
+        if (!img || rz < 0.15) return;
+
+        // Inside-sphere perspective projection.
+        // The viewer is at the origin, the poster sits on the sphere at depth = rz
+        // (the z-component of its unit-sphere position is its effective pinhole depth).
+        // scale = focal / rz: posters near the edge (rz→0) appear enormous — that IS
+        // the correct spherical-interior look (they curve away from you).
+        const scale = focal / rz;
+        const sx    = cx + rx * scale;
+        const sy    = cy - ry * scale;
+        const sw    = POSTER_W * scale;
+        const sh    = POSTER_H * scale;
+
+        // Fade: periphery posters are nearly invisible, dead-ahead posters are most opaque.
+        const alpha = Math.max(0, (rz - 0.15) / 0.85) * 0.50;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.roundRect(sx - sw / 2, sy - sh / 2, sw, sh, sw * 0.07);
+        ctx.clip();
+        ctx.drawImage(img, sx - sw / 2, sy - sh / 2, sw, sh);
+        ctx.restore();
+      });
+
+      rafId = requestAnimationFrame(draw);
+    };
+
+    rafId = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(rafId); ro.disconnect(); };
+  }, [ready]);
+
+  if (!ready) return null;
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      <div className="flex flex-col justify-center items-stretch gap-4 h-full">
-        {rows.map(({ items, dir, speed }, i) => {
-          const dur = Math.round((items.length * POSTER_SLOT) / speed);
-          return (
-            <div
-              key={i}
-              className="overflow-hidden"
-              style={{ maskImage: rowMask, WebkitMaskImage: rowMask }}
-            >
-              <div
-                className="flex gap-3"
-                style={{
-                  width: 'max-content',
-                  animation: `marquee-${dir} ${dur}s linear infinite`,
-                }}
-              >
-                {[...items, ...items].map((url, j) => (
-                  <img
-                    key={j}
-                    src={url}
-                    alt=""
-                    className="w-[96px] h-[144px] rounded-xl object-cover flex-shrink-0 opacity-[0.18]"
-                    loading="lazy"
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {/* top & bottom fade */}
-      <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-background to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-background to-transparent" />
+    <div className="absolute inset-0 pointer-events-none" aria-hidden>
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+
+      {/* Helmet visor frame — background colour with elliptical hole cut via CSS mask */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'hsl(var(--background))',
+          maskImage: 'radial-gradient(ellipse 74% 64% at 50% 50%, transparent 52%, black 74%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 74% 64% at 50% 50%, transparent 52%, black 74%)',
+        }}
+      />
+      {/* Soft inner vignette */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse 74% 64% at 50% 50%, transparent 38%, hsl(var(--background) / 0.55) 54%, transparent 76%)',
+        }}
+      />
     </div>
   );
 }
