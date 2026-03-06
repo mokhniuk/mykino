@@ -1,11 +1,11 @@
 {
   "name": "mykino",
   "private": true,
-  "version": "2.0.1",
+  "version": "2.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/post-build.js",
+    "build": "node scripts/version-bump.js && vite build && node scripts/post-build.js",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
