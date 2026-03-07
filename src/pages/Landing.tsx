@@ -487,16 +487,16 @@ export default function Landing() {
             {t('landingTagline')}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 mx-auto w-fit">
+          <div className="flex flex-col items-center gap-4 mx-auto w-fit">
             <button
               onClick={handleEnterApp}
-              className="px-7 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
+              className="px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity whitespace-nowrap shadow-lg shadow-primary/20"
             >
               {t('landingEnterApp')} →
             </button>
             <button
               onClick={() => setupRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-7 py-3.5 rounded-xl bg-secondary text-foreground font-semibold hover:bg-secondary/70 transition-colors whitespace-nowrap"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
             >
               {t('landingGetStarted')}
             </button>
@@ -943,7 +943,7 @@ export default function Landing() {
           <button
             ref={finalCtaRef}
             onClick={handleEnterApp}
-            className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
           >
             {t('landingEnterApp')} →
           </button>
