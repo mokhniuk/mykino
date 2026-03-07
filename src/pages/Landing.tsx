@@ -211,10 +211,26 @@ function FloatingPosters({ lang }: { lang: Lang }) {
 
         ctx.save();
         ctx.globalAlpha = alpha;
+        const x = sx - sw / 2;
+        const y = sy - sh / 2;
+        const radius = sw * 0.07;
         ctx.beginPath();
-        ctx.roundRect(sx - sw / 2, sy - sh / 2, sw, sh, sw * 0.07);
+        if (typeof (ctx as any).roundRect === 'function') {
+          (ctx as any).roundRect(x, y, sw, sh, radius);
+        } else {
+          const r = Math.min(radius, sw / 2, sh / 2);
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + sw - r, y);
+          ctx.quadraticCurveTo(x + sw, y, x + sw, y + r);
+          ctx.lineTo(x + sw, y + sh - r);
+          ctx.quadraticCurveTo(x + sw, y + sh, x + sw - r, y + sh);
+          ctx.lineTo(x + r, y + sh);
+          ctx.quadraticCurveTo(x, y + sh, x, y + sh - r);
+          ctx.lineTo(x, y + r);
+          ctx.quadraticCurveTo(x, y, x + r, y);
+        }
         ctx.clip();
-        ctx.drawImage(img, sx - sw / 2, sy - sh / 2, sw, sh);
+        ctx.drawImage(img, x, y, sw, sh);
         ctx.restore();
       });
 
