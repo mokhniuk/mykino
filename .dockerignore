@@ -4,3 +4,5 @@ dist
 .gitignore
 *.md
 .env*
+docker-compose.yml
+release

@@ -3,7 +3,9 @@ import { cacheMovie, getCachedMovie, type MovieData } from './db';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
 export const PROVIDER_LOGO_BASE = 'https://image.tmdb.org/t/p/w45';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY as string | undefined;
+const API_KEY: string | undefined =
+  (window as Record<string, any>).__ENV__?.TMDB_API_KEY ||
+  import.meta.env.VITE_TMDB_API_KEY;
 
 /** Maps app language codes to TMDB locale strings */
 const TMDB_LANG: Record<string, string> = {
