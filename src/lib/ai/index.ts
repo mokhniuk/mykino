@@ -11,9 +11,16 @@ const AI_CONFIG_KEY = 'ai_config';
 function envDefaults(): Partial<AIConfig> {
   const e = (window as Record<string, any>).__ENV__;
   if (!e?.AI_API_KEY) return {};
+
+  const envProvider = e.AI_PROVIDER as string | undefined;
+  const allowedProviders: AIProvider[] = ['openai', 'anthropic', 'gemini', 'mistral', 'ollama'];
+  const provider: AIProvider = envProvider && allowedProviders.includes(envProvider as AIProvider)
+    ? (envProvider as AIProvider)
+    : 'openai';
+
   return {
     enabled: true,
-    provider: (e.AI_PROVIDER as AIProvider) || 'openai',
+    provider,
     apiKey: e.AI_API_KEY,
     model: e.AI_MODEL || undefined,
     ollamaUrl: e.OLLAMA_URL || undefined,
