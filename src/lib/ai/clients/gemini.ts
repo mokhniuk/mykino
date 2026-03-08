@@ -26,6 +26,7 @@ export class GeminiClient extends AIClient {
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 2048,
+            responseMimeType: 'application/json',
           },
         }),
       }

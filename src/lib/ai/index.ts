@@ -7,6 +7,13 @@ import { MistralClient } from './clients/mistral';
 import { OllamaClient } from './clients/ollama';
 
 const AI_CONFIG_KEY = 'ai_config';
+const AI_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+
+function buildCacheKey(request: AIRecommendationRequest, provider: string): string {
+  const q = request.query.trim().toLowerCase();
+  // Include watched count so cache invalidates when the library grows
+  return `ai_cache:${provider}:${request.language}:${request.watched.length}:${q}`;
+}
 
 function envDefaults(): Partial<AIConfig> {
   const e = (window as Record<string, any>).__ENV__;
@@ -56,6 +63,18 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
     throw new Error('AI is not enabled or API key is missing');
   }
 
+  // Check persistent cache before calling the AI
+  const cacheKey = buildCacheKey(request, config.provider);
+  try {
+    const cached = await getSetting(cacheKey);
+    if (cached) {
+      const { results, cachedAt } = JSON.parse(cached);
+      if (Date.now() - cachedAt < AI_CACHE_TTL) {
+        return results as AIRecommendation[];
+      }
+    }
+  } catch { /* ignore cache read errors */ }
+
   let client;
   switch (config.provider) {
     case 'openai':
@@ -77,7 +96,14 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
       throw new Error(`Unsupported AI provider: ${config.provider}`);
   }
 
-  return client.getRecommendations(request);
+  const results = await client.getRecommendations(request);
+
+  // Persist results for 2 hours
+  try {
+    await setSetting(cacheKey, JSON.stringify({ results, cachedAt: Date.now() }));
+  } catch { /* ignore cache write errors */ }
+
+  return results;
 }
 
 export type { AIConfig, AIProvider, AIRecommendation };

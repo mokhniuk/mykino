@@ -229,6 +229,7 @@ export default function SearchPage() {
       ]);
 
       // Check if query directly matches something in the user's library
+      let pivotTitle: string | null = null;
       if (pageNum === 1) {
         const queryLower = q.toLowerCase().trim();
         const matchWatched = watched.find(m => {
@@ -239,19 +240,31 @@ export default function SearchPage() {
           const t = m.Title.toLowerCase();
           return t === queryLower || t.startsWith(queryLower) || queryLower.startsWith(t);
         });
-        if (matchWatched) setLibraryMatch({ title: matchWatched.Title, status: 'watched' });
-        else if (matchWatchlist) setLibraryMatch({ title: matchWatchlist.Title, status: 'watchlist' });
-        else setLibraryMatch(null);
+        if (matchWatched) {
+          setLibraryMatch({ title: matchWatched.Title, status: 'watched' });
+          pivotTitle = matchWatched.Title;
+        } else if (matchWatchlist) {
+          setLibraryMatch({ title: matchWatchlist.Title, status: 'watchlist' });
+          pivotTitle = matchWatchlist.Title;
+        } else {
+          setLibraryMatch(null);
+        }
+      } else {
+        // For pagination, libraryMatch state is already settled from page 1
+        pivotTitle = libraryMatch?.title ?? null;
       }
 
+      const langName = lang === 'en' ? 'English' : lang === 'ua' ? 'Ukrainian' : lang === 'de' ? 'German' : lang === 'cs' ? 'Czech' : lang === 'pl' ? 'Polish' : lang === 'pt' ? 'Portuguese' : lang === 'hr' ? 'Croatian' : 'Italian';
+
       // If user searched for something they already have, pivot to "similar to X"
-      const matched = libraryMatch;
-      const aiQuery = matched
-        ? `Find movies and TV series similar to "${matched.title}". Do not include "${matched.title}" itself. Give diverse, high-quality recommendations.`
+      const aiQuery = pivotTitle
+        ? `Find movies and TV series similar to "${pivotTitle}". Do not include "${pivotTitle}" itself. Give diverse, high-quality recommendations.`
         : q;
 
       const aiRecommendations = await getAIRecommendations({
-        query: `${aiQuery}. Respond in ${lang === 'en' ? 'English' : lang === 'ua' ? 'Ukrainian' : lang === 'de' ? 'German' : lang === 'cs' ? 'Czech' : lang === 'pl' ? 'Polish' : lang === 'pt' ? 'Portuguese' : lang === 'hr' ? 'Croatian' : 'Italian'}. IMPORTANT: Use ENGLISH or ORIGINAL movie titles in your JSON response (not translated titles). For example: "Star Trek: Picard" not "Стартрек: Піккард". Give exactly ${pageNum === 1 ? '30' : '20'} unique high-quality diverse recommendations.`,
+        query: aiQuery,
+        language: langName,
+        count: pageNum === 1 ? 30 : 20,
         tasteProfile,
         contentPreferences,
         favourites: favourites.slice(0, 10).map(m => ({ Title: m.Title, Year: m.Year, Genre: m.Genre })),
