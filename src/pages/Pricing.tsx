@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Minus, Sparkles, Cloud, Brain, ShieldCheck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import Footer from '@/components/Footer';
 
 const MOCK_FILMS = [
   { emoji: '🎭', title: 'The Conversation', meta: 'Coppola · 1974 · Thriller', score: '98%' },
@@ -362,20 +363,7 @@ export default function Pricing() {
         <p className="text-sm text-muted-foreground mt-5">{t('pricingCtaNote')}</p>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-border px-6 py-10">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <span>© 2026 <span className="text-foreground font-medium">mykino.app</span></span>
-          <div className="flex gap-6">
-            <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">Privacy</button>
-            <button onClick={() => navigate('/terms')} className="hover:text-foreground transition-colors">Terms</button>
-            <button onClick={() => navigate('/contact')} className="hover:text-foreground transition-colors">Contact</button>
-            <button onClick={() => navigate('/app')} className="hover:text-foreground transition-colors">
-              {t('pricingFreeBtn')}
-            </button>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

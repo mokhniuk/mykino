@@ -355,6 +355,7 @@ export const hr = {
   pricingPF7: 'Prioritetna podrška',
   backBtn: '← Natrag',
   legalLabel: 'Pravno',
+  footerPricing: 'Cijene',
   footerPrivacy: 'Privatnost',
   footerTerms: 'Uvjeti',
   footerContact: 'Kontakt',

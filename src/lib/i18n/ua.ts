@@ -360,6 +360,7 @@ export const ua = {
   pricingPF7: 'Пріоритетна підтримка',
   backBtn: '← Назад',
   legalLabel: 'Юридичне',
+  footerPricing: 'Тарифи',
   footerPrivacy: 'Конфіденційність',
   footerTerms: 'Умови',
   footerContact: 'Контакт',

@@ -357,6 +357,7 @@ export const pl = {
   pricingPF7: 'Wsparcie priorytetowe',
   backBtn: '← Wstecz',
   legalLabel: 'Prawne',
+  footerPricing: 'Cennik',
   footerPrivacy: 'Prywatność',
   footerTerms: 'Warunki',
   footerContact: 'Kontakt',

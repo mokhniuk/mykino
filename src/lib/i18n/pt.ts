@@ -355,6 +355,7 @@ export const pt = {
   pricingPF7: 'Suporte prioritário',
   backBtn: '← Voltar',
   legalLabel: 'Legal',
+  footerPricing: 'Preços',
   footerPrivacy: 'Privacidade',
   footerTerms: 'Termos',
   footerContact: 'Contato',

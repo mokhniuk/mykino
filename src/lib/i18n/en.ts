@@ -369,6 +369,7 @@ export const en = {
   pricingPF7: 'Priority support',
   backBtn: '← Back',
   legalLabel: 'Legal',
+  footerPricing: 'Pricing',
   footerPrivacy: 'Privacy',
   footerTerms: 'Terms',
   footerContact: 'Contact',

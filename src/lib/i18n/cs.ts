@@ -358,6 +358,7 @@ export const cs = {
   pricingPF7: 'Prioritní podpora',
   backBtn: '← Zpět',
   legalLabel: 'Právní',
+  footerPricing: 'Ceník',
   footerPrivacy: 'Soukromí',
   footerTerms: 'Podmínky',
   footerContact: 'Kontakt',

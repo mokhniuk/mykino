@@ -360,6 +360,7 @@ export const de = {
   pricingPF7: 'Prioritätssupport',
   backBtn: '← Zurück',
   legalLabel: 'Rechtliches',
+  footerPricing: 'Preise',
   footerPrivacy: 'Datenschutz',
   footerTerms: 'AGB',
   footerContact: 'Kontakt',

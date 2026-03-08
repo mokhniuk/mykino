@@ -15,6 +15,7 @@ import {
   ShieldCheck, Globe, RefreshCw, BarChart2, Heart, Smartphone, Sparkles,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import Footer from '@/components/Footer';
 import type { Lang } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 import type { ThemePreference } from '@/lib/theme';
@@ -955,18 +956,7 @@ export default function Landing() {
       </div>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-border px-6 py-10">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <span>
-            © {new Date().getFullYear() === 2026 ? '2026' : `2026\u2013${new Date().getFullYear()}`}{' '}
-            <span className="text-foreground font-medium">mykino.app</span>
-            <span className="opacity-40 ml-2">v{__APP_VERSION__}</span>
-          </span>
-          <a href="https://mokhniuk.online" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-            {t('landingMadeBy')} {t('authorName')}
-          </a>
-        </div>
-      </footer>
+      <Footer />
 
     </div>
   );
