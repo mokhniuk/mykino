@@ -137,7 +137,7 @@ const landingHtml = indexContent
   // Update OG description
   .replace(
     'content="Discover, track, and organize your favourite movies."',
-    'content="Log what\'ve watched, discover what\'s next, and get AI picks — all stored privately on your device, no sign-up needed."'
+    'content="Log what you\'ve watched, discover what\'s next, and get AI picks — all stored privately on your device, no sign-up needed."'
   )
   // Inject static content into #root (noscript: React replaces it for real users, crawlers see it)
   .replace('<div id="root"></div>', `<div id="root">${landingStaticContent}</div>`);
