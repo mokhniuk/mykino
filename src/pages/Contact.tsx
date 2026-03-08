@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { Mail, Github, Globe } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 export default function Contact() {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   return (
     <div className="bg-background min-h-screen">
@@ -21,17 +23,17 @@ export default function Contact() {
             onClick={() => navigate(-1)}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            ← Back
+            {t('backBtn')}
           </button>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-2xl mx-auto px-6 py-16">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-4">Get in touch</p>
-        <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">Contact</h1>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary mb-4">{t('contactLabel')}</p>
+        <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">{t('contactTitle')}</h1>
         <p className="text-lg text-muted-foreground leading-relaxed mb-12">
-          My Kino is built and maintained by one person. I read every message and reply to most of them.
+          {t('contactSubtitle')}
         </p>
 
         <div className="space-y-3">
@@ -44,7 +46,7 @@ export default function Contact() {
               <Mail size={20} className="text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground mb-0.5">Email</p>
+              <p className="font-semibold text-foreground mb-0.5">{t('contactEmailTitle')}</p>
               <p className="text-sm text-muted-foreground">hello@mykino.app</p>
             </div>
             <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">→</span>
@@ -60,8 +62,8 @@ export default function Contact() {
               <Globe size={20} className="text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground mb-0.5">Developer</p>
-              <p className="text-sm text-muted-foreground">Oleg Mokhniuk — mokhniuk.online</p>
+              <p className="font-semibold text-foreground mb-0.5">{t('contactDevTitle')}</p>
+              <p className="text-sm text-muted-foreground">{t('contactDevDesc')}</p>
             </div>
             <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">↗</span>
           </a>
@@ -76,8 +78,8 @@ export default function Contact() {
               <Github size={20} className="text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground mb-0.5">Bug reports & feature requests</p>
-              <p className="text-sm text-muted-foreground">Open an issue on GitHub</p>
+              <p className="font-semibold text-foreground mb-0.5">{t('contactGithubTitle')}</p>
+              <p className="text-sm text-muted-foreground">{t('contactGithubDesc')}</p>
             </div>
             <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">↗</span>
           </a>
@@ -86,7 +88,7 @@ export default function Contact() {
 
         <div className="mt-10 rounded-2xl bg-secondary/50 border border-border p-6">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            <span className="font-medium text-foreground">Response time:</span> Usually within a few days. For billing or Pro subscription issues, email is the fastest path.
+            <span className="font-medium text-foreground">{t('contactResponseTitle')}</span> {t('contactResponseText')}
           </p>
         </div>
       </div>
@@ -95,9 +97,9 @@ export default function Contact() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <span>© 2026 <span className="text-foreground font-medium">mykino.app</span></span>
           <div className="flex gap-6">
-            <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">Privacy</button>
-            <button onClick={() => navigate('/terms')} className="hover:text-foreground transition-colors">Terms</button>
-            <button onClick={() => navigate('/contact')} className="hover:text-foreground transition-colors">Contact</button>
+            <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">{t('footerPrivacy')}</button>
+            <button onClick={() => navigate('/terms')} className="hover:text-foreground transition-colors">{t('footerTerms')}</button>
+            <button onClick={() => navigate('/contact')} className="hover:text-foreground transition-colors">{t('footerContact')}</button>
           </div>
         </div>
       </footer>
