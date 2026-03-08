@@ -367,13 +367,10 @@ export default function Pricing() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <span>© 2026 <span className="text-foreground font-medium">mykino.app</span></span>
           <div className="flex gap-6">
-            {['Privacy', 'Terms', 'Contact'].map(link => (
-              <a key={link} href="#" className="hover:text-foreground transition-colors">{link}</a>
-            ))}
-            <button
-              onClick={() => navigate('/app')}
-              className="hover:text-foreground transition-colors"
-            >
+            <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">Privacy</button>
+            <button onClick={() => navigate('/terms')} className="hover:text-foreground transition-colors">Terms</button>
+            <button onClick={() => navigate('/contact')} className="hover:text-foreground transition-colors">Contact</button>
+            <button onClick={() => navigate('/app')} className="hover:text-foreground transition-colors">
               {t('pricingFreeBtn')}
             </button>
           </div>
