@@ -335,13 +335,13 @@ export default function Landing() {
   const [slotData, setSlotData] = useState<Record<string, MovieData>>({});
 
   useEffect(() => {
+    setSlotData({});
     slotState.slots.forEach(m => {
-      if (slotData[m.imdbID]) return;
       getMovieDetails(m.imdbID, lang).then(data => {
         if (data) setSlotData(prev => ({ ...prev, [m.imdbID]: data }));
       });
     });
-  }, [slotState.slots]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slotState.slots, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTop100Watched = async (movie: MovieData, idx: number) => {
     if (watchedIds.has(movie.imdbID)) return;

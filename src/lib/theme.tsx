@@ -27,7 +27,7 @@ function applyTheme(pref: ThemePreference) {
 function getInitialTheme(): ThemePreference {
   const saved = localStorage.getItem('theme');
   if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
-  return 'system';
+  return 'dark';
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -38,7 +38,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!localStorage.getItem('theme')) {
       getSetting('theme').then((saved) => {
         const pref: ThemePreference =
-          saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+          saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'dark';
         setThemeState(pref);
         applyTheme(pref);
         localStorage.setItem('theme', pref);
