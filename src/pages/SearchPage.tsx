@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain, Zap, Coffee, Film, Search, Lightbulb, Droplets, Laugh, AlertTriangle, Drama, Rocket, Wand2, Fingerprint, Users, Star, Clock, Gem } from 'lucide-react';
+import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain, Zap, Coffee, Film, Search, Lightbulb, Droplets, Laugh, AlertTriangle, Drama, Rocket, Wand2, Fingerprint, Users, Star, Clock, Gem, CheckCircle2, BookmarkCheck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
 import { type MovieData } from '@/lib/db';
@@ -90,12 +90,26 @@ export default function SearchPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [isDiscovery, setIsDiscovery] = useState(false);
+  const [libraryMatch, setLibraryMatch] = useState<{ title: string; status: 'watched' | 'watchlist' } | null>(null);
   const observerRef = useRef<HTMLDivElement>(null);
+  const libraryIdsRef = useRef<Set<string>>(new Set());
   const { genres: tmdbGenres, countries: tmdbCountries } = useTmdbMetadata();
   const queryClient = useQueryClient();
-  
+
   // Track if this is initial mount (for cache restoration)
   const isInitialMount = useRef(true);
+
+  // Pre-load library IDs for sorting regular search results
+  useEffect(() => {
+    (async () => {
+      const { getWatched } = await import('@/lib/db');
+      const [watchedList, watchlistData] = await Promise.all([getWatched(), getWatchlist()]);
+      libraryIdsRef.current = new Set([
+        ...watchedList.map(m => m.imdbID),
+        ...watchlistData.map(m => m.imdbID),
+      ]);
+    })();
+  }, []);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
@@ -214,18 +228,43 @@ export default function SearchPage() {
         }),
       ]);
 
-      console.log(`📊 Data loaded: ${watched.length} watched, ${watchlist.length} in watchlist`);
+      // Check if query directly matches something in the user's library
+      let pivotTitle: string | null = null;
+      if (pageNum === 1) {
+        const queryLower = q.toLowerCase().trim();
+        const matchWatched = watched.find(m => {
+          const t = m.Title.toLowerCase();
+          return t === queryLower || t.startsWith(queryLower) || queryLower.startsWith(t);
+        });
+        const matchWatchlist = !matchWatched && watchlist.find(m => {
+          const t = m.Title.toLowerCase();
+          return t === queryLower || t.startsWith(queryLower) || queryLower.startsWith(t);
+        });
+        if (matchWatched) {
+          setLibraryMatch({ title: matchWatched.Title, status: 'watched' });
+          pivotTitle = matchWatched.Title;
+        } else if (matchWatchlist) {
+          setLibraryMatch({ title: matchWatchlist.Title, status: 'watchlist' });
+          pivotTitle = matchWatchlist.Title;
+        } else {
+          setLibraryMatch(null);
+        }
+      } else {
+        // For pagination, libraryMatch state is already settled from page 1
+        pivotTitle = libraryMatch?.title ?? null;
+      }
 
-      console.log('🤖 Requesting AI recommendations...');
-      console.log('Exclusions being sent to AI:', {
-        watchedCount: watched.slice(0, 100).length,
-        watchlistCount: watchlist.slice(0, 100).length,
-        dislikedCountries: contentPreferences.disliked_countries,
-        dislikedLanguages: contentPreferences.disliked_languages,
-      });
-      
+      const langName = lang === 'en' ? 'English' : lang === 'ua' ? 'Ukrainian' : lang === 'de' ? 'German' : lang === 'cs' ? 'Czech' : lang === 'pl' ? 'Polish' : lang === 'pt' ? 'Portuguese' : lang === 'hr' ? 'Croatian' : lang === 'es' ? 'Spanish' : lang === 'it' ? 'Italian' : 'English';
+
+      // If user searched for something they already have, pivot to "similar to X"
+      const aiQuery = pivotTitle
+        ? `Find movies and TV series similar to "${pivotTitle}". Do not include "${pivotTitle}" itself. Give diverse, high-quality recommendations.`
+        : q;
+
       const aiRecommendations = await getAIRecommendations({
-        query: `${q}. Respond in ${lang === 'en' ? 'English' : lang === 'ua' ? 'Ukrainian' : lang === 'de' ? 'German' : lang === 'cs' ? 'Czech' : lang === 'pl' ? 'Polish' : lang === 'pt' ? 'Portuguese' : lang === 'hr' ? 'Croatian' : 'Italian'}. IMPORTANT: Use ENGLISH or ORIGINAL movie titles in your JSON response (not translated titles). For example: "Star Trek: Picard" not "Стартрек: Піккард". Give exactly ${pageNum === 1 ? '30' : '20'} unique high-quality diverse recommendations.`,
+        query: aiQuery,
+        language: langName,
+        count: pageNum === 1 ? 30 : 20,
         tasteProfile,
         contentPreferences,
         favourites: favourites.slice(0, 10).map(m => ({ Title: m.Title, Year: m.Year, Genre: m.Genre })),
@@ -269,80 +308,24 @@ export default function SearchPage() {
       });
 
       const movieResults = await Promise.all(movieDataPromises);
-      
-      console.log('Content preferences:', contentPreferences);
-      console.log('Disliked countries:', contentPreferences.disliked_countries);
-      console.log('Disliked languages:', contentPreferences.disliked_languages);
-      console.log(`Fetched ${movieResults.length} movie details`);
-      
-      // Get watchlist and watched movie IDs for filtering
-      const watchlistIds = new Set(watchlist.map(m => m.imdbID));
-      const watchedIds = new Set(watched.map(m => m.imdbID));
-      
-      let blockedCount = { watched: 0, watchlist: 0, country: 0, language: 0, noData: 0 };
-      
-      // Filter out movies from disliked countries and languages CLIENT-SIDE
+
+      // Filter by disliked countries / languages only
       const filteredResults = movieResults.filter(r => {
-        if (!r.movieData) {
-          blockedCount.noData++;
-          return false;
-        }
-        
+        if (!r.movieData) return false;
         const movie = r.movieData;
-        
-        // BLOCK if already in watchlist
-        if (watchlistIds.has(movie.imdbID)) {
-          console.log(`🚫 BLOCKED: ${movie.Title} - Already in watchlist`);
-          blockedCount.watchlist++;
-          return false;
-        }
-        
-        // BLOCK if already watched
-        if (watchedIds.has(movie.imdbID)) {
-          console.log(`🚫 BLOCKED: ${movie.Title} - Already watched`);
-          blockedCount.watched++;
-          return false;
-        }
-        
-        // HARD BLOCK: Check if movie is from a disliked country (complete block)
+
         if (movie.Country && contentPreferences.disliked_countries.length > 0) {
           const movieCountries = movie.Country.toLowerCase();
-          const hasDislikedCountry = contentPreferences.disliked_countries.some(dc => {
-            const dislikedCountry = dc.toLowerCase();
-            const match = movieCountries.includes(dislikedCountry);
-            if (match) {
-              console.log(`🚫 BLOCKED: ${movie.Title} - Country: ${movie.Country} matches disliked: ${dc}`);
-              blockedCount.country++;
-            }
-            return match;
-          });
-          if (hasDislikedCountry) return false;
+          if (contentPreferences.disliked_countries.some(dc => movieCountries.includes(dc.toLowerCase()))) return false;
         }
-        
-        // SOFT BLOCK: Check if movie is ONLY in disliked languages (allow if it has other languages)
+
         if (movie.Language && contentPreferences.disliked_languages.length > 0) {
           const movieLanguages = movie.Language.split(',').map(l => l.trim().toLowerCase());
-          
-          // Check if ALL languages are disliked
-          const allLanguagesDisliked = movieLanguages.every(ml => 
-            contentPreferences.disliked_languages.some(dl => 
-              ml.includes(dl.toLowerCase()) || dl.toLowerCase().includes(ml)
-            )
-          );
-          
-          if (allLanguagesDisliked) {
-            console.log(`🚫 BLOCKED: ${movie.Title} - ALL languages (${movie.Language}) are disliked`);
-            blockedCount.language++;
-            return false;
-          }
+          if (movieLanguages.every(ml => contentPreferences.disliked_languages.some(dl => ml.includes(dl.toLowerCase()) || dl.toLowerCase().includes(ml)))) return false;
         }
-        
-        console.log(`✅ ALLOWED: ${movie.Title} - Country: ${movie.Country}, Language: ${movie.Language}`);
+
         return true;
       });
-      
-      console.log(`📊 Filtering summary:`, blockedCount);
-      console.log(`After filtering: ${filteredResults.length} results from ${movieResults.length} total`);
       
       const newResults: MovieWithReason[] = filteredResults
         .map(r => ({ ...r.movieData!, aiReason: r.reason }));
@@ -423,6 +406,13 @@ export default function SearchPage() {
         if (selectedCountry !== 'all') items = items.filter(m => m.origin_country?.includes(selectedCountry));
       }
 
+      // Sort library items to the top
+      if (libraryIdsRef.current.size > 0) {
+        items = [...items].sort((a, b) =>
+          (libraryIdsRef.current.has(b.imdbID) ? 1 : 0) - (libraryIdsRef.current.has(a.imdbID) ? 1 : 0)
+        );
+      }
+
       setResults(prev => append ? [...prev, ...items] : items);
       setHasMore(data.Search.length >= 20);
     } else {
@@ -441,6 +431,7 @@ export default function SearchPage() {
     if (!query.trim() && !hasActiveFilters) {
       sessionStorage.removeItem(CACHE_KEY);
       setResults([]);
+      setLibraryMatch(null);
       setSearchPending(false);
       setParams({}, { replace: true });
       isInitialMount.current = false;
@@ -767,6 +758,23 @@ export default function SearchPage() {
       </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
+
+      {libraryMatch && useAI && results.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border">
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+            libraryMatch.status === 'watched' ? 'bg-green-500/10' : 'bg-primary/10'
+          }`}>
+            {libraryMatch.status === 'watched'
+              ? <CheckCircle2 size={14} className="text-green-500" />
+              : <BookmarkCheck size={14} className="text-primary" />
+            }
+          </div>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{libraryMatch.title}</span>
+            {' '}{libraryMatch.status === 'watched' ? t('alreadyWatchedBanner') : t('alreadyWatchlistBanner')}
+          </p>
+        </div>
+      )}
 
       {results.length > 0 && (
         <div className="space-y-1.5">

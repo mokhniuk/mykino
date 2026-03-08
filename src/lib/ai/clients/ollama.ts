@@ -23,6 +23,7 @@ export class OllamaClient extends AIClient {
         model: this.model,
         prompt,
         stream: false,
+        format: 'json',
       }),
     });
 

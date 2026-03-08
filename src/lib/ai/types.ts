@@ -10,6 +10,8 @@ export interface AIConfig {
 
 export interface AIRecommendationRequest {
   query: string;
+  language: string;
+  count: number;
   tasteProfile: {
     topGenres: number[];
     topLanguages: string[];

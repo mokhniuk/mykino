@@ -15,6 +15,7 @@ import {
   ShieldCheck, Globe, RefreshCw, BarChart2, Heart, Smartphone, Sparkles,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import Footer from '@/components/Footer';
 import type { Lang } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 import type { ThemePreference } from '@/lib/theme';
@@ -104,7 +105,7 @@ function FloatingPosters({ lang }: { lang: Lang }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Images stored in a ref so the render loop picks up new arrivals each frame
   // without re-triggering the animation effect.
-  const imgsRef   = useRef<(HTMLImageElement | null)[]>([]);
+  const imgsRef   = useRef<({ img: HTMLImageElement; loadedAt: number } | null)[]>([]);
   const [ready, setReady] = useState(false);
 
   // Load pages one-by-one; images start painting in as soon as each page arrives.
@@ -125,7 +126,7 @@ function FloatingPosters({ lang }: { lang: Lang }) {
             const idx = imgsRef.current.length;
             imgsRef.current.push(null);
             const img = new Image();
-            img.onload = () => { imgsRef.current[idx] = img; };
+            img.onload = () => { imgsRef.current[idx] = { img, loadedAt: performance.now() }; };
             img.src = m.Poster;
           }
           if (!isReady && imgsRef.current.length >= 9) {
@@ -177,13 +178,14 @@ function FloatingPosters({ lang }: { lang: Lang }) {
       const focal = Math.min(W, H) * 0.60;
       const imgs  = imgsRef.current;
 
-      type PItem = { img: HTMLImageElement | null; rx: number; ry: number; rz: number };
+      const now   = performance.now();
+      type PItem = { entry: { img: HTMLImageElement; loadedAt: number } | null; rx: number; ry: number; rz: number };
       const items: PItem[] = SPHERE_POSITIONS.map((p, i) => {
         const rx  = p.x * cosA - p.z * sinA;        // Y-axis spin
         const rz0 = p.x * sinA + p.z * cosA;
         const ry  = p.y * cosT - rz0 * sinT;         // X-axis wobble
         const rz  = p.y * sinT + rz0 * cosT;
-        return { img: imgs[i] ?? null, rx, ry, rz };
+        return { entry: imgs[i] ?? null, rx, ry, rz };
       });
 
       // Painter's algorithm: from inside the sphere every poster is on the surface at radius 1.
@@ -191,9 +193,9 @@ function FloatingPosters({ lang }: { lang: Lang }) {
       // so that the central, high-rz posters render on top of any screen-space overlap.
       items.sort((a, b) => a.rz - b.rz);
 
-      items.forEach(({ img, rx, ry, rz }) => {
+      items.forEach(({ entry, rx, ry, rz }) => {
         // Only render the forward hemisphere; rz < 0.15 produces extreme fish-eye distortion.
-        if (!img || rz < 0.15) return;
+        if (!entry || rz < 0.15) return;
 
         // Inside-sphere perspective projection.
         // The viewer is at the origin, the poster sits on the sphere at depth = rz
@@ -206,8 +208,10 @@ function FloatingPosters({ lang }: { lang: Lang }) {
         const sw    = POSTER_W * scale;
         const sh    = POSTER_H * scale;
 
-        // Fade: periphery posters are nearly invisible, dead-ahead posters are most opaque.
-        const alpha = Math.max(0, (rz - 0.15) / 0.85) * 0.50;
+        // Positional fade + per-image load fade (800 ms ramp from transparent).
+        const loadFade = Math.min(1, (now - entry.loadedAt) / 800);
+        const alpha = Math.max(0, (rz - 0.15) / 0.85) * 0.50 * loadFade;
+        const img   = entry.img;
 
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -332,13 +336,13 @@ export default function Landing() {
   const [slotData, setSlotData] = useState<Record<string, MovieData>>({});
 
   useEffect(() => {
+    setSlotData({});
     slotState.slots.forEach(m => {
-      if (slotData[m.imdbID]) return;
       getMovieDetails(m.imdbID, lang).then(data => {
         if (data) setSlotData(prev => ({ ...prev, [m.imdbID]: data }));
       });
     });
-  }, [slotState.slots]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slotState.slots, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTop100Watched = async (movie: MovieData, idx: number) => {
     if (watchedIds.has(movie.imdbID)) return;
@@ -487,16 +491,16 @@ export default function Landing() {
             {t('landingTagline')}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 mx-auto w-fit">
+          <div className="flex flex-col items-center gap-4 mx-auto w-fit">
             <button
               onClick={handleEnterApp}
-              className="px-7 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
+              className="px-8 py-4 rounded-xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity whitespace-nowrap shadow-lg shadow-primary/20"
             >
               {t('landingEnterApp')} →
             </button>
             <button
               onClick={() => setupRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-7 py-3.5 rounded-xl bg-secondary text-foreground font-semibold hover:bg-secondary/70 transition-colors whitespace-nowrap"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
             >
               {t('landingGetStarted')}
             </button>
@@ -943,7 +947,7 @@ export default function Landing() {
           <button
             ref={finalCtaRef}
             onClick={handleEnterApp}
-            className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
           >
             {t('landingEnterApp')} →
           </button>
@@ -952,18 +956,7 @@ export default function Landing() {
       </div>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-border px-6 py-10">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <span>
-            © {new Date().getFullYear() === 2026 ? '2026' : `2026\u2013${new Date().getFullYear()}`}{' '}
-            <span className="text-foreground font-medium">mykino.app</span>
-            <span className="opacity-40 ml-2">v{__APP_VERSION__}</span>
-          </span>
-          <a href="https://mokhniuk.online" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-            {t('landingMadeBy')} {t('authorName')}
-          </a>
-        </div>
-      </footer>
+      <Footer />
 
     </div>
   );

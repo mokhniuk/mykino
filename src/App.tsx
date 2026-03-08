@@ -21,8 +21,13 @@ import AchievementsMilestonesPage from "./pages/AchievementsMilestonesPage";
 import TVShowPage from "./pages/TVShowPage";
 import DirectorPage from "./pages/DirectorPage";
 import NotFound from "./pages/NotFound";
+import Pricing from "./pages/Pricing";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Contact from "./pages/Contact";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -35,8 +40,13 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <ScrollToTop />
               <Routes>
                 <Route path="/" element={<Landing />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/contact" element={<Contact />} />
                 <Route path="/app" element={<Layout />}>
                   <Route index element={<Index />} />
                   <Route path="search" element={<SearchPage />} />

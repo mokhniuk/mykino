@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { useMemo, useEffect, useState } from 'react';
-import { getWatched, type MovieData } from '@/lib/db';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useEffect, useRef, useState } from 'react';
+import { getWatched, enrichWatchedMovie, type MovieData } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import {
@@ -15,22 +15,58 @@ import {
 
 export function useAchievements() {
   const { lang } = useI18n();
+  const queryClient = useQueryClient();
+  const enrichedRef = useRef<Set<string>>(new Set());
   const [dailyPickId, setDailyPickId] = useState<string | null>(null);
   const [dailyPickMovie, setDailyPickMovie] = useState<MovieData | null>(null);
   const [dailyPickLoading, setDailyPickLoading] = useState(true);
 
+  // Shares the same query key as useRecommendations so TanStack deduplicates the fetch.
+  // No hydration here — watched list loads instantly from IDB.
   const { data: watched = [], isLoading } = useQuery<MovieData[]>({
-    queryKey: ['movies', 'watched', 'list', lang],
-    queryFn: async () => {
-      const list = await getWatched();
-      // Hydrate only if basic metadata is missing to avoid unnecessary DB/Network calls
-      return Promise.all(list.map(m => {
-        if (m.Director && m.Genre && m.Country) return m;
-        return getMovieDetails(m.imdbID, lang).then(d => d ?? m);
-      }));
-    },
+    queryKey: ['movies', 'watched', 'list'],
+    queryFn: getWatched,
     staleTime: 60 * 60 * 1000,
   });
+
+  // Background enrichment: fills Director/Genre/Country for movies added without
+  // going through the detail page (e.g. search, landing setup, quick-add).
+  // Batched 5 at a time; writes back to the watched store so next load is instant.
+  // Tracks enriched imdbIDs so newly-added items are processed on the next render.
+  useEffect(() => {
+    if (watched.length === 0) return;
+    const missing = watched.filter(
+      m => (!m.Director || !m.Genre || !m.Country) && !enrichedRef.current.has(m.imdbID)
+    );
+    if (missing.length === 0) return;
+
+    // Mark all as in-flight immediately to prevent duplicate runs
+    missing.forEach(m => enrichedRef.current.add(m.imdbID));
+
+    let cancelled = false;
+    (async () => {
+      let anyEnriched = false;
+      for (let i = 0; i < missing.length; i += 5) {
+        if (cancelled) break;
+        await Promise.allSettled(
+          missing.slice(i, i + 5).map(async m => {
+            try {
+              const full = await getMovieDetails(m.imdbID, 'en');
+              if (full && !cancelled) {
+                await enrichWatchedMovie(full);
+                anyEnriched = true;
+              }
+            } catch { /* non-fatal */ }
+          })
+        );
+      }
+      if (!cancelled && anyEnriched) {
+        queryClient.invalidateQueries({ queryKey: ['movies', 'watched', 'list'] });
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [watched, queryClient]);
 
   const watchedArray = Array.isArray(watched) ? watched : [];
   const unwatchedTop100 = useMemo(() => computeUnwatchedTop100(watchedArray), [watchedArray]);

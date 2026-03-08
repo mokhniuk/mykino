@@ -7,6 +7,25 @@ import { MistralClient } from './clients/mistral';
 import { OllamaClient } from './clients/ollama';
 
 const AI_CONFIG_KEY = 'ai_config';
+const AI_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+
+function buildCacheKey(request: AIRecommendationRequest, config: AIConfig): string {
+  const q = request.query.trim().toLowerCase();
+  const model = config.model ?? config.provider;
+  // Stable fingerprint of inputs that materially affect the output
+  const fingerprint = JSON.stringify({
+    topGenres: request.tasteProfile.topGenres,
+    topLanguages: request.tasteProfile.topLanguages,
+    topCountries: request.tasteProfile.topCountries,
+    topDecades: request.tasteProfile.topDecades,
+    disliked_genres: request.contentPreferences.disliked_genres,
+    disliked_countries: request.contentPreferences.disliked_countries,
+    disliked_languages: request.contentPreferences.disliked_languages,
+  });
+  // btoa keeps the key compact while remaining unique per distinct input set
+  const profileHash = btoa(unescape(encodeURIComponent(fingerprint))).slice(0, 24);
+  return `ai_cache:${config.provider}:${model}:${request.language}:${request.count}:${request.watched.length}:${profileHash}:${q}`;
+}
 
 function envDefaults(): Partial<AIConfig> {
   const e = (window as Record<string, any>).__ENV__;
@@ -56,6 +75,18 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
     throw new Error('AI is not enabled or API key is missing');
   }
 
+  // Check persistent cache before calling the AI
+  const cacheKey = buildCacheKey(request, config);
+  try {
+    const cached = await getSetting(cacheKey);
+    if (cached) {
+      const { results, cachedAt } = JSON.parse(cached);
+      if (Date.now() - cachedAt < AI_CACHE_TTL) {
+        return results as AIRecommendation[];
+      }
+    }
+  } catch { /* ignore cache read errors */ }
+
   let client;
   switch (config.provider) {
     case 'openai':
@@ -77,7 +108,14 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
       throw new Error(`Unsupported AI provider: ${config.provider}`);
   }
 
-  return client.getRecommendations(request);
+  const results = await client.getRecommendations(request);
+
+  // Persist results for 2 hours
+  try {
+    await setSetting(cacheKey, JSON.stringify({ results, cachedAt: Date.now() }));
+  } catch { /* ignore cache write errors */ }
+
+  return results;
 }
 
 export type { AIConfig, AIProvider, AIRecommendation };
