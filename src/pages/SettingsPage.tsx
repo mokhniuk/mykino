@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles } from 'lucide-react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles, Zap } from 'lucide-react';
+import { config } from '@/lib/config';
+import { getAIUsage } from '@/lib/ai';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useI18n, type Lang } from '@/lib/i18n';
@@ -112,6 +114,7 @@ export default function SettingsPage() {
   const [aiConfig, setAiConfigState] = useState<AIConfig | null>(null);
   const [tempAiConfig, setTempAiConfig] = useState<AIConfig | null>(null);
   const [savingAI, setSavingAI] = useState(false);
+  const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number } | null>(null);
   const queryClient = useQueryClient();
   const { genres, countries, languages } = useTmdbMetadata();
   const [pendingImport, setPendingImport] = useState<any>(null);
@@ -119,10 +122,11 @@ export default function SettingsPage() {
   useEffect(() => {
     getContentPreferences().then(setPrefs);
     getDBStats().then(setStats);
-    getAIConfig().then(config => {
-      setAiConfigState(config);
-      setTempAiConfig(config);
+    getAIConfig().then(cfg => {
+      setAiConfigState(cfg);
+      setTempAiConfig(cfg);
     });
+    if (config.hasManagedAI) setAiUsage(getAIUsage());
   }, []);
 
   const updatePrefs = async (newPrefs: ContentPreferences) => {
@@ -445,75 +449,112 @@ export default function SettingsPage() {
               />
             </div>
 
-            {tempAiConfig.enabled && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">{t('aiProvider')}</label>
-                  <Select
-                    value={tempAiConfig.provider}
-                    onValueChange={(provider: AIProvider) => setTempAiConfig({ ...tempAiConfig, provider })}
+            {/* Managed AI mode (production hosted) */}
+            {config.hasManagedAI ? (
+              tempAiConfig.enabled && (
+                <div className="space-y-3">
+                  {aiUsage ? (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{t('aiDailyUsage')}</span>
+                        <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
+                        />
+                      </div>
+                      {aiUsage.remaining === 0 && (
+                        <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Zap size={12} className="text-primary" />
+                      <span>{t('aiManagedMode')}</span>
+                    </div>
+                  )}
+                  <a
+                    href="/pricing"
+                    className="block text-center text-xs text-primary hover:underline"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                      <SelectItem value="gemini">Google Gemini</SelectItem>
-                      <SelectItem value="mistral">Mistral AI</SelectItem>
-                      <SelectItem value="ollama">Ollama (Local)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    {t('aiUpgradeForMore')}
+                  </a>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">{t('aiApiKey')}</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      value={tempAiConfig.apiKey}
-                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, apiKey: e.target.value })}
-                      placeholder={tempAiConfig.provider === 'ollama' ? t('aiOptional') : t('aiApiKeyPlaceholder')}
-                      className="flex-1"
-                    />
-                    <Button 
-                      onClick={saveAIConfig} 
-                      disabled={savingAI || (!tempAiConfig.apiKey && tempAiConfig.provider !== 'ollama')}
-                      size="sm"
-                    >
-                      {savingAI ? <Loader2 className="animate-spin" size={16} /> : t('save')}
-                    </Button>
-                  </div>
-                </div>
-
-                {tempAiConfig.provider === 'ollama' && (
+              )
+            ) : (
+              /* BYO-key mode (community / dev) */
+              tempAiConfig.enabled && (
+                <div className="space-y-3">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiOllamaUrl')}</label>
+                    <label className="text-xs font-medium text-muted-foreground">{t('aiProvider')}</label>
+                    <Select
+                      value={tempAiConfig.provider}
+                      onValueChange={(provider: AIProvider) => setTempAiConfig({ ...tempAiConfig, provider })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                        <SelectItem value="gemini">Google Gemini</SelectItem>
+                        <SelectItem value="mistral">Mistral AI</SelectItem>
+                        <SelectItem value="ollama">Ollama (Local)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">{t('aiApiKey')}</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        value={tempAiConfig.apiKey}
+                        onChange={(e) => setTempAiConfig({ ...tempAiConfig, apiKey: e.target.value })}
+                        placeholder={tempAiConfig.provider === 'ollama' ? t('aiOptional') : t('aiApiKeyPlaceholder')}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={saveAIConfig}
+                        disabled={savingAI || (!tempAiConfig.apiKey && tempAiConfig.provider !== 'ollama')}
+                        size="sm"
+                      >
+                        {savingAI ? <Loader2 className="animate-spin" size={16} /> : t('save')}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {tempAiConfig.provider === 'ollama' && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">{t('aiOllamaUrl')}</label>
+                      <Input
+                        value={tempAiConfig.ollamaUrl || 'http://localhost:11434'}
+                        onChange={(e) => setTempAiConfig({ ...tempAiConfig, ollamaUrl: e.target.value })}
+                        placeholder="http://localhost:11434"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">{t('aiModel')} ({t('aiOptional')})</label>
                     <Input
-                      value={tempAiConfig.ollamaUrl || 'http://localhost:11434'}
-                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, ollamaUrl: e.target.value })}
-                      placeholder="http://localhost:11434"
+                      value={tempAiConfig.model || ''}
+                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, model: e.target.value })}
+                      placeholder={
+                        tempAiConfig.provider === 'openai' ? 'gpt-4o-mini' :
+                        tempAiConfig.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
+                        tempAiConfig.provider === 'gemini' ? 'gemini-1.5-flash' :
+                        tempAiConfig.provider === 'mistral' ? 'mistral-small-latest' :
+                        'llama3.2'
+                      }
                     />
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">{t('aiModel')} ({t('aiOptional')})</label>
-                  <Input
-                    value={tempAiConfig.model || ''}
-                    onChange={(e) => setTempAiConfig({ ...tempAiConfig, model: e.target.value })}
-                    placeholder={
-                      tempAiConfig.provider === 'openai' ? 'gpt-4o-mini' :
-                      tempAiConfig.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
-                      tempAiConfig.provider === 'gemini' ? 'gemini-1.5-flash' :
-                      tempAiConfig.provider === 'mistral' ? 'mistral-small-latest' :
-                      'llama3.2'
-                    }
-                  />
+                  <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
                 </div>
-
-                <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
-              </div>
+              )
             )}
           </section>
         )}

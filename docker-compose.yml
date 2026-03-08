@@ -1,5 +1,10 @@
 version: "3.8"
 
+# MyKino Community Edition
+# ─────────────────────────────────────────────────────────────────
+# Self-hosted, fully functional. Bring your own AI key and/or Supabase.
+# See docs: https://github.com/your-repo/mykino#self-hosting
+
 services:
   mykino:
     image: mykino:latest
@@ -8,11 +13,21 @@ services:
     ports:
       - "3000:80"
     environment:
+      # ── AI (choose one provider, leave the rest commented) ──────
+      # Your key lives on your server only — never sent anywhere else.
+      - AI_PROVIDER=${AI_PROVIDER:-openai}        # openai | anthropic | gemini | mistral | ollama
+      - AI_API_KEY=${AI_API_KEY:-}                # API key for the chosen provider
+      - AI_MODEL=${AI_MODEL:-}                    # Optional: override default model
+      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}  # Only for Ollama
+
+      # ── Sync (optional — bring your own Supabase project) ───────
+      # Create a free project at supabase.com, then paste your keys.
+      # Leave empty to run without sync (data stays local per-device).
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
+
+      # ── TMDB ─────────────────────────────────────────────────────
       - TMDB_API_KEY=${TMDB_API_KEY:-}
-      - AI_PROVIDER=${AI_PROVIDER:-openai}
-      - AI_API_KEY=${AI_API_KEY:-}
-      - AI_MODEL=${AI_MODEL:-}
-      - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
 
 x-casaos:
   architectures:
@@ -27,8 +42,6 @@ x-casaos:
   icon: "https://mykino.app/apple-touch-icon.png"
   port_map: "3000"
   envs:
-    - container: TMDB_API_KEY
-      description: "TMDB API Key — get yours free at themoviedb.org"
     - container: AI_PROVIDER
       description: "AI provider: openai | anthropic | gemini | mistral | ollama"
     - container: AI_API_KEY
@@ -37,3 +50,9 @@ x-casaos:
       description: "Model name (leave blank for provider default)"
     - container: OLLAMA_URL
       description: "Ollama base URL (only if using Ollama)"
+    - container: SUPABASE_URL
+      description: "Supabase project URL (optional, for cross-device sync)"
+    - container: SUPABASE_ANON_KEY
+      description: "Supabase anon key (optional, for cross-device sync)"
+    - container: TMDB_API_KEY
+      description: "TMDB API Key — get yours free at themoviedb.org"

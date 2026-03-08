@@ -14,6 +14,14 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     historyApiFallback: true,
+    // Proxy /api/* to the local AI proxy server when developing with managed AI.
+    // Run: cd server && bun dev
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port: 4173,

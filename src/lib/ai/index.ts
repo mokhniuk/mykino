@@ -1,10 +1,67 @@
 import { getSetting, setSetting } from '../db';
+import { config } from '../config';
 import type { AIConfig, AIProvider, AIRecommendationRequest, AIRecommendation } from './types';
 import { OpenAIClient } from './clients/openai';
 import { AnthropicClient } from './clients/anthropic';
 import { GeminiClient } from './clients/gemini';
 import { MistralClient } from './clients/mistral';
 import { OllamaClient } from './clients/ollama';
+
+// ─── AI usage tracking (for managed proxy mode) ─────────────────────────────
+
+const AI_USAGE_KEY = 'ai_proxy_usage';
+
+interface AIUsageStore {
+  remaining: number;
+  limit: number;
+  date: string;
+}
+
+function storeAIUsage(remaining: number, limit: number) {
+  try {
+    const entry: AIUsageStore = { remaining, limit, date: new Date().toISOString().slice(0, 10) };
+    localStorage.setItem(AI_USAGE_KEY, JSON.stringify(entry));
+  } catch { /* ignore */ }
+}
+
+export function getAIUsage(): { used: number; remaining: number; limit: number } | null {
+  try {
+    const raw = localStorage.getItem(AI_USAGE_KEY);
+    if (!raw) return null;
+    const { remaining, limit, date } = JSON.parse(raw) as AIUsageStore;
+    if (date !== new Date().toISOString().slice(0, 10)) return null;
+    return { used: limit - remaining, remaining, limit };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Proxy path (production managed AI) ─────────────────────────────────────
+
+async function getRecommendationsViaProxy(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
+  const res = await fetch(`${config.aiProxyUrl}/api/ai/recommendations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+
+  // Capture rate limit headers for display in Settings
+  const remaining = parseInt(res.headers.get('X-RateLimit-Remaining') ?? '-1');
+  const limit = parseInt(res.headers.get('X-RateLimit-Limit') ?? '-1');
+  if (remaining >= 0 && limit > 0) storeAIUsage(remaining, limit);
+
+  if (res.status === 429) {
+    const body = await res.json().catch(() => ({}));
+    const resetAt = body.resetAt ? new Date(body.resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'midnight';
+    throw new Error(`Daily recommendation limit reached. Resets at ${resetAt}.`);
+  }
+
+  if (!res.ok) {
+    throw new Error('AI service temporarily unavailable. Please try again.');
+  }
+
+  return res.json();
+}
 
 const AI_CONFIG_KEY = 'ai_config';
 const AI_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
@@ -64,19 +121,45 @@ export async function setAIConfig(config: AIConfig): Promise<void> {
 }
 
 export async function isAIEnabled(): Promise<boolean> {
-  const config = await getAIConfig();
-  return config.enabled && !!config.apiKey;
+  const aiConfig = await getAIConfig();
+  if (config.hasManagedAI) return aiConfig.enabled;
+  return aiConfig.enabled && !!aiConfig.apiKey;
 }
 
 export async function getAIRecommendations(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
-  const config = await getAIConfig();
+  // Managed proxy path — production hosted version
+  if (config.hasManagedAI) {
+    const aiConfig = await getAIConfig();
+    if (!aiConfig.enabled) throw new Error('AI is not enabled');
 
-  if (!config.enabled || !config.apiKey) {
+    // Check persistent cache before calling the proxy
+    const cacheKey = buildCacheKey(request, { provider: 'managed', apiKey: '', enabled: true } as any);
+    try {
+      const cached = await getSetting(cacheKey);
+      if (cached) {
+        const { results, cachedAt } = JSON.parse(cached);
+        if (Date.now() - cachedAt < AI_CACHE_TTL) return results as AIRecommendation[];
+      }
+    } catch { /* ignore */ }
+
+    const results = await getRecommendationsViaProxy(request);
+
+    try {
+      await setSetting(cacheKey, JSON.stringify({ results, cachedAt: Date.now() }));
+    } catch { /* ignore */ }
+
+    return results;
+  }
+
+  // BYO-key path — community / dev
+  const aiConfig = await getAIConfig();
+
+  if (!aiConfig.enabled || !aiConfig.apiKey) {
     throw new Error('AI is not enabled or API key is missing');
   }
 
   // Check persistent cache before calling the AI
-  const cacheKey = buildCacheKey(request, config);
+  const cacheKey = buildCacheKey(request, aiConfig);
   try {
     const cached = await getSetting(cacheKey);
     if (cached) {
@@ -88,24 +171,24 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
   } catch { /* ignore cache read errors */ }
 
   let client;
-  switch (config.provider) {
+  switch (aiConfig.provider) {
     case 'openai':
-      client = new OpenAIClient(config.apiKey, config.model);
+      client = new OpenAIClient(aiConfig.apiKey, aiConfig.model);
       break;
     case 'anthropic':
-      client = new AnthropicClient(config.apiKey, config.model);
+      client = new AnthropicClient(aiConfig.apiKey, aiConfig.model);
       break;
     case 'gemini':
-      client = new GeminiClient(config.apiKey, config.model);
+      client = new GeminiClient(aiConfig.apiKey, aiConfig.model);
       break;
     case 'mistral':
-      client = new MistralClient(config.apiKey, config.model);
+      client = new MistralClient(aiConfig.apiKey, aiConfig.model);
       break;
     case 'ollama':
-      client = new OllamaClient(config.apiKey, config.ollamaUrl, config.model);
+      client = new OllamaClient(aiConfig.apiKey, aiConfig.ollamaUrl, aiConfig.model);
       break;
     default:
-      throw new Error(`Unsupported AI provider: ${config.provider}`);
+      throw new Error(`Unsupported AI provider: ${aiConfig.provider}`);
   }
 
   const results = await client.getRecommendations(request);
