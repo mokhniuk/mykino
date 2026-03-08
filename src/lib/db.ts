@@ -1,5 +1,6 @@
 import { openDB, IDBPDatabase } from 'idb';
 import type { TVSeriesTracking } from './tvTracking';
+import { dispatchSyncEvent } from './sync';
 
 const DB_NAME = 'mykino';
 const DB_VERSION = 5;
@@ -247,12 +248,15 @@ export async function getWatchlist(): Promise<MovieData[]> {
 
 export async function addToWatchlist(movie: MovieData) {
   const db = await getDB();
-  await db.put('watchlist', { ...movie, addedAt: Date.now() });
+  const data = { ...movie, addedAt: Date.now() };
+  await db.put('watchlist', data);
+  dispatchSyncEvent({ store: 'watchlist', action: 'upsert', id: movie.imdbID, data });
 }
 
 export async function removeFromWatchlist(id: string) {
   const db = await getDB();
   await db.delete('watchlist', id);
+  dispatchSyncEvent({ store: 'watchlist', action: 'delete', id });
 }
 
 export async function isInWatchlist(id: string): Promise<boolean> {
@@ -270,11 +274,13 @@ export async function getFavourites(): Promise<MovieData[]> {
 export async function addToFavourites(movie: MovieData) {
   const db = await getDB();
   await db.put('favourites', movie);
+  dispatchSyncEvent({ store: 'favourites', action: 'upsert', id: movie.imdbID, data: movie });
 }
 
 export async function removeFromFavourites(id: string) {
   const db = await getDB();
   await db.delete('favourites', id);
+  dispatchSyncEvent({ store: 'favourites', action: 'delete', id });
 }
 
 export async function isInFavourites(id: string): Promise<boolean> {
@@ -292,12 +298,15 @@ export async function getWatched(): Promise<MovieData[]> {
 
 export async function addToWatched(movie: MovieData) {
   const db = await getDB();
-  await db.put('watched', { ...movie, addedAt: Date.now() });
+  const data = { ...movie, addedAt: Date.now() };
+  await db.put('watched', data);
+  dispatchSyncEvent({ store: 'watched', action: 'upsert', id: movie.imdbID, data });
 }
 
 export async function removeFromWatched(id: string) {
   const db = await getDB();
   await db.delete('watched', id);
+  dispatchSyncEvent({ store: 'watched', action: 'delete', id });
 }
 
 export async function isWatched(id: string): Promise<boolean> {

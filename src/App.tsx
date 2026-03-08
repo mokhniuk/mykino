@@ -28,6 +28,7 @@ import Contact from "./pages/Contact";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <I18nProvider>
+          <AuthProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -67,6 +69,7 @@ const App = () => (
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
+          </AuthProvider>
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>

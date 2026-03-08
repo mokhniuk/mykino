@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { checkRateLimit } from './lib/rateLimit';
 import { getRecommendations, detectProvider } from './lib/providers';
+import { getUserPlan } from './lib/supabaseAdmin';
+import { createCheckoutSession, createPortalSession, handleWebhookEvent } from './lib/stripe';
 import type { AIRecommendationRequest } from './lib/types';
 
 const app = new Hono();
@@ -10,36 +12,54 @@ const PORT = Number(process.env.PORT || 3001);
 const COMMUNITY_MODE = process.env.COMMUNITY_MODE === 'true';
 const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+const STRIPE_ENABLED = !!(process.env.STRIPE_SECRET_KEY && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 app.use('*', cors({ origin: ALLOWED_ORIGIN }));
 
-/** Health check — also validates that a provider is configured. */
+// ─── Health ───────────────────────────────────────────────────────────────────
+
 app.get('/health', (c) => {
   try {
     const provider = detectProvider();
-    return c.json({ ok: true, provider, communityMode: COMMUNITY_MODE });
+    return c.json({ ok: true, provider, communityMode: COMMUNITY_MODE, stripe: STRIPE_ENABLED });
   } catch (e: any) {
     return c.json({ ok: false, error: e.message }, 503);
   }
 });
 
-/** AI recommendations proxy. */
+// ─── AI recommendations ───────────────────────────────────────────────────────
+
 app.post('/api/ai/recommendations', async (c) => {
-  // Rate limiting — skip entirely in community mode (user owns the server)
   const ip = c.req.header('x-forwarded-for')?.split(',')[0].trim()
     || c.req.header('x-real-ip')
     || 'unknown';
 
-  const limit = COMMUNITY_MODE ? Infinity : FREE_DAILY_LIMIT;
+  // Determine limit: community → unlimited, pro user → unlimited, free user → capped
+  let limit: number;
+  if (COMMUNITY_MODE) {
+    limit = Infinity;
+  } else if (STRIPE_ENABLED) {
+    const authHeader = c.req.header('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const { plan } = await getUserPlan(authHeader.slice(7));
+        limit = plan === 'pro' ? Infinity : FREE_DAILY_LIMIT;
+      } catch {
+        limit = FREE_DAILY_LIMIT;
+      }
+    } else {
+      limit = FREE_DAILY_LIMIT;
+    }
+  } else {
+    limit = FREE_DAILY_LIMIT;
+  }
+
   const { allowed, remaining, limit: effectiveLimit } = checkRateLimit(ip, limit);
 
   if (!allowed) {
     const tomorrow = new Date();
     tomorrow.setUTCHours(24, 0, 0, 0);
-    return c.json(
-      { error: 'Daily recommendation limit reached', resetAt: tomorrow.toISOString() },
-      429,
-    );
+    return c.json({ error: 'Daily recommendation limit reached', resetAt: tomorrow.toISOString() }, 429);
   }
 
   let body: AIRecommendationRequest;
@@ -49,7 +69,6 @@ app.post('/api/ai/recommendations', async (c) => {
     return c.json({ error: 'Invalid JSON body' }, 400);
   }
 
-  // Basic validation
   if (!body.query || typeof body.query !== 'string') {
     return c.json({ error: 'Missing required field: query' }, 400);
   }
@@ -62,13 +81,91 @@ app.post('/api/ai/recommendations', async (c) => {
     });
   } catch (e: any) {
     console.error('[AI proxy] Error:', e.message);
-    // Don't expose internal error details to clients
     return c.json({ error: 'AI provider error. Please try again.' }, 502);
   }
 });
 
+// ─── Stripe (only if configured) ─────────────────────────────────────────────
+
+/** Stripe webhook — must read raw body before parsing. */
+app.post('/api/stripe/webhook', async (c) => {
+  const sig = c.req.header('stripe-signature');
+  if (!sig) return c.json({ error: 'Missing stripe-signature header' }, 400);
+
+  const rawBody = await c.req.text();
+
+  try {
+    await handleWebhookEvent(rawBody, sig);
+    return c.json({ received: true });
+  } catch (e: any) {
+    console.error('[Stripe webhook]', e.message);
+    return c.json({ error: e.message }, 400);
+  }
+});
+
+/** Create a Stripe Checkout session (requires auth). */
+app.post('/api/stripe/checkout', async (c) => {
+  if (!STRIPE_ENABLED) return c.json({ error: 'Stripe not configured' }, 503);
+
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401);
+
+  let userId: string, email: string;
+  try {
+    const info = await getUserPlan(authHeader.slice(7));
+    userId = info.userId;
+    email = info.email;
+    if (!userId) return c.json({ error: 'Invalid token' }, 401);
+  } catch {
+    return c.json({ error: 'Invalid token' }, 401);
+  }
+
+  const { priceId, successUrl, cancelUrl } = await c.req.json();
+  if (!priceId || !successUrl || !cancelUrl) {
+    return c.json({ error: 'Missing required fields: priceId, successUrl, cancelUrl' }, 400);
+  }
+
+  try {
+    const url = await createCheckoutSession({ userId, email, priceId, successUrl, cancelUrl });
+    return c.json({ url });
+  } catch (e: any) {
+    console.error('[Stripe checkout]', e.message);
+    return c.json({ error: 'Failed to create checkout session' }, 502);
+  }
+});
+
+/** Create a Stripe Customer Portal session (for managing billing). */
+app.post('/api/stripe/portal', async (c) => {
+  if (!STRIPE_ENABLED) return c.json({ error: 'Stripe not configured' }, 503);
+
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401);
+
+  let userId: string;
+  try {
+    const info = await getUserPlan(authHeader.slice(7));
+    userId = info.userId;
+    if (!userId) return c.json({ error: 'Invalid token' }, 401);
+  } catch {
+    return c.json({ error: 'Invalid token' }, 401);
+  }
+
+  const { returnUrl } = await c.req.json();
+
+  try {
+    const url = await createPortalSession({ userId, returnUrl });
+    return c.json({ url });
+  } catch (e: any) {
+    console.error('[Stripe portal]', e.message);
+    return c.json({ error: 'Failed to create portal session' }, 502);
+  }
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+
 console.log(`🎬 MyKino AI proxy starting on port ${PORT}`);
 console.log(`   Community mode: ${COMMUNITY_MODE}`);
+console.log(`   Stripe: ${STRIPE_ENABLED ? 'enabled' : 'disabled'}`);
 if (!COMMUNITY_MODE) console.log(`   Free daily limit: ${FREE_DAILY_LIMIT}`);
 
 try {
@@ -78,7 +175,4 @@ try {
   process.exit(1);
 }
 
-export default {
-  port: PORT,
-  fetch: app.fetch,
-};
+export default { port: PORT, fetch: app.fetch };

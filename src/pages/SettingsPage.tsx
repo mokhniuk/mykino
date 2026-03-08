@@ -1,7 +1,11 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles, Zap } from 'lucide-react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles, Zap, Cloud, CloudOff, CheckCircle2 } from 'lucide-react';
 import { config } from '@/lib/config';
 import { getAIUsage } from '@/lib/ai';
+import { useAuth } from '@/contexts/AuthContext';
+import { signInWithEmail, signOut, getSupabase } from '@/lib/supabase';
+import { getLastSyncTime } from '@/lib/sync';
+import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useI18n, type Lang } from '@/lib/i18n';
@@ -115,6 +119,16 @@ export default function SettingsPage() {
   const [tempAiConfig, setTempAiConfig] = useState<AIConfig | null>(null);
   const [savingAI, setSavingAI] = useState(false);
   const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number } | null>(null);
+  const { user, syncing, triggerSync } = useAuth();
+  const { isPro, refetch: refetchProfile } = useProfile();
+  const [syncEmail, setSyncEmail] = useState('');
+  const [sendingLink, setSendingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+  const [lastSynced, setLastSynced] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (config.hasSync) setLastSynced(getLastSyncTime());
+  }, [syncing]);
   const queryClient = useQueryClient();
   const { genres, countries, languages } = useTmdbMetadata();
   const [pendingImport, setPendingImport] = useState<any>(null);
@@ -186,6 +200,99 @@ export default function SettingsPage() {
         setSavingAI(false);
       }
     }
+  };
+
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    if (checkout === 'success') {
+      toast.success(t('checkoutSuccess'));
+      refetchProfile();
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (checkout === 'cancelled') {
+      toast.info(t('checkoutCancelled'));
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const handleUpgrade = async (annual: boolean) => {
+    const sb = getSupabase();
+    if (!sb) return;
+    const priceId = annual
+      ? (import.meta.env.VITE_STRIPE_PRICE_ANNUAL || '')
+      : (import.meta.env.VITE_STRIPE_PRICE_MONTHLY || '');
+    if (!priceId) { toast.error('Stripe not configured'); return; }
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          priceId,
+          successUrl: `${window.location.origin}/app/settings?checkout=success`,
+          cancelUrl:  `${window.location.origin}/app/settings?checkout=cancelled`,
+        }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch {
+      toast.error('Failed to start checkout. Please try again.');
+    }
+  };
+
+  const handleManagePlan = async () => {
+    const sb = getSupabase();
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/portal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ returnUrl: `${window.location.origin}/app/settings` }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch {
+      toast.error('Failed to open billing portal.');
+    }
+  };
+
+  const handleSendLink = async () => {
+    if (!syncEmail.trim()) return;
+    setSendingLink(true);
+    try {
+      await signInWithEmail(syncEmail.trim());
+      setLinkSent(true);
+    } catch {
+      toast.error('Failed to send sign-in link. Check your email address.');
+    } finally {
+      setSendingLink(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out');
+  };
+
+  const formatLastSynced = (ts: number | null): string => {
+    if (!ts) return '';
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return t('syncJustNow');
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
   };
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -453,7 +560,7 @@ export default function SettingsPage() {
             {config.hasManagedAI ? (
               tempAiConfig.enabled && (
                 <div className="space-y-3">
-                  {aiUsage ? (
+                  {aiUsage && !isPro ? (
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>{t('aiDailyUsage')}</span>
@@ -469,18 +576,22 @@ export default function SettingsPage() {
                         <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
                       )}
                     </div>
+                  ) : isPro ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Sparkles size={12} className="text-primary" />
+                      <span>{t('aiManagedMode')} · {t('planPro')}</span>
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Zap size={12} className="text-primary" />
                       <span>{t('aiManagedMode')}</span>
                     </div>
                   )}
-                  <a
-                    href="/pricing"
-                    className="block text-center text-xs text-primary hover:underline"
-                  >
-                    {t('aiUpgradeForMore')}
-                  </a>
+                  {!isPro && (
+                    <a href="/pricing" className="block text-center text-xs text-primary hover:underline">
+                      {t('aiUpgradeForMore')}
+                    </a>
+                  )}
                 </div>
               )
             ) : (
@@ -555,6 +666,87 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
                 </div>
               )
+            )}
+          </section>
+        )}
+
+        {/* Sync — full width, only when Supabase is configured */}
+        {config.hasSync && (
+          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+            <div className="flex items-center gap-2 text-foreground">
+              <Cloud size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold">{t('syncSection')}</h2>
+            </div>
+
+            {user ? (
+              /* Logged in state */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 size={15} className="text-green-500 shrink-0" />
+                    <span className="text-muted-foreground">
+                      {t('syncSignedInAs')} <span className="text-foreground font-medium">{user.email}</span>
+                    </span>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isPro ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+                    {isPro ? t('planPro') : t('planFree')}
+                  </span>
+                </div>
+                {lastSynced && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
+                  </p>
+                )}
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing} className="flex items-center gap-1.5">
+                    {syncing
+                      ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
+                      : <><RefreshCw size={13} />{t('syncNow')}</>
+                    }
+                  </Button>
+                  {isPro ? (
+                    <Button size="sm" variant="outline" onClick={handleManagePlan}>
+                      {t('managePlan')}
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={() => handleUpgrade(false)} className="gap-1.5">
+                      <Sparkles size={13} />
+                      {t('upgradeToPro')}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground ml-auto">
+                    {t('syncSignOut')}
+                  </Button>
+                </div>
+              </div>
+            ) : linkSent ? (
+              /* Magic link sent state */
+              <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+                <CheckCircle2 size={14} className="text-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground leading-relaxed">{t('syncEmailSent')}</p>
+              </div>
+            ) : (
+              /* Logged out state */
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">{t('syncDescription')}</p>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={syncEmail}
+                    onChange={e => setSyncEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendLink()}
+                    placeholder={t('syncEmailPlaceholder')}
+                    className="flex-1 h-9 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSendLink}
+                    disabled={sendingLink || !syncEmail.trim()}
+                  >
+                    {sendingLink ? <Loader2 size={13} className="animate-spin" /> : t('syncSendLink')}
+                  </Button>
+                </div>
+              </div>
             )}
           </section>
         )}

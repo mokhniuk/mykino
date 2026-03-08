@@ -1,5 +1,6 @@
 import { getSetting, setSetting } from '../db';
 import { config } from '../config';
+import { getSupabase } from '../supabase';
 import type { AIConfig, AIProvider, AIRecommendationRequest, AIRecommendation } from './types';
 import { OpenAIClient } from './clients/openai';
 import { AnthropicClient } from './clients/anthropic';
@@ -39,9 +40,16 @@ export function getAIUsage(): { used: number; remaining: number; limit: number }
 // ─── Proxy path (production managed AI) ─────────────────────────────────────
 
 async function getRecommendationsViaProxy(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
+  // Send the Supabase session token so the server can identify Pro users and skip rate limiting
+  const sb = getSupabase();
+  const token = sb ? (await sb.auth.getSession()).data.session?.access_token : undefined;
+
   const res = await fetch(`${config.aiProxyUrl}/api/ai/recommendations`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(request),
   });
 

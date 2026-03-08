@@ -1,4 +1,5 @@
 import { getDB } from './db';
+import { dispatchSyncEvent } from './sync';
 
 export interface TVSeriesTracking {
   tvId: string; // "tv-{tmdb_id}"
@@ -37,11 +38,13 @@ export async function getAllTVTracking(): Promise<TVSeriesTracking[]> {
 export async function saveTVTracking(tracking: TVSeriesTracking): Promise<void> {
   const db = await getDB();
   await db.put('tv_tracking', tracking);
+  dispatchSyncEvent({ store: 'tv_tracking', action: 'upsert', id: tracking.tvId, data: tracking });
 }
 
 export async function deleteTVTracking(tvId: string): Promise<void> {
   const db = await getDB();
   await db.delete('tv_tracking', tvId);
+  dispatchSyncEvent({ store: 'tv_tracking', action: 'delete', id: tvId });
 }
 
 export function computeProgress(
