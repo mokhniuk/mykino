@@ -442,6 +442,10 @@ export async function saveMetadata(key: string, value: any) {
   await db.put('metadata', { key, value, lastUpdated: Date.now() });
 }
 
-// Repair corrupted watched table - REMOVED
-// This function was too aggressive and could delete data
-// Manual database deletion is safer
+/** Merges enriched metadata into an existing watched entry, preserving addedAt. */
+export async function enrichWatchedMovie(enriched: MovieData) {
+  const db = await getDB();
+  const existing = await db.get('watched', enriched.imdbID);
+  if (!existing) return;
+  await db.put('watched', { ...existing, ...enriched, addedAt: existing.addedAt });
+}

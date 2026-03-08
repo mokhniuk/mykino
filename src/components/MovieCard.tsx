@@ -1,3 +1,4 @@
+import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookmarkPlus, BookmarkCheck, Heart, CheckCircle2 } from 'lucide-react';
 import type { MovieData } from '@/lib/db';
@@ -16,7 +17,7 @@ interface MovieCardProps {
   progress?: { watched: number; total: number };
 }
 
-export default function MovieCard({
+function MovieCard({
   movie,
   inWatchlist,
   inFavourites,
@@ -30,6 +31,7 @@ export default function MovieCard({
 }: MovieCardProps) {
   const { t } = useI18n();
   const poster = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const sizeClasses = {
     sm: 'w-28',
@@ -40,15 +42,19 @@ export default function MovieCard({
   const widthClass = fluid ? 'w-full' : sizeClasses[size];
 
   return (
-    <div className={`${widthClass} flex-shrink-0 group animate-fade-in`}>
+    <div
+      className={`${widthClass} flex-shrink-0 group animate-fade-in`}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 280px' }}
+    >
       <Link to={movie.Type === 'series' ? `/app/tv/${movie.imdbID}` : `/app/movie/${movie.imdbID}`} className="block">
         <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-secondary mb-2">
           {poster ? (
             <img
               src={poster}
               alt={movie.Title}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className={`w-full h-full object-cover transition-[opacity,transform] duration-300 group-hover:scale-105 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading="lazy"
+              onLoad={() => setImgLoaded(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs p-2 text-center">
@@ -129,3 +135,5 @@ export default function MovieCard({
     </div>
   );
 }
+
+export default memo(MovieCard);

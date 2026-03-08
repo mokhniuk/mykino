@@ -104,7 +104,7 @@ function FloatingPosters({ lang }: { lang: Lang }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Images stored in a ref so the render loop picks up new arrivals each frame
   // without re-triggering the animation effect.
-  const imgsRef   = useRef<(HTMLImageElement | null)[]>([]);
+  const imgsRef   = useRef<({ img: HTMLImageElement; loadedAt: number } | null)[]>([]);
   const [ready, setReady] = useState(false);
 
   // Load pages one-by-one; images start painting in as soon as each page arrives.
@@ -125,7 +125,7 @@ function FloatingPosters({ lang }: { lang: Lang }) {
             const idx = imgsRef.current.length;
             imgsRef.current.push(null);
             const img = new Image();
-            img.onload = () => { imgsRef.current[idx] = img; };
+            img.onload = () => { imgsRef.current[idx] = { img, loadedAt: performance.now() }; };
             img.src = m.Poster;
           }
           if (!isReady && imgsRef.current.length >= 9) {
@@ -177,13 +177,14 @@ function FloatingPosters({ lang }: { lang: Lang }) {
       const focal = Math.min(W, H) * 0.60;
       const imgs  = imgsRef.current;
 
-      type PItem = { img: HTMLImageElement | null; rx: number; ry: number; rz: number };
+      const now   = performance.now();
+      type PItem = { entry: { img: HTMLImageElement; loadedAt: number } | null; rx: number; ry: number; rz: number };
       const items: PItem[] = SPHERE_POSITIONS.map((p, i) => {
         const rx  = p.x * cosA - p.z * sinA;        // Y-axis spin
         const rz0 = p.x * sinA + p.z * cosA;
         const ry  = p.y * cosT - rz0 * sinT;         // X-axis wobble
         const rz  = p.y * sinT + rz0 * cosT;
-        return { img: imgs[i] ?? null, rx, ry, rz };
+        return { entry: imgs[i] ?? null, rx, ry, rz };
       });
 
       // Painter's algorithm: from inside the sphere every poster is on the surface at radius 1.
@@ -191,9 +192,9 @@ function FloatingPosters({ lang }: { lang: Lang }) {
       // so that the central, high-rz posters render on top of any screen-space overlap.
       items.sort((a, b) => a.rz - b.rz);
 
-      items.forEach(({ img, rx, ry, rz }) => {
+      items.forEach(({ entry, rx, ry, rz }) => {
         // Only render the forward hemisphere; rz < 0.15 produces extreme fish-eye distortion.
-        if (!img || rz < 0.15) return;
+        if (!entry || rz < 0.15) return;
 
         // Inside-sphere perspective projection.
         // The viewer is at the origin, the poster sits on the sphere at depth = rz
@@ -206,8 +207,10 @@ function FloatingPosters({ lang }: { lang: Lang }) {
         const sw    = POSTER_W * scale;
         const sh    = POSTER_H * scale;
 
-        // Fade: periphery posters are nearly invisible, dead-ahead posters are most opaque.
-        const alpha = Math.max(0, (rz - 0.15) / 0.85) * 0.50;
+        // Positional fade + per-image load fade (800 ms ramp from transparent).
+        const loadFade = Math.min(1, (now - entry.loadedAt) / 800);
+        const alpha = Math.max(0, (rz - 0.15) / 0.85) * 0.50 * loadFade;
+        const img   = entry.img;
 
         ctx.save();
         ctx.globalAlpha = alpha;
