@@ -38,6 +38,7 @@ interface CategoryPickerProps {
 }
 
 function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDisliked, onRemove, includeLabel, excludeLabel }: CategoryPickerProps) {
+  const metadataLoading = items.length === 0;
   const selectedIds = new Set([...liked, ...disliked]);
   const available = items.filter(i => !selectedIds.has(i.id));
   const getLabel = (id: string) => items.find(i => i.id === id)?.label ?? id;
@@ -45,29 +46,9 @@ function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDislik
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
-      {(liked.length > 0 || disliked.length > 0) && (
-        <div className="flex flex-wrap gap-1.5">
-          {liked.map(id => (
-            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30">
-              {getLabel(id)}
-              <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
-                <X size={10} />
-              </button>
-            </span>
-          ))}
-          {disliked.map(id => (
-            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
-              {getLabel(id)}
-              <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
-                <X size={10} />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {available.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          <Select value="" onValueChange={onAddLiked}>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5">
+          <Select value="" onValueChange={onAddLiked} disabled={metadataLoading || available.length === 0}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder={`+ ${includeLabel}`} />
             </SelectTrigger>
@@ -75,7 +56,24 @@ function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDislik
               {available.map(i => <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value="" onValueChange={onAddDisliked}>
+          {liked.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {metadataLoading
+                ? liked.map(id => <span key={id} className="h-5 w-14 rounded-full bg-muted animate-pulse inline-block" />)
+                : liked.map(id => (
+                    <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30">
+                      {getLabel(id)}
+                      <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))
+              }
+            </div>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Select value="" onValueChange={onAddDisliked} disabled={metadataLoading || available.length === 0}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder={`✕ ${excludeLabel}`} />
             </SelectTrigger>
@@ -83,8 +81,23 @@ function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDislik
               {available.map(i => <SelectItem key={i.id} value={i.id}>{i.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          {disliked.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {metadataLoading
+                ? disliked.map(id => <span key={id} className="h-5 w-14 rounded-full bg-muted animate-pulse inline-block" />)
+                : disliked.map(id => (
+                    <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
+                      {getLabel(id)}
+                      <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))
+              }
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -325,83 +338,97 @@ export default function SettingsPage() {
         </section>
 
         {/* Content Settings — full width */}
-        {prefs && (
-          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
-            <div className="flex items-center gap-2 text-foreground">
-              <SlidersHorizontal size={16} className="text-primary" />
-              <h2 className="text-sm font-semibold">{t('contentSettings')}</h2>
+        <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+          <div className="flex items-center gap-2 text-foreground">
+            <SlidersHorizontal size={16} className="text-primary" />
+            <h2 className="text-sm font-semibold">{t('contentSettings')}</h2>
+          </div>
+          {prefs ? (
+            <>
+              <CategoryPicker
+                label={t('genres')}
+                items={genres.map(g => ({ ...g, id: String(g.id) }))}
+                liked={prefs.liked_genres.map(String)}
+                disliked={prefs.disliked_genres.map(String)}
+                onAddLiked={id => updatePrefs({
+                  ...prefs,
+                  liked_genres: [...prefs.liked_genres.filter(g => g !== Number(id)), Number(id)],
+                  disliked_genres: prefs.disliked_genres.filter(g => g !== Number(id)),
+                })}
+                onAddDisliked={id => updatePrefs({
+                  ...prefs,
+                  disliked_genres: [...prefs.disliked_genres.filter(g => g !== Number(id)), Number(id)],
+                  liked_genres: prefs.liked_genres.filter(g => g !== Number(id)),
+                })}
+                onRemove={id => updatePrefs({
+                  ...prefs,
+                  liked_genres: prefs.liked_genres.filter(g => g !== Number(id)),
+                  disliked_genres: prefs.disliked_genres.filter(g => g !== Number(id)),
+                })}
+                includeLabel={t('include')}
+                excludeLabel={t('exclude')}
+              />
+              <CategoryPicker
+                label={t('countries')}
+                items={countries}
+                liked={prefs.liked_countries}
+                disliked={prefs.disliked_countries}
+                onAddLiked={id => updatePrefs({
+                  ...prefs,
+                  liked_countries: [...prefs.liked_countries.filter(c => c !== id), id],
+                  disliked_countries: prefs.disliked_countries.filter(c => c !== id),
+                })}
+                onAddDisliked={id => updatePrefs({
+                  ...prefs,
+                  disliked_countries: [...prefs.disliked_countries.filter(c => c !== id), id],
+                  liked_countries: prefs.liked_countries.filter(c => c !== id),
+                })}
+                onRemove={id => updatePrefs({
+                  ...prefs,
+                  liked_countries: prefs.liked_countries.filter(c => c !== id),
+                  disliked_countries: prefs.disliked_countries.filter(c => c !== id),
+                })}
+                includeLabel={t('include')}
+                excludeLabel={t('exclude')}
+              />
+              <CategoryPicker
+                label={t('languages')}
+                items={languages}
+                liked={prefs.liked_languages}
+                disliked={prefs.disliked_languages}
+                onAddLiked={id => updatePrefs({
+                  ...prefs,
+                  liked_languages: [...prefs.liked_languages.filter(l => l !== id), id],
+                  disliked_languages: prefs.disliked_languages.filter(l => l !== id),
+                })}
+                onAddDisliked={id => updatePrefs({
+                  ...prefs,
+                  disliked_languages: [...prefs.disliked_languages.filter(l => l !== id), id],
+                  liked_languages: prefs.liked_languages.filter(l => l !== id),
+                })}
+                onRemove={id => updatePrefs({
+                  ...prefs,
+                  liked_languages: prefs.liked_languages.filter(l => l !== id),
+                  disliked_languages: prefs.disliked_languages.filter(l => l !== id),
+                })}
+                includeLabel={t('include')}
+                excludeLabel={t('exclude')}
+              />
+            </>
+          ) : (
+            <div className="space-y-4">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="h-8 bg-muted rounded-md animate-pulse" />
+                    <div className="h-8 bg-muted rounded-md animate-pulse" />
+                  </div>
+                </div>
+              ))}
             </div>
-            <CategoryPicker
-              label={t('genres')}
-              items={genres.map(g => ({ ...g, id: String(g.id) }))}
-              liked={prefs.liked_genres.map(String)}
-              disliked={prefs.disliked_genres.map(String)}
-              onAddLiked={id => updatePrefs({
-                ...prefs,
-                liked_genres: [...prefs.liked_genres.filter(g => g !== Number(id)), Number(id)],
-                disliked_genres: prefs.disliked_genres.filter(g => g !== Number(id)),
-              })}
-              onAddDisliked={id => updatePrefs({
-                ...prefs,
-                disliked_genres: [...prefs.disliked_genres.filter(g => g !== Number(id)), Number(id)],
-                liked_genres: prefs.liked_genres.filter(g => g !== Number(id)),
-              })}
-              onRemove={id => updatePrefs({
-                ...prefs,
-                liked_genres: prefs.liked_genres.filter(g => g !== Number(id)),
-                disliked_genres: prefs.disliked_genres.filter(g => g !== Number(id)),
-              })}
-              includeLabel={t('include')}
-              excludeLabel={t('exclude')}
-            />
-            <CategoryPicker
-              label={t('countries')}
-              items={countries}
-              liked={prefs.liked_countries}
-              disliked={prefs.disliked_countries}
-              onAddLiked={id => updatePrefs({
-                ...prefs,
-                liked_countries: [...prefs.liked_countries.filter(c => c !== id), id],
-                disliked_countries: prefs.disliked_countries.filter(c => c !== id),
-              })}
-              onAddDisliked={id => updatePrefs({
-                ...prefs,
-                disliked_countries: [...prefs.disliked_countries.filter(c => c !== id), id],
-                liked_countries: prefs.liked_countries.filter(c => c !== id),
-              })}
-              onRemove={id => updatePrefs({
-                ...prefs,
-                liked_countries: prefs.liked_countries.filter(c => c !== id),
-                disliked_countries: prefs.disliked_countries.filter(c => c !== id),
-              })}
-              includeLabel={t('include')}
-              excludeLabel={t('exclude')}
-            />
-            <CategoryPicker
-              label={t('languages')}
-              items={languages}
-              liked={prefs.liked_languages}
-              disliked={prefs.disliked_languages}
-              onAddLiked={id => updatePrefs({
-                ...prefs,
-                liked_languages: [...prefs.liked_languages.filter(l => l !== id), id],
-                disliked_languages: prefs.disliked_languages.filter(l => l !== id),
-              })}
-              onAddDisliked={id => updatePrefs({
-                ...prefs,
-                disliked_languages: [...prefs.disliked_languages.filter(l => l !== id), id],
-                liked_languages: prefs.liked_languages.filter(l => l !== id),
-              })}
-              onRemove={id => updatePrefs({
-                ...prefs,
-                liked_languages: prefs.liked_languages.filter(l => l !== id),
-                disliked_languages: prefs.disliked_languages.filter(l => l !== id),
-              })}
-              includeLabel={t('include')}
-              excludeLabel={t('exclude')}
-            />
-          </section>
-        )}
+          )}
+        </section>
 
         {/* AI Settings — full width */}
         {tempAiConfig && (
