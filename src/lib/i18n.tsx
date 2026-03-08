@@ -439,6 +439,8 @@ const translations = {
     contactGithubDesc: 'Open an issue on GitHub',
     contactResponseTitle: 'Response time:',
     contactResponseText: 'Usually within a few days. For billing or Pro subscription issues, email is the fastest path.',
+    alreadyWatchedBanner: 'is already in your watched list — here are similar picks:',
+    alreadyWatchlistBanner: 'is in your watchlist — here are similar picks:',
   },
   ua: {
     goodMorning: 'Доброго ранку',
@@ -868,6 +870,8 @@ const translations = {
     contactGithubDesc: 'Відкрийте issue на GitHub',
     contactResponseTitle: 'Час відповіді:',
     contactResponseText: 'Зазвичай протягом кількох днів. З питань оплати або Pro-підписки електронна пошта — найшвидший шлях.',
+    alreadyWatchedBanner: 'вже у вашому списку переглянутих — ось схожі фільми:',
+    alreadyWatchlistBanner: 'є у вашому списку для перегляду — ось схожі фільми:',
   },
   de: {
     goodMorning: 'Guten Morgen',
@@ -1297,6 +1301,8 @@ const translations = {
     contactGithubDesc: 'Issue auf GitHub öffnen',
     contactResponseTitle: 'Antwortzeit:',
     contactResponseText: 'Normalerweise innerhalb weniger Tage. Bei Abrechnungs- oder Pro-Abonnement-Fragen ist E-Mail der schnellste Weg.',
+    alreadyWatchedBanner: 'ist bereits in deiner Gesehen-Liste — hier sind ähnliche Picks:',
+    alreadyWatchlistBanner: 'ist auf deiner Watchlist — hier sind ähnliche Picks:',
   },
   cs: {
     goodMorning: 'Dobré ráno',
@@ -1724,6 +1730,8 @@ const translations = {
     contactGithubDesc: 'Otevřete issue na GitHubu',
     contactResponseTitle: 'Doba odezvy:',
     contactResponseText: 'Obvykle do několika dní. Pro otázky ohledně fakturace nebo Pro předplatného je e-mail nejrychlejší cesta.',
+    alreadyWatchedBanner: 'je již ve vašem seznamu shlédnutých — zde jsou podobné tipy:',
+    alreadyWatchlistBanner: 'je ve vašem seznamu ke zhlédnutí — zde jsou podobné tipy:',
   },
   pl: {
     goodMorning: 'Dzień dobry',
@@ -2150,6 +2158,8 @@ const translations = {
     contactGithubDesc: 'Otwórz zgłoszenie na GitHubie',
     contactResponseTitle: 'Czas odpowiedzi:',
     contactResponseText: 'Zwykle w ciągu kilku dni. W przypadku pytań dotyczących rozliczeń lub subskrypcji Pro, e-mail jest najszybszą drogą.',
+    alreadyWatchedBanner: 'jest już na twojej liście obejrzanych — oto podobne propozycje:',
+    alreadyWatchlistBanner: 'jest na twojej liście do obejrzenia — oto podobne propozycje:',
   },
   pt: {
     goodMorning: 'Bom dia',
@@ -2576,6 +2586,8 @@ const translations = {
     contactGithubDesc: 'Abra uma issue no GitHub',
     contactResponseTitle: 'Tempo de resposta:',
     contactResponseText: 'Geralmente dentro de alguns dias. Para questões de cobrança ou assinatura Pro, o e-mail é o caminho mais rápido.',
+    alreadyWatchedBanner: 'já está na sua lista de assistidos — aqui estão escolhas similares:',
+    alreadyWatchlistBanner: 'está na sua lista de filmes a ver — aqui estão escolhas similares:',
   },
   hr: {
     goodMorning: 'Dobro jutro',
@@ -3002,6 +3014,8 @@ const translations = {
     contactGithubDesc: 'Otvorite issue na GitHubu',
     contactResponseTitle: 'Vrijeme odgovora:',
     contactResponseText: 'Obično unutar nekoliko dana. Za pitanja o naplati ili Pro pretplati, e-pošta je najbrži put.',
+    alreadyWatchedBanner: 'već je na vašoj listi pogledanih — evo sličnih preporuka:',
+    alreadyWatchlistBanner: 'je na vašoj listi za gledanje — evo sličnih preporuka:',
   },
   it: {
     goodMorning: 'Buongiorno',
@@ -3428,6 +3442,8 @@ const translations = {
     contactGithubDesc: 'Apri una issue su GitHub',
     contactResponseTitle: 'Tempo di risposta:',
     contactResponseText: 'Di solito entro pochi giorni. Per problemi di fatturazione o abbonamento Pro, l\'e-mail è il percorso più veloce.',
+    alreadyWatchedBanner: 'è già nella tua lista dei visti — ecco scelte simili:',
+    alreadyWatchlistBanner: 'è nella tua lista dei da vedere — ecco scelte simili:',
   },
   es: {
     goodMorning: 'Buenos días',
@@ -3854,6 +3870,8 @@ const translations = {
     contactGithubDesc: 'Abre una issue en GitHub',
     contactResponseTitle: 'Tiempo de respuesta:',
     contactResponseText: 'Generalmente dentro de unos días. Para preguntas de facturación o suscripción Pro, el correo electrónico es el camino más rápido.',
+    alreadyWatchedBanner: 'ya está en tu lista de vistos — aquí hay opciones similares:',
+    alreadyWatchlistBanner: 'está en tu lista de pendientes — aquí hay opciones similares:',
   },
 } as const;
 
