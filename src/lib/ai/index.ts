@@ -9,10 +9,22 @@ import { OllamaClient } from './clients/ollama';
 const AI_CONFIG_KEY = 'ai_config';
 const AI_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
-function buildCacheKey(request: AIRecommendationRequest, provider: string): string {
+function buildCacheKey(request: AIRecommendationRequest, config: AIConfig): string {
   const q = request.query.trim().toLowerCase();
-  // Include watched count so cache invalidates when the library grows
-  return `ai_cache:${provider}:${request.language}:${request.watched.length}:${q}`;
+  const model = config.model ?? config.provider;
+  // Stable fingerprint of inputs that materially affect the output
+  const fingerprint = JSON.stringify({
+    topGenres: request.tasteProfile.topGenres,
+    topLanguages: request.tasteProfile.topLanguages,
+    topCountries: request.tasteProfile.topCountries,
+    topDecades: request.tasteProfile.topDecades,
+    disliked_genres: request.contentPreferences.disliked_genres,
+    disliked_countries: request.contentPreferences.disliked_countries,
+    disliked_languages: request.contentPreferences.disliked_languages,
+  });
+  // btoa keeps the key compact while remaining unique per distinct input set
+  const profileHash = btoa(unescape(encodeURIComponent(fingerprint))).slice(0, 24);
+  return `ai_cache:${config.provider}:${model}:${request.language}:${request.count}:${request.watched.length}:${profileHash}:${q}`;
 }
 
 function envDefaults(): Partial<AIConfig> {
@@ -64,7 +76,7 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
   }
 
   // Check persistent cache before calling the AI
-  const cacheKey = buildCacheKey(request, config.provider);
+  const cacheKey = buildCacheKey(request, config);
   try {
     const cached = await getSetting(cacheKey);
     if (cached) {

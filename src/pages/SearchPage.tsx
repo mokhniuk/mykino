@@ -254,7 +254,7 @@ export default function SearchPage() {
         pivotTitle = libraryMatch?.title ?? null;
       }
 
-      const langName = lang === 'en' ? 'English' : lang === 'ua' ? 'Ukrainian' : lang === 'de' ? 'German' : lang === 'cs' ? 'Czech' : lang === 'pl' ? 'Polish' : lang === 'pt' ? 'Portuguese' : lang === 'hr' ? 'Croatian' : 'Italian';
+      const langName = lang === 'en' ? 'English' : lang === 'ua' ? 'Ukrainian' : lang === 'de' ? 'German' : lang === 'cs' ? 'Czech' : lang === 'pl' ? 'Polish' : lang === 'pt' ? 'Portuguese' : lang === 'hr' ? 'Croatian' : lang === 'es' ? 'Spanish' : lang === 'it' ? 'Italian' : 'English';
 
       // If user searched for something they already have, pivot to "similar to X"
       const aiQuery = pivotTitle

@@ -212,7 +212,7 @@ export const cs = {
   landingFeatureOffline: 'Funguje offline',
   landingFeatureNoAccount: 'Bez registrace',
   landingLangDesc: 'Aplikace mluví vaším jazykem. Kdykoli změnitelné v nastavení.',
-  landingThemeDesc: 'Vyberte vzhled. Výchozí chování sleduje systémové nastavení.',
+  landingThemeDesc: 'Vyberte vzhled aplikace. Výchozí je tmavý režim.',
   landingGenreDesc: 'Upřednostněte oblíbené žánry, vylučte neoblíbené. Doporučení se okamžitě přizpůsobí.',
   landingWatchedDesc: 'Označte filmy a seriály, které jste již viděli — pomůže to nastavit doporučení a sestavit váš profil vkusu.',
   landingAiBadge: 'Nové ve v2.0',

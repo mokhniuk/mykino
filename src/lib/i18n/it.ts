@@ -211,7 +211,7 @@ export const it = {
   landingFeatureOffline: 'Funziona offline',
   landingFeatureNoAccount: 'Nessuna registrazione richiesta',
   landingLangDesc: "L'app parla la tua lingua. Cambia quando vuoi nelle Impostazioni.",
-  landingThemeDesc: "Scegli l'aspetto dell'app. Segue le impostazioni di sistema per default.",
+  landingThemeDesc: "Scegli l'aspetto dell'app. La modalità scura è attiva per impostazione predefinita.",
   landingGenreDesc: 'Dai più rilievo ai generi che ami, riduci quelli da evitare. I consigli si adattano istantaneamente.',
   landingWatchedDesc: 'Segna i film e le serie che hai già visto — aiuta a configurare i consigli e costruire il tuo profilo di gusto.',
   landingAiBadge: 'Novità in v2.0',

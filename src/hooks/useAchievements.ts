@@ -16,7 +16,7 @@ import {
 export function useAchievements() {
   const { lang } = useI18n();
   const queryClient = useQueryClient();
-  const enrichedRef = useRef(false);
+  const enrichedRef = useRef<Set<string>>(new Set());
   const [dailyPickId, setDailyPickId] = useState<string | null>(null);
   const [dailyPickMovie, setDailyPickMovie] = useState<MovieData | null>(null);
   const [dailyPickLoading, setDailyPickLoading] = useState(true);
@@ -32,12 +32,16 @@ export function useAchievements() {
   // Background enrichment: fills Director/Genre/Country for movies added without
   // going through the detail page (e.g. search, landing setup, quick-add).
   // Batched 5 at a time; writes back to the watched store so next load is instant.
-  // Uses a ref so it only triggers once per session even if the query re-runs.
+  // Tracks enriched imdbIDs so newly-added items are processed on the next render.
   useEffect(() => {
-    if (enrichedRef.current || watched.length === 0) return;
-    const missing = watched.filter(m => !m.Director || !m.Genre || !m.Country);
+    if (watched.length === 0) return;
+    const missing = watched.filter(
+      m => (!m.Director || !m.Genre || !m.Country) && !enrichedRef.current.has(m.imdbID)
+    );
     if (missing.length === 0) return;
-    enrichedRef.current = true;
+
+    // Mark all as in-flight immediately to prevent duplicate runs
+    missing.forEach(m => enrichedRef.current.add(m.imdbID));
 
     let cancelled = false;
     (async () => {

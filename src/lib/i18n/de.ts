@@ -214,7 +214,7 @@ export const de = {
   landingFeatureOffline: 'Offline nutzbar',
   landingFeatureNoAccount: 'Kein Konto nötig',
   landingLangDesc: 'Die App spricht deine Sprache. Jederzeit in den Einstellungen änderbar.',
-  landingThemeDesc: 'Wähle das Erscheinungsbild. Folgt standardmäßig der Systemeinstellung.',
+  landingThemeDesc: 'Wähle das Erscheinungsbild. Standardmäßig ist der Dunkelmodus aktiv.',
   landingGenreDesc: 'Bevorzuge Lieblingsgenres, schließe unerwünschte aus. Empfehlungen passen sich an.',
   landingWatchedDesc: 'Markiere Filme und Serien, die du bereits gesehen hast — das hilft, deine Empfehlungen einzurichten und dein Geschmacksprofil aufzubauen.',
   landingAiBadge: 'Neu in v2.0',

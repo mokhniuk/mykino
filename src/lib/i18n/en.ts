@@ -223,7 +223,7 @@ export const en = {
   landingFeatureOffline: 'Works offline',
   landingFeatureNoAccount: 'No sign-up required',
   landingLangDesc: 'The app speaks your language. Switch anytime in Settings.',
-  landingThemeDesc: 'Choose how the app looks. Follows your system setting by default.',
+  landingThemeDesc: 'Choose how the app looks. Dark mode by default.',
   landingGenreDesc: 'Boost genres you love, push down ones to avoid. Recommendations adjust instantly.',
   landingWatchedDesc: 'Mark films and series you\'ve already seen — it helps set up your recommendations and build your taste profile.',
   landingAiBadge: 'New in v2.0',

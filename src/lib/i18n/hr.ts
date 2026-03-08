@@ -211,7 +211,7 @@ export const hr = {
   landingFeatureOffline: 'Radi bez interneta',
   landingFeatureNoAccount: 'Nije potrebna registracija',
   landingLangDesc: 'Aplikacija govori vaš jezik. Promijenite u bilo kojem trenutku u Postavkama.',
-  landingThemeDesc: 'Odaberite izgled. Prema zadanim postavkama prati sistemske postavke.',
+  landingThemeDesc: 'Odaberite izgled. Tamni način rada je zadano aktivan.',
   landingGenreDesc: 'Pojačajte žanrove koje volite, smanjite one koje izbjegavate. Preporuke se odmah prilagođavaju.',
   landingWatchedDesc: 'Označite filmove i serije koje ste već gledali — to pomaže postaviti preporuke i izgraditi vaš profil ukusa.',
   landingAiBadge: 'Novo u v2.0',
