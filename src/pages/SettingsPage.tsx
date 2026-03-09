@@ -239,17 +239,26 @@ export default function SettingsPage() {
       let attempts = 0;
       const poll = setInterval(async () => {
         attempts++;
-        const result = await refetchProfile();
-        if (result.data?.plan === 'pro') {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/refresh-plan`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          const data = await res.json();
+          if (data.plan === 'pro') {
+            clearInterval(poll);
+            setActivatingPlan(false);
+            await refetchProfile();
+            toast.success(t('checkoutSuccess'));
+            return;
+          }
+        } catch { /* retry */ }
+        if (attempts >= 10) {
           clearInterval(poll);
           setActivatingPlan(false);
-          toast.success(t('checkoutSuccess'));
-        } else if (attempts >= 15) {
-          clearInterval(poll);
-          setActivatingPlan(false);
-          toast.error('Plan not activated yet — check your Stripe webhook configuration.');
+          await refetchProfile();
         }
-      }, 2000);
+      }, 3000);
       return;
     }
 
