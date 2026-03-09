@@ -25,6 +25,7 @@ import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
+import Community from "./pages/Community";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/community" element={<Community />} />
                 <Route path="/app" element={<Layout />}>
                   <Route index element={<Index />} />
                   <Route path="search" element={<SearchPage />} />
