@@ -319,6 +319,7 @@ export const en = {
   planCurrentPro: 'You\'re on Pro.',
   openBillingPortal: 'Open billing portal',
   billingPortalNote: 'Cancel or change your plan from the billing portal.',
+  subscriptionCancelsOn: 'Access until',
   youreOnPro: 'You\'re on Pro ✓',
   yourCurrentPlan: 'Your current plan',
   // Sign-in modal (pricing page)

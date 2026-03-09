@@ -3,7 +3,8 @@ import { cors } from 'hono/cors';
 import { checkRateLimit } from './lib/rateLimit';
 import { getRecommendations, detectProvider } from './lib/providers';
 import { getUserPlan } from './lib/supabaseAdmin';
-import { createCheckoutSession, createPortalSession, handleWebhookEvent } from './lib/stripe';
+import { createCheckoutSession, createPortalSession, handleWebhookEvent, getStripe } from './lib/stripe';
+import { setUserPlan, getStripeCustomerId } from './lib/supabaseAdmin';
 import type { AIRecommendationRequest } from './lib/types';
 
 const app = new Hono();
@@ -98,6 +99,7 @@ app.post('/api/ai/recommendations', async (c) => {
 
 /** Stripe webhook — must read raw body before parsing. */
 app.post('/api/stripe/webhook', async (c) => {
+  console.log('[Stripe webhook] request received, STRIPE_ENABLED:', STRIPE_ENABLED);
   if (!STRIPE_ENABLED) return c.json({ error: 'Stripe not configured' }, 503);
   const sig = c.req.header('stripe-signature');
   if (!sig) return c.json({ error: 'Missing stripe-signature header' }, 400);
@@ -153,6 +155,70 @@ app.post('/api/stripe/checkout', async (c) => {
   }
 });
 
+/**
+ * Sync plan from Stripe after billing portal return.
+ * Reads the live subscription state from Stripe and updates Supabase.
+ * Called client-side when user returns from the portal — recommended by Stripe docs.
+ */
+app.post('/api/stripe/refresh-plan', async (c) => {
+  if (!STRIPE_ENABLED) return c.json({ error: 'Stripe not configured' }, 503);
+
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401);
+
+  let userId: string, email: string;
+  try {
+    const info = await getUserPlan(authHeader.slice(7));
+    userId = info.userId;
+    email = info.email;
+    if (!userId) return c.json({ error: 'Invalid token' }, 401);
+  } catch {
+    return c.json({ error: 'Invalid token' }, 401);
+  }
+
+  const stripe = getStripe();
+
+  // Find Stripe customer
+  let customerId = await getStripeCustomerId(userId);
+  if (!customerId && email) {
+    const found = await stripe.customers.list({ email, limit: 1 });
+    if (found.data.length) customerId = found.data[0].id;
+  }
+  if (!customerId) return c.json({ plan: 'free' });
+
+  // Get current active or trialing subscription
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    limit: 1,
+    status: 'all',
+  });
+
+  const sub = subscriptions.data.find(s =>
+    s.status === 'active' || s.status === 'trialing',
+  );
+
+  if (!sub) {
+    // No active subscription — ensure plan is free
+    await setUserPlan(userId, 'free', { customerId });
+    console.log(`[refresh-plan] plan=free for user ${userId}`);
+    return c.json({ plan: 'free' });
+  }
+
+  const cancelAt = sub.cancel_at_period_end && sub.current_period_end
+    ? new Date(sub.current_period_end * 1000).toISOString()
+    : null;
+
+  await setUserPlan(userId, 'pro', {
+    customerId,
+    subscriptionId: sub.id,
+    subscriptionStatus: sub.status,
+    cancelAt,
+  });
+
+  console.log(`[refresh-plan] plan=pro cancelAt=${cancelAt ?? 'none'} for user ${userId}`);
+  return c.json({ plan: 'pro', cancelAt });
+});
+
 /** Create a Stripe Customer Portal session (for managing billing). */
 app.post('/api/stripe/portal', async (c) => {
   if (!STRIPE_ENABLED) return c.json({ error: 'Stripe not configured' }, 503);
@@ -171,7 +237,7 @@ app.post('/api/stripe/portal', async (c) => {
   }
 
   // Build return URL server-side to prevent open-redirect attacks
-  const returnUrl = `${appOrigin()}/app/settings`;
+  const returnUrl = `${appOrigin()}/app/settings?portal=returned`;
 
   try {
     const url = await createPortalSession({ userId, email, returnUrl });

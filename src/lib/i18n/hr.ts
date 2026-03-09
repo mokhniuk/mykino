@@ -295,6 +295,7 @@ export const hr = {
   planModalTitle: 'Plan i naplata',
   openBillingPortal: 'Otvorite portal za naplatu',
   billingPortalNote: 'Otkažite ili promijenite plan u portalu za naplatu.',
+  subscriptionCancelsOn: 'Pristup do',
   youreOnPro: 'Na Pro ste ✓',
   yourCurrentPlan: 'Vaš trenutni plan',
   signInModalTitle: 'Stvorite besplatni račun',

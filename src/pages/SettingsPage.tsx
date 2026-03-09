@@ -8,7 +8,7 @@ import { getLastSyncTime } from '@/lib/sync';
 import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { useI18n, type Lang } from '@/lib/i18n';
+import { useI18n, formatDate, type Lang } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences, getDBStats, type DBStats, clearAllData } from '@/lib/db';
 import { clearRecommendationsCache } from '@/lib/recommendations';
@@ -30,7 +30,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface CategoryPickerProps {
   label: string;
@@ -121,13 +120,13 @@ export default function SettingsPage() {
   const [savingAI, setSavingAI] = useState(false);
   const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number } | null>(null);
   const { user, accessToken, syncing, triggerSync } = useAuth();
-  const { isPro, refetch: refetchProfile } = useProfile();
+  const { isPro, cancelAt, refetch: refetchProfile } = useProfile();
   const [syncEmail, setSyncEmail] = useState('');
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [lastSynced, setLastSynced] = useState<number | null>(null);
-  const [planModalOpen, setPlanModalOpen] = useState(false);
-  const [planModalAnnual, setPlanModalAnnual] = useState(false);
+
+  const [activatingPlan, setActivatingPlan] = useState(false);
 
   useEffect(() => {
     if (config.hasSync) setLastSynced(getLastSyncTime());
@@ -205,19 +204,63 @@ export default function SettingsPage() {
     }
   };
 
-  // Handle return from Stripe Checkout
+  // Parse URL params once on mount — store intent in state, clear URL immediately
+  const [stripeReturn, setStripeReturn] = useState<'checkout-success' | 'checkout-cancelled' | 'portal' | null>(null);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get('checkout');
+    const portal = params.get('portal');
     if (checkout === 'success') {
-      toast.success(t('checkoutSuccess'));
-      refetchProfile();
       window.history.replaceState({}, '', window.location.pathname);
+      setStripeReturn('checkout-success');
     } else if (checkout === 'cancelled') {
-      toast.info(t('checkoutCancelled'));
       window.history.replaceState({}, '', window.location.pathname);
+      setStripeReturn('checkout-cancelled');
+    } else if (portal === 'returned') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setStripeReturn('portal');
     }
   }, []);
+
+  // Act on stripe return once accessToken is available
+  useEffect(() => {
+    if (!stripeReturn || !accessToken) return;
+
+    if (stripeReturn === 'checkout-cancelled') {
+      toast.info(t('checkoutCancelled'));
+      setStripeReturn(null);
+      return;
+    }
+
+    if (stripeReturn === 'checkout-success') {
+      setStripeReturn(null);
+      setActivatingPlan(true);
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        const result = await refetchProfile();
+        if (result.data?.plan === 'pro') {
+          clearInterval(poll);
+          setActivatingPlan(false);
+          toast.success(t('checkoutSuccess'));
+        } else if (attempts >= 15) {
+          clearInterval(poll);
+          setActivatingPlan(false);
+          toast.error('Plan not activated yet — check your Stripe webhook configuration.');
+        }
+      }, 2000);
+      return;
+    }
+
+    if (stripeReturn === 'portal') {
+      setStripeReturn(null);
+      fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/refresh-plan`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      }).finally(() => refetchProfile());
+    }
+  }, [stripeReturn, accessToken]);
 
   const handleUpgrade = async (annual: boolean) => {
     if (!accessToken) { toast.error('Please sign in first.'); return; }
@@ -559,9 +602,16 @@ export default function SettingsPage() {
                       {t('syncSignedInAs')} <span className="text-foreground font-medium">{user.email}</span>
                     </span>
                   </div>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isPro ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground'}`}>
-                    {isPro ? t('planPro') : t('planFree')}
-                  </span>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${isPro ? 'bg-primary/15 text-primary' : activatingPlan ? 'bg-amber-500/15 text-amber-600' : 'bg-secondary text-muted-foreground'}`}>
+                      {activatingPlan ? <><Loader2 size={11} className="animate-spin" />Activating…</> : isPro ? t('planPro') : t('planFree')}
+                    </span>
+                    {isPro && cancelAt && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {t('subscriptionCancelsOn')} {formatDate(cancelAt, lang)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Usage bar — same for both Free and Pro */}
@@ -602,7 +652,7 @@ export default function SettingsPage() {
                       : <><RefreshCw size={13} />{t('syncNow')}</>}
                   </Button>
                   {isPro ? (
-                    <Button size="sm" variant="outline" onClick={() => setPlanModalOpen(true)} className="flex items-center gap-1.5">
+                    <Button size="sm" variant="outline" onClick={handleManagePlan} className="flex items-center gap-1.5">
                       <CreditCard size={13} />
                       {t('managePlan')}
                     </Button>
@@ -927,79 +977,6 @@ export default function SettingsPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Plan Modal */}
-        <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>
-                {isPro ? t('planModalTitle') : t('upgradeToPro')}
-              </DialogTitle>
-            </DialogHeader>
-
-            {isPro ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 size={16} className="text-green-500 shrink-0" />
-                  <span className="font-medium">{t('youreOnPro')}</span>
-                </div>
-
-                {aiUsage && (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{t('aiDailyUsage')}</span>
-                      <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <Button className="w-full" onClick={handleManagePlan}>
-                  <CreditCard size={15} className="mr-2" />
-                  {t('openBillingPortal')}
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">{t('billingPortalNote')}</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">{t('yourCurrentPlan')}: <span className="font-medium text-foreground">{t('planFree')}</span></p>
-
-                {/* Billing toggle */}
-                <div className="flex items-center justify-center gap-3 text-sm">
-                  <span className={!planModalAnnual ? 'font-medium text-foreground' : 'text-muted-foreground'}>{t('pricingMonthly')}</span>
-                  <button
-                    role="switch"
-                    aria-checked={planModalAnnual}
-                    onClick={() => setPlanModalAnnual(v => !v)}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${planModalAnnual ? 'bg-primary' : 'bg-secondary'}`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${planModalAnnual ? 'translate-x-4' : 'translate-x-1'}`} />
-                  </button>
-                  <span className={planModalAnnual ? 'font-medium text-foreground' : 'text-muted-foreground'}>{t('pricingAnnual')}</span>
-                </div>
-
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">{planModalAnnual ? t('pricingProAnnual') : t('pricingProMonthly')}</p>
-                  {planModalAnnual && <p className="text-xs text-green-600 font-medium">{t('pricingProSaving')}</p>}
-                </div>
-
-                <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" />{t('pricingPF1')}</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" />{t('pricingPF2')}</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" />{t('pricingPF3')}</li>
-                </ul>
-
-                <Button className="w-full" onClick={() => { setPlanModalOpen(false); handleUpgrade(planModalAnnual); }}>
-                  {t('upgradeToPro')} →
-                </Button>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
 
         {/* App Info — full width */}
         <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">

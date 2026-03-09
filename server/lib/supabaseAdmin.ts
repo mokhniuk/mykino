@@ -40,16 +40,23 @@ export async function getUserPlan(accessToken: string): Promise<{ userId: string
 export async function setUserPlan(
   userId: string,
   plan: 'free' | 'pro',
-  stripe?: { customerId?: string; subscriptionId?: string; subscriptionStatus?: string },
+  stripe?: {
+    customerId?: string;
+    subscriptionId?: string;
+    subscriptionStatus?: string;
+    cancelAt?: string | null; // ISO string when cancelling, null to clear
+  },
 ) {
   const admin = getAdmin();
-  await admin.from('profiles').upsert({
-    id: userId,
-    plan,
-    ...(stripe?.customerId       && { stripe_customer_id:       stripe.customerId }),
-    ...(stripe?.subscriptionId   && { stripe_subscription_id:   stripe.subscriptionId }),
-    ...(stripe?.subscriptionStatus && { subscription_status:    stripe.subscriptionStatus }),
-  });
+  const payload: Record<string, unknown> = { id: userId, plan };
+  if (stripe?.customerId)         payload.stripe_customer_id       = stripe.customerId;
+  if (stripe?.subscriptionId)     payload.stripe_subscription_id   = stripe.subscriptionId;
+  if (stripe?.subscriptionStatus) payload.subscription_status      = stripe.subscriptionStatus;
+  // cancelAt can be explicitly null to clear the value
+  if (stripe && 'cancelAt' in stripe) payload.subscription_cancel_at = stripe.cancelAt ?? null;
+
+  const { error } = await admin.from('profiles').upsert(payload);
+  if (error) throw new Error(`Failed to update profile for user ${userId}: ${error.message}`);
 }
 
 /** Looks up a user by their Stripe customer ID. */

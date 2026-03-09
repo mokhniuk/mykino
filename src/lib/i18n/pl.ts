@@ -296,6 +296,7 @@ export const pl = {
   planModalTitle: 'Plan i rozliczenia',
   openBillingPortal: 'Otwórz portal rozliczeniowy',
   billingPortalNote: 'Anuluj lub zmień plan w portalu rozliczeniowym.',
+  subscriptionCancelsOn: 'Dostęp do',
   youreOnPro: 'Jesteś na Pro ✓',
   yourCurrentPlan: 'Twój obecny plan',
   signInModalTitle: 'Utwórz bezpłatne konto',

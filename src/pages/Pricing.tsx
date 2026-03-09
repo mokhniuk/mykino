@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Minus, Sparkles, Cloud, Brain, ShieldCheck, Server, Loader2, CheckCircle2 } from 'lucide-react';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, formatDate } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { config } from '@/lib/config';
@@ -20,9 +20,9 @@ const MOCK_FILMS = [
 
 export default function Pricing() {
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { user, accessToken } = useAuth();
-  const { isPro } = useProfile();
+  const { isPro, cancelAt } = useProfile();
   const [isAnnual, setIsAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -142,13 +142,20 @@ export default function Pricing() {
     }
     if (isPro) {
       return (
-        <button
-          disabled
-          className="w-full py-2.5 rounded-xl bg-green-500/10 text-green-600 font-semibold text-sm flex items-center justify-center gap-2 cursor-default"
-        >
-          <CheckCircle2 size={14} />
-          {t('youreOnPro')}
-        </button>
+        <div className="space-y-1.5">
+          <button
+            disabled
+            className="w-full py-2.5 rounded-xl bg-green-500/10 text-green-600 font-semibold text-sm flex items-center justify-center gap-2 cursor-default"
+          >
+            <CheckCircle2 size={14} />
+            {t('youreOnPro')}
+          </button>
+          {cancelAt && (
+            <p className="text-center text-xs text-amber-600">
+              {t('subscriptionCancelsOn')} {formatDate(cancelAt, lang)}
+            </p>
+          )}
+        </div>
       );
     }
     if (user) {

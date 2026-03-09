@@ -297,6 +297,7 @@ export const cs = {
   planModalTitle: 'Plán a fakturace',
   openBillingPortal: 'Otevřít fakturační portál',
   billingPortalNote: 'Zrušte nebo změňte plán ve fakturačním portálu.',
+  subscriptionCancelsOn: 'Přístup do',
   youreOnPro: 'Jste na Pro ✓',
   yourCurrentPlan: 'Váš aktuální plán',
   signInModalTitle: 'Vytvořit bezplatný účet',

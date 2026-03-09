@@ -85,31 +85,29 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, secret);
-  } catch {
-    throw new Error('Webhook signature verification failed');
+    event = await stripe.webhooks.constructEventAsync(rawBody, signature, secret);
+  } catch (e: any) {
+    throw new Error(`Webhook signature verification failed: ${e.message}`);
   }
+
+  console.log(`[Stripe webhook] received: ${event.type} (${event.id})`);
 
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
+      console.log(`[Stripe webhook] checkout.session.completed — customer: ${session.customer}, metadata:`, session.metadata);
+
       const userId = session.metadata?.supabase_user_id
         ?? await getUserIdByCustomer(session.customer as string);
+
       if (!userId) {
-        console.error('[Stripe webhook] checkout.session.completed: could not resolve userId — Pro plan NOT granted', {
-          sessionId: session.id,
-          customer: session.customer,
-          metadataUserId: session.metadata?.supabase_user_id ?? null,
-        });
-        break;
+        throw new Error(`checkout.session.completed: could not resolve supabase userId — customer: ${session.customer}, metadata.supabase_user_id: ${session.metadata?.supabase_user_id ?? 'missing'}`);
       }
 
       let subscriptionStatus = 'active';
       if (session.subscription) {
-        try {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
-          subscriptionStatus = sub.status;
-        } catch { /* keep default 'active' */ }
+        const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+        subscriptionStatus = sub.status;
       }
 
       await setUserPlan(userId, 'pro', {
@@ -117,6 +115,7 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
         subscriptionId: session.subscription as string,
         subscriptionStatus,
       });
+      console.log(`[Stripe webhook] plan set to pro for user ${userId}`);
       break;
     }
 
@@ -124,13 +123,17 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
       const sub = event.data.object as Stripe.Subscription;
       const userId = sub.metadata?.supabase_user_id
         ?? await getUserIdByCustomer(sub.customer as string);
-      if (!userId) break;
-
-      const isActive = sub.status === 'active';
-      await setUserPlan(userId, isActive ? 'pro' : 'free', {
-        subscriptionId: sub.id,
-        subscriptionStatus: sub.status,
-      });
+      if (!userId) {
+        console.warn(`[Stripe webhook] customer.subscription.updated: could not resolve userId for customer ${sub.customer} — skipping`);
+        break;
+      }
+      const plan = sub.status === 'active' || sub.status === 'trialing' ? 'pro' : 'free';
+      // If scheduled to cancel at period end, store that date; otherwise clear it
+      const cancelAt = sub.cancel_at_period_end && sub.current_period_end
+        ? new Date(sub.current_period_end * 1000).toISOString()
+        : null;
+      await setUserPlan(userId, plan, { subscriptionId: sub.id, subscriptionStatus: sub.status, cancelAt });
+      console.log(`[Stripe webhook] plan=${plan} cancelAt=${cancelAt ?? 'none'} for user ${userId}`);
       break;
     }
 
@@ -138,17 +141,17 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
       const sub = event.data.object as Stripe.Subscription;
       const userId = sub.metadata?.supabase_user_id
         ?? await getUserIdByCustomer(sub.customer as string);
-      if (!userId) break;
-
-      await setUserPlan(userId, 'free', {
-        subscriptionId: sub.id,
-        subscriptionStatus: 'canceled',
-      });
+      if (!userId) {
+        console.warn(`[Stripe webhook] customer.subscription.deleted: could not resolve userId for customer ${sub.customer} — skipping`);
+        break;
+      }
+      await setUserPlan(userId, 'free', { subscriptionId: sub.id, subscriptionStatus: 'canceled', cancelAt: null });
+      console.log(`[Stripe webhook] plan set to free for user ${userId} (subscription deleted)`);
       break;
     }
 
-    // Ignore all other events
     default:
+      console.log(`[Stripe webhook] ignored event type: ${event.type}`);
       break;
   }
 }

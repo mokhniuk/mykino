@@ -63,8 +63,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   stripe_customer_id     TEXT,
   stripe_subscription_id TEXT,
   subscription_status    TEXT,   -- 'active' | 'trialing' | 'canceled' | 'past_due' etc.
+  subscription_cancel_at TIMESTAMPTZ,  -- set when cancel_at_period_end=true, cleared on reactivation
   created_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Migration: add subscription_cancel_at if it doesn't exist yet
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS subscription_cancel_at TIMESTAMPTZ;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile" ON public.profiles

@@ -299,6 +299,7 @@ export const ua = {
   planModalTitle: 'План і оплата',
   openBillingPortal: 'Відкрити портал оплати',
   billingPortalNote: 'Скасуйте або змініть план у порталі оплати.',
+  subscriptionCancelsOn: 'Доступ до',
   youreOnPro: 'Ви на Pro ✓',
   yourCurrentPlan: 'Ваш поточний план',
   signInModalTitle: 'Створити безкоштовний акаунт',

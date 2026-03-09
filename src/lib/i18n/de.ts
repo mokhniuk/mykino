@@ -299,6 +299,7 @@ export const de = {
   planModalTitle: 'Plan & Abrechnung',
   openBillingPortal: 'Abrechnungsportal öffnen',
   billingPortalNote: 'Plan kündigen oder ändern im Abrechnungsportal.',
+  subscriptionCancelsOn: 'Zugang bis',
   youreOnPro: 'Du bist auf Pro ✓',
   yourCurrentPlan: 'Dein aktueller Plan',
   signInModalTitle: 'Kostenloses Konto erstellen',

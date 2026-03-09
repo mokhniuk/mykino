@@ -71,3 +71,14 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 export function useI18n() {
   return useContext(I18nContext);
 }
+
+const LANG_LOCALE: Record<Lang, string> = {
+  en: 'en-GB', ua: 'uk-UA', de: 'de-DE', cs: 'cs-CZ',
+  pl: 'pl-PL', pt: 'pt-PT', hr: 'hr-HR', it: 'it-IT', es: 'es-ES',
+};
+
+const DATE_FMT: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+
+export function formatDate(iso: string, lang: Lang): string {
+  return new Date(iso).toLocaleDateString(LANG_LOCALE[lang], DATE_FMT);
+}

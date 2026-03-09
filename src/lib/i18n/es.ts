@@ -295,6 +295,7 @@ export const es = {
   planModalTitle: 'Plan y facturación',
   openBillingPortal: 'Abrir portal de facturación',
   billingPortalNote: 'Cancela o cambia tu plan desde el portal de facturación.',
+  subscriptionCancelsOn: 'Acceso hasta',
   youreOnPro: 'Estás en Pro ✓',
   yourCurrentPlan: 'Tu plan actual',
   signInModalTitle: 'Crear cuenta gratuita',
