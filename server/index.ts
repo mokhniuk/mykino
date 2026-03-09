@@ -14,6 +14,11 @@ const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 const STRIPE_ENABLED = !!(process.env.STRIPE_SECRET_KEY && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+/** App origin used to build redirect URLs server-side (avoids open-redirect). */
+function appOrigin(): string {
+  return ALLOWED_ORIGIN !== '*' ? ALLOWED_ORIGIN : 'http://localhost:5173';
+}
+
 app.use('*', cors({ origin: ALLOWED_ORIGIN }));
 
 // ─── Health ───────────────────────────────────────────────────────────────────
@@ -89,6 +94,7 @@ app.post('/api/ai/recommendations', async (c) => {
 
 /** Stripe webhook — must read raw body before parsing. */
 app.post('/api/stripe/webhook', async (c) => {
+  if (!STRIPE_ENABLED) return c.json({ error: 'Stripe not configured' }, 503);
   const sig = c.req.header('stripe-signature');
   if (!sig) return c.json({ error: 'Missing stripe-signature header' }, 400);
 
@@ -120,10 +126,19 @@ app.post('/api/stripe/checkout', async (c) => {
     return c.json({ error: 'Invalid token' }, 401);
   }
 
-  const { priceId, successUrl, cancelUrl } = await c.req.json();
-  if (!priceId || !successUrl || !cancelUrl) {
-    return c.json({ error: 'Missing required fields: priceId, successUrl, cancelUrl' }, 400);
-  }
+  let body: { annual?: boolean };
+  try { body = await c.req.json(); } catch { body = {}; }
+
+  // Resolve price server-side — never trust price IDs from the client
+  const priceId = body.annual
+    ? process.env.STRIPE_PRICE_ANNUAL
+    : process.env.STRIPE_PRICE_MONTHLY;
+  if (!priceId) return c.json({ error: 'Stripe prices not configured on server' }, 503);
+
+  // Build redirect URLs server-side to prevent open-redirect attacks
+  const origin = appOrigin();
+  const successUrl = `${origin}/app/settings?checkout=success`;
+  const cancelUrl  = `${origin}/app/settings?checkout=cancelled`;
 
   try {
     const url = await createCheckoutSession({ userId, email, priceId, successUrl, cancelUrl });
@@ -150,7 +165,8 @@ app.post('/api/stripe/portal', async (c) => {
     return c.json({ error: 'Invalid token' }, 401);
   }
 
-  const { returnUrl } = await c.req.json();
+  // Build return URL server-side to prevent open-redirect attacks
+  const returnUrl = `${appOrigin()}/app/settings`;
 
   try {
     const url = await createPortalSession({ userId, returnUrl });
@@ -173,6 +189,15 @@ try {
 } catch (e: any) {
   console.error(`⚠️  ${e.message}`);
   process.exit(1);
+}
+
+if (STRIPE_ENABLED && !process.env.STRIPE_WEBHOOK_SECRET) {
+  console.error('⚠️  STRIPE_WEBHOOK_SECRET is required when Stripe is enabled');
+  process.exit(1);
+}
+
+if (STRIPE_ENABLED && !process.env.STRIPE_PRICE_MONTHLY && !process.env.STRIPE_PRICE_ANNUAL) {
+  console.warn('⚠️  Neither STRIPE_PRICE_MONTHLY nor STRIPE_PRICE_ANNUAL is set — checkout will fail');
 }
 
 export default { port: PORT, fetch: app.fetch };

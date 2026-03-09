@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
-import { fullSync, setupSyncListener } from '@/lib/sync';
+import { fullSync, setupSyncListener, setCachedPlan } from '@/lib/sync';
 import { config } from '@/lib/config';
 
 interface AuthContextType {
@@ -44,21 +44,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up the mutation sync listener once
     setupSyncListener();
 
+    /** Fetch the user's plan from Supabase and update the sync cache. */
+    async function fetchAndCachePlan(userId: string): Promise<'free' | 'pro'> {
+      const { data } = await sb.from('profiles').select('plan').eq('id', userId).single();
+      const plan: 'free' | 'pro' = data?.plan === 'pro' ? 'pro' : 'free';
+      setCachedPlan(plan);
+      return plan;
+    }
+
     // Initial session check
-    sb.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    sb.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user ?? null;
+      setUser(user);
       setLoading(false);
-      if (session?.user) triggerSync();
+      if (user) {
+        const plan = await fetchAndCachePlan(user.id);
+        if (plan === 'pro') triggerSync();
+      }
     });
 
     // Listen for auth state changes (magic link callback, sign-out, token refresh)
-    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = sb.auth.onAuthStateChange(async (_event, session) => {
       const newUser = session?.user ?? null;
-      setUser(prev => {
-        // Trigger a full sync when a new session is established
-        if (!prev && newUser) triggerSync();
-        return newUser;
-      });
+      if (newUser) {
+        const plan = await fetchAndCachePlan(newUser.id);
+        setUser(prev => {
+          if (!prev && plan === 'pro') triggerSync();
+          return newUser;
+        });
+      } else {
+        setCachedPlan(null);
+        setUser(null);
+      }
     });
 
     return () => subscription.unsubscribe();

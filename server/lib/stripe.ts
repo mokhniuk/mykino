@@ -39,6 +39,8 @@ export async function createCheckoutSession(opts: {
     success_url: opts.successUrl,
     cancel_url: opts.cancelUrl,
     allow_promotion_codes: true,
+    // metadata on the session itself so checkout.session.completed can find the user
+    metadata: { supabase_user_id: opts.userId },
     subscription_data: {
       trial_period_days: 14,
       metadata: { supabase_user_id: opts.userId },
@@ -85,10 +87,19 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
         ?? await getUserIdByCustomer(session.customer as string);
       if (!userId) break;
 
+      // Fetch the subscription to get its actual status (may be 'trialing' during trial)
+      let subscriptionStatus = 'active';
+      if (session.subscription) {
+        try {
+          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+          subscriptionStatus = sub.status;
+        } catch { /* keep default 'active' */ }
+      }
+
       await setUserPlan(userId, 'pro', {
         customerId: session.customer as string,
         subscriptionId: session.subscription as string,
-        subscriptionStatus: 'active',
+        subscriptionStatus,
       });
       break;
     }

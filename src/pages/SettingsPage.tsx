@@ -219,10 +219,6 @@ export default function SettingsPage() {
   const handleUpgrade = async (annual: boolean) => {
     const sb = getSupabase();
     if (!sb) return;
-    const priceId = annual
-      ? (import.meta.env.VITE_STRIPE_PRICE_ANNUAL || '')
-      : (import.meta.env.VITE_STRIPE_PRICE_MONTHLY || '');
-    if (!priceId) { toast.error('Stripe not configured'); return; }
 
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
@@ -234,14 +230,11 @@ export default function SettingsPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          priceId,
-          successUrl: `${window.location.origin}/app/settings?checkout=success`,
-          cancelUrl:  `${window.location.origin}/app/settings?checkout=cancelled`,
-        }),
+        body: JSON.stringify({ annual }),
       });
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to start checkout. Please try again.'); return; }
+      if (data.url) window.location.href = data.url;
     } catch {
       toast.error('Failed to start checkout. Please try again.');
     }
@@ -260,10 +253,11 @@ export default function SettingsPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ returnUrl: `${window.location.origin}/app/settings` }),
+        body: JSON.stringify({}),
       });
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to open billing portal.'); return; }
+      if (data.url) window.location.href = data.url;
     } catch {
       toast.error('Failed to open billing portal.');
     }

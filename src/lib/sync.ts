@@ -16,6 +16,14 @@ import type { TVSeriesTracking } from './tvTracking';
 
 const LAST_SYNC_KEY = 'sync_last_at';
 
+// Plan cache — set by AuthContext after fetching the user profile.
+// Avoids a DB round-trip on every mutation event.
+let _cachedPlan: 'free' | 'pro' | null = null;
+
+export function setCachedPlan(plan: 'free' | 'pro' | null) {
+  _cachedPlan = plan;
+}
+
 export function getLastSyncTime(): number | null {
   const raw = localStorage.getItem(LAST_SYNC_KEY);
   return raw ? Number(raw) : null;
@@ -42,6 +50,9 @@ export function dispatchSyncEvent(detail: SyncEventDetail) {
 /** Set up the global listener. Call once from AuthProvider. */
 export function setupSyncListener() {
   window.addEventListener('db:sync', async (e: Event) => {
+    // Only Pro users get real-time mutation sync
+    if (_cachedPlan !== 'pro') return;
+
     const { store, action, id, data } = (e as CustomEvent<SyncEventDetail>).detail;
     const sb = getSupabase();
     if (!sb) return;
@@ -66,6 +77,9 @@ export function setupSyncListener() {
 // ─── Full sync (on login) ────────────────────────────────────────────────────
 
 export async function fullSync(): Promise<void> {
+  // Only Pro users get sync
+  if (_cachedPlan !== 'pro') return;
+
   const sb = getSupabase();
   if (!sb) return;
 
