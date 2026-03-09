@@ -85,7 +85,14 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.supabase_user_id
         ?? await getUserIdByCustomer(session.customer as string);
-      if (!userId) break;
+      if (!userId) {
+        console.error('[Stripe webhook] checkout.session.completed: could not resolve userId — Pro plan NOT granted', {
+          sessionId: session.id,
+          customer: session.customer,
+          metadataUserId: session.metadata?.supabase_user_id ?? null,
+        });
+        break;
+      }
 
       // Fetch the subscription to get its actual status (may be 'trialing' during trial)
       let subscriptionStatus = 'active';

@@ -7,7 +7,22 @@ export function getSupabase(): SupabaseClient | null {
   if (!config.hasSync) return null;
   if (!_client) {
     _client = createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: { persistSession: true, detectSessionInUrl: true },
+      auth: {
+        persistSession: true,
+        detectSessionInUrl: true,
+        // Supabase v2 uses the Web Locks API with the 'steal' option, which aborts
+        // in-flight auth operations (including magic link processing) when a new one
+        // starts. This causes sessions to never fully establish → logged out on refresh.
+        // Replace with a simple sequential lock using a promise chain instead.
+        lock: (() => {
+          let chain = Promise.resolve();
+          return <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
+            const result = chain.then(() => fn());
+            chain = result.then(() => {}, () => {});
+            return result;
+          };
+        })(),
+      },
     });
   }
   return _client;

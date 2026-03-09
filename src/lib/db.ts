@@ -6,10 +6,6 @@ const DB_NAME = 'mykino';
 const DB_VERSION = 5;
 const APP_DATA_VERSION = 5;
 
-// Temporary export for debugging
-if (typeof window !== 'undefined') {
-  (window as any).getCurrentDBName = () => DB_NAME;
-}
 
 export interface MovieData {
   imdbID: string;
@@ -198,31 +194,34 @@ export async function getDB() {
     // Migrate from old database if needed (with 1s timeout for check)
     await migrateFromOldDatabase();
 
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        if (oldVersion < 1) {
-          db.createObjectStore('movies', { keyPath: 'imdbID' });
-          db.createObjectStore('watchlist', { keyPath: 'imdbID' });
-          db.createObjectStore('favourites', { keyPath: 'imdbID' });
-          db.createObjectStore('settings', { keyPath: 'key' });
-        }
-        if (oldVersion < 2) {
-          db.createObjectStore('watched', { keyPath: 'imdbID' });
-        }
-        if (oldVersion < 3) {
-          db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
-        }
-        if (oldVersion < 4) {
-          // Placeholder for version 4 compatibility
-        }
-        if (oldVersion < 5) {
-          db.createObjectStore('metadata', { keyPath: 'key' });
-        }
-      },
-    });
-
-    // Fire migration in background
-    dbPromise.then(safeRunMigration);
+    // Wrap in a single promise so every caller awaits both the open AND the migration.
+    // This prevents a race where early writes happen before the ID-prefix migration completes.
+    dbPromise = (async () => {
+      const db = await openDB(DB_NAME, DB_VERSION, {
+        upgrade(db, oldVersion) {
+          if (oldVersion < 1) {
+            db.createObjectStore('movies', { keyPath: 'imdbID' });
+            db.createObjectStore('watchlist', { keyPath: 'imdbID' });
+            db.createObjectStore('favourites', { keyPath: 'imdbID' });
+            db.createObjectStore('settings', { keyPath: 'key' });
+          }
+          if (oldVersion < 2) {
+            db.createObjectStore('watched', { keyPath: 'imdbID' });
+          }
+          if (oldVersion < 3) {
+            db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
+          }
+          if (oldVersion < 4) {
+            // Placeholder for version 4 compatibility
+          }
+          if (oldVersion < 5) {
+            db.createObjectStore('metadata', { keyPath: 'key' });
+          }
+        },
+      });
+      await safeRunMigration(db);
+      return db;
+    })();
   }
 
   return dbPromise;
@@ -336,14 +335,27 @@ export async function importAllData(data: {
   settings?: { key: string; value: string }[];
   tvTracking?: TVSeriesTracking[];
 }) {
+  // Validate structure before touching the DB — reject corrupted files early
+  if (
+    !Array.isArray(data.watchlist ?? []) ||
+    !Array.isArray(data.watched ?? []) ||
+    !Array.isArray(data.favourites ?? []) ||
+    !Array.isArray(data.settings ?? []) ||
+    !Array.isArray(data.tvTracking ?? [])
+  ) {
+    throw new Error('Invalid import data: expected arrays for all collections');
+  }
+
   const db = await getDB();
   const hasTVTracking = (data.tvTracking?.length ?? 0) > 0;
   const stores: string[] = ['watchlist', 'watched', 'favourites', 'settings'];
   if (hasTVTracking) stores.push('tv_tracking');
 
+  // All operations run in a single transaction — if any put() fails the
+  // transaction is aborted and the DB is automatically rolled back to its
+  // previous state (IndexedDB ACID guarantee).
   const tx = db.transaction(stores, 'readwrite');
 
-  // Clear existing data to ensure a clean restore (replacement, not merge)
   for (const store of stores) {
     tx.objectStore(store).clear();
   }

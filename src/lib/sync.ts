@@ -33,6 +33,23 @@ function setLastSyncTime() {
   localStorage.setItem(LAST_SYNC_KEY, String(Date.now()));
 }
 
+// ─── Retry helper ─────────────────────────────────────────────────────────────
+
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ─── Event-based mutation sync ────────────────────────────────────────────────
 
 export interface SyncEventDetail {
@@ -63,13 +80,17 @@ export function setupSyncListener() {
     try {
       if (action === 'upsert' && data) {
         const row = buildRow(store, user.id, id, data);
-        await sb.from(store).upsert(row, { onConflict: 'user_id,' + primaryKey(store) });
+        await withRetry(() =>
+          sb.from(store).upsert(row, { onConflict: 'user_id,' + primaryKey(store) }).throwOnError()
+        );
       } else if (action === 'delete') {
-        await sb.from(store).delete().eq('user_id', user.id).eq(primaryKey(store), id);
+        await withRetry(() =>
+          sb.from(store).delete().eq('user_id', user.id).eq(primaryKey(store), id).throwOnError()
+        );
       }
     } catch (e) {
-      // Sync failures are silent — data is safe in IDB
-      console.warn('[sync] mutation push failed', e);
+      // Still safe in IDB — will reconcile on next full sync
+      console.warn('[sync] mutation push failed after retries:', e);
     }
   });
 }

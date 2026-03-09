@@ -192,83 +192,16 @@ function filterAndScore(
 }
 
 export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
-  // TEMPORARY: Skip cache check due to IndexedDB hanging issue
-  // TODO: Fix IndexedDB getSetting hanging
-  
-  try {
-    // Test each DB call individually to identify which one is hanging
-    console.log('🔍 Testing DB calls individually...');
-    
-    let watched: MovieData[] = [];
-    let watchlist: MovieData[] = [];
-    let favourites: MovieData[] = [];
-    let prefs: ContentPreferences = {
-      liked_genres: [],
-      disliked_genres: [],
-      liked_countries: [],
-      disliked_countries: [],
-      liked_languages: [],
-      disliked_languages: [],
-    };
-    
-    // Test watched
-    try {
-      console.log('Testing getWatched()...');
-      const watchedPromise = getWatched();
-      const watchedTimeout = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 2000)
-      );
-      watched = await Promise.race([watchedPromise, watchedTimeout]);
-      console.log('✅ getWatched() OK:', watched.length, 'items');
-    } catch (err) {
-      console.error('❌ getWatched() FAILED - "watched" table has issues');
-      console.warn('⚠️ Please manually clear database: DevTools → Application → IndexedDB → Delete "mykino"');
-    }
-    
-    // Test watchlist
-    try {
-      console.log('Testing getWatchlist()...');
-      const watchlistPromise = getWatchlist();
-      const watchlistTimeout = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 2000)
-      );
-      watchlist = await Promise.race([watchlistPromise, watchlistTimeout]);
-      console.log('✅ getWatchlist() OK:', watchlist.length, 'items');
-    } catch (err) {
-      console.error('❌ getWatchlist() FAILED - "watchlist" table is corrupted!');
-    }
-    
-    // Test favourites
-    try {
-      console.log('Testing getFavourites()...');
-      const favouritesPromise = getFavourites();
-      const favouritesTimeout = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 2000)
-      );
-      favourites = await Promise.race([favouritesPromise, favouritesTimeout]);
-      console.log('✅ getFavourites() OK:', favourites.length, 'items');
-    } catch (err) {
-      console.error('❌ getFavourites() FAILED - "favourites" table is corrupted!');
-    }
-    
-    // Test prefs
-    try {
-      console.log('Testing getContentPreferences()...');
-      const prefsPromise = getContentPreferences();
-      const prefsTimeout = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 2000)
-      );
-      prefs = await Promise.race([prefsPromise, prefsTimeout]);
-      console.log('✅ getContentPreferences() OK');
-    } catch (err) {
-      console.error('❌ getContentPreferences() FAILED - "settings" table is corrupted!');
-    }
+  const cached = await getSectionCache(lang);
+  if (cached) return cached;
 
-    console.log('📈 Data loaded:', {
-      watched: watched.length,
-      watchlist: watchlist.length,
-      favourites: favourites.length,
-    });
+  try {
+    const [watched, watchlist, favourites, prefs] = await Promise.all([
+      getWatched(),
+      getWatchlist(),
+      getFavourites(),
+      getContentPreferences(),
+    ]);
 
     const excludeIds = new Set([
       ...watched.map(m => m.imdbID),
@@ -376,12 +309,9 @@ export async function getHomeSections(lang = 'en'): Promise<RecoSection[]> {
       sections.push({ id: 'hiddenGems', movies: hiddenGemsFiltered });
     }
 
-    // TEMPORARY: Skip cache save due to IndexedDB hanging issue
-    // await setSectionCache(lang, sections);
-    
+    await setSectionCache(lang, sections);
     return sections;
   } catch (err) {
-    console.error('❌ getHomeSections failed:', err);
     throw err;
   }
 }

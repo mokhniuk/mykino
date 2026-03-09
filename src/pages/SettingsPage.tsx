@@ -264,10 +264,15 @@ export default function SettingsPage() {
   };
 
   const handleSendLink = async () => {
-    if (!syncEmail.trim()) return;
+    const email = syncEmail.trim();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
     setSendingLink(true);
     try {
-      await signInWithEmail(syncEmail.trim());
+      await signInWithEmail(email);
       setLinkSent(true);
     } catch {
       toast.error('Failed to send sign-in link. Check your email address.');

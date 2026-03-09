@@ -1,13 +1,38 @@
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+
 interface UsageEntry {
   count: number;
   date: string; // YYYY-MM-DD UTC
 }
 
-const store = new Map<string, UsageEntry>();
+const PERSIST_PATH = process.env.RATE_LIMIT_FILE || '/tmp/mykino-ratelimit.json';
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+function loadStore(): Map<string, UsageEntry> {
+  try {
+    if (existsSync(PERSIST_PATH)) {
+      const raw = readFileSync(PERSIST_PATH, 'utf-8');
+      const obj = JSON.parse(raw) as Record<string, UsageEntry>;
+      const date = today();
+      // Only restore entries from today — discard stale ones
+      const entries = Object.entries(obj).filter(([, v]) => v.date === date);
+      return new Map(entries);
+    }
+  } catch { /* start fresh on any error */ }
+  return new Map();
+}
+
+function saveStore() {
+  try {
+    const obj = Object.fromEntries(store);
+    writeFileSync(PERSIST_PATH, JSON.stringify(obj));
+  } catch { /* non-fatal — in-memory counts still work */ }
+}
+
+const store: Map<string, UsageEntry> = loadStore();
 
 /**
  * Checks and increments usage for a given key (typically an IP address).
@@ -23,6 +48,7 @@ export function checkRateLimit(key: string, limit: number): { allowed: boolean; 
 
   if (!entry || entry.date !== date) {
     store.set(key, { count: 1, date });
+    saveStore();
     return { allowed: true, remaining: limit - 1, limit };
   }
 
@@ -31,6 +57,7 @@ export function checkRateLimit(key: string, limit: number): { allowed: boolean; 
   }
 
   entry.count++;
+  saveStore();
   return { allowed: true, remaining: limit - entry.count, limit };
 }
 
@@ -48,4 +75,5 @@ setInterval(() => {
   for (const [key, entry] of store) {
     if (entry.date !== date) store.delete(key);
   }
+  saveStore();
 }, 60 * 60 * 1000);

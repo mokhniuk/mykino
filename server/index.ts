@@ -16,7 +16,7 @@ const STRIPE_ENABLED = !!(process.env.STRIPE_SECRET_KEY && process.env.SUPABASE_
 
 /** App origin used to build redirect URLs server-side (avoids open-redirect). */
 function appOrigin(): string {
-  return ALLOWED_ORIGIN !== '*' ? ALLOWED_ORIGIN : 'http://localhost:5173';
+  return ALLOWED_ORIGIN !== '*' ? ALLOWED_ORIGIN : 'http://localhost:8080';
 }
 
 app.use('*', cors({ origin: ALLOWED_ORIGIN }));
@@ -198,6 +198,10 @@ if (STRIPE_ENABLED && !process.env.STRIPE_WEBHOOK_SECRET) {
 
 if (STRIPE_ENABLED && !process.env.STRIPE_PRICE_MONTHLY && !process.env.STRIPE_PRICE_ANNUAL) {
   console.warn('⚠️  Neither STRIPE_PRICE_MONTHLY nor STRIPE_PRICE_ANNUAL is set — checkout will fail');
+}
+
+if (STRIPE_ENABLED && ALLOWED_ORIGIN === '*') {
+  console.warn('⚠️  ALLOWED_ORIGIN is not set — Stripe success/cancel URLs will point to localhost:8080');
 }
 
 export default { port: PORT, fetch: app.fetch };

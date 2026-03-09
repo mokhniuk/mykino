@@ -213,7 +213,6 @@ export default function SearchPage() {
     setError('');
 
     try {
-      console.log('🔍 Starting AI search...');
       const [tasteProfile, contentPreferences, favourites, watchlist, watched] = await Promise.all([
         getOrBuildTasteProfile(),
         getContentPreferences(),
@@ -272,37 +271,21 @@ export default function SearchPage() {
         watched: watched.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })),
       });
 
-      console.log(`✅ AI returned ${aiRecommendations.length} recommendations`);
-      
       // DEDUPLICATE AI recommendations by title BEFORE fetching movie data
-      const uniqueAiRecs = aiRecommendations.filter((rec, index, self) => 
+      const uniqueAiRecs = aiRecommendations.filter((rec, index, self) =>
         index === self.findIndex(r => r.title.toLowerCase() === rec.title.toLowerCase())
       );
-      
-      console.log(`After deduplication: ${uniqueAiRecs.length} unique titles from ${aiRecommendations.length} total`);
-      
-      if (uniqueAiRecs.length < 10) {
-        console.warn(`⚠️ WARNING: AI only provided ${uniqueAiRecs.length} unique movies out of ${aiRecommendations.length} requested!`);
-      }
 
       // Fetch movie data in parallel
       const movieDataPromises = uniqueAiRecs.map(async (rec, index) => {
         try {
-          console.log(`🔎 Searching for: "${rec.title}" (${rec.year})`);
           const searchResult = await searchMovies(rec.title, 1, lang);
           const movies = searchResult?.Search || [];
-          
-          if (movies.length === 0) {
-            console.warn(`⚠️ NOT FOUND in TMDB: "${rec.title}" (${rec.year})`);
-            return { index, movieData: null, reason: rec.reason };
-          }
-          
+          if (movies.length === 0) return { index, movieData: null, reason: rec.reason };
           const movie = movies[0];
-          console.log(`✓ Found: "${movie.Title}" for search "${rec.title}"`);
           const details = await getMovieDetails(movie.imdbID, lang);
           return { index, movieData: details || movie, reason: rec.reason };
         } catch (e) {
-          console.error(`❌ Error fetching "${rec.title}":`, e);
           return { index, movieData: null, reason: rec.reason };
         }
       });
@@ -441,7 +424,6 @@ export default function SearchPage() {
     // Check if we have cached results (only on initial mount when navigating back)
     if (isInitialMount.current && shouldRestoreCache && results.length > 0) {
       // We already have cached results from navigation back, don't search again
-      console.log('📦 Using cached search results');
       isInitialMount.current = false;
       return;
     }

@@ -40,9 +40,15 @@ export function getAIUsage(): { used: number; remaining: number; limit: number }
 // ─── Proxy path (production managed AI) ─────────────────────────────────────
 
 async function getRecommendationsViaProxy(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
-  // Send the Supabase session token so the server can identify Pro users and skip rate limiting
+  // Send the Supabase session token so the server can identify Pro users and skip rate limiting.
+  // AbortError can occur when the Web Locks auth token is contested across tabs — treat as no token.
   const sb = getSupabase();
-  const token = sb ? (await sb.auth.getSession()).data.session?.access_token : undefined;
+  let token: string | undefined;
+  try {
+    token = sb ? (await sb.auth.getSession()).data.session?.access_token : undefined;
+  } catch (e: any) {
+    if (e?.name !== 'AbortError') throw e;
+  }
 
   const res = await fetch(`${config.aiProxyUrl}/api/ai/recommendations`, {
     method: 'POST',
@@ -56,7 +62,7 @@ async function getRecommendationsViaProxy(request: AIRecommendationRequest): Pro
   // Capture rate limit headers for display in Settings
   const remaining = parseInt(res.headers.get('X-RateLimit-Remaining') ?? '-1');
   const limit = parseInt(res.headers.get('X-RateLimit-Limit') ?? '-1');
-  if (remaining >= 0 && limit > 0) storeAIUsage(remaining, limit);
+  if (remaining >= 0 && limit > 0 && remaining <= limit) storeAIUsage(remaining, limit);
 
   if (res.status === 429) {
     const body = await res.json().catch(() => ({}));
@@ -89,7 +95,7 @@ function buildCacheKey(request: AIRecommendationRequest, config: AIConfig): stri
   });
   // btoa keeps the key compact while remaining unique per distinct input set
   const profileHash = btoa(unescape(encodeURIComponent(fingerprint))).slice(0, 24);
-  return `ai_cache:${config.provider}:${model}:${request.language}:${request.count}:${request.watched.length}:${profileHash}:${q}`;
+  return `ai_cache:${config.provider}:${model}:${request.language}:${request.count}:${profileHash}:${q}`;
 }
 
 function envDefaults(): Partial<AIConfig> {
