@@ -271,11 +271,11 @@ export default function Pricing() {
                 ))}
                 <li className="flex items-start gap-3 text-sm">
                   <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
-                  <span className="text-muted-foreground">AI recommendations</span>
+                  <span className="text-muted-foreground">{t('pricingDemoNoAI')}</span>
                 </li>
                 <li className="flex items-start gap-3 text-sm">
                   <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
-                  <span className="text-muted-foreground">Cloud sync</span>
+                  <span className="text-muted-foreground">{t('pricingDemoNoSync')}</span>
                 </li>
               </ul>
             </div>
@@ -453,7 +453,7 @@ export default function Pricing() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
             {([
               { stat: '30', label: 'pricingTrialStat' },
-              { stat: '€0', label: 'pricingNoDataStat' },
+              { stat: '0', label: 'pricingNoDataStat' },
               { stat: '∞', label: 'pricingUnlimitedStat' },
             ] as const).map(item => (
               <div key={item.stat} className="rounded-2xl bg-card border border-border p-6">
@@ -575,7 +575,7 @@ export default function Pricing() {
               </Button>
               {signInIntent === 'pro' && (
                 <p className="text-xs text-muted-foreground text-center">
-                  After signing in, upgrade from Settings.
+                  {t('pricingSignInUpgradeHint')}
                 </p>
               )}
             </div>
