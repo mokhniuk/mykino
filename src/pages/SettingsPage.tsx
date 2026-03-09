@@ -540,146 +540,22 @@ export default function SettingsPage() {
           )}
         </section>
 
-        {/* AI Settings — full width */}
-        {tempAiConfig && (
+        {/* ── PRODUCTION MODE: unified AI & Account section ────────────────── */}
+        {config.hasManagedAI && tempAiConfig && (
           <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+            {/* Header: section title + AI toggle */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-foreground">
                 <Sparkles size={16} className="text-primary" />
-                <h2 className="text-sm font-semibold">{t('aiSettings')}</h2>
+                <h2 className="text-sm font-semibold">{t('accountSection')}</h2>
               </div>
-              <Switch
-                checked={tempAiConfig.enabled}
-                onCheckedChange={handleAIToggle}
-                disabled={savingAI}
-              />
-            </div>
-
-            {/* Managed AI mode (production hosted) */}
-            {config.hasManagedAI ? (
-              tempAiConfig.enabled && (
-                <div className="space-y-3">
-                  {aiUsage && !isPro ? (
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{t('aiDailyUsage')}</span>
-                        <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all"
-                          style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
-                        />
-                      </div>
-                      {aiUsage.remaining === 0 && (
-                        <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
-                      )}
-                    </div>
-                  ) : isPro ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Sparkles size={12} className="text-primary" />
-                      <span>{t('aiManagedMode')} · {t('planPro')}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Zap size={12} className="text-primary" />
-                      <span>{t('aiManagedMode')}</span>
-                    </div>
-                  )}
-                  {!isPro && (
-                    <a href="/pricing" className="block text-center text-xs text-primary hover:underline">
-                      {t('aiUpgradeForMore')}
-                    </a>
-                  )}
-                </div>
-              )
-            ) : (
-              /* BYO-key mode (community / dev) */
-              tempAiConfig.enabled && (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiProvider')}</label>
-                    <Select
-                      value={tempAiConfig.provider}
-                      onValueChange={(provider: AIProvider) => setTempAiConfig({ ...tempAiConfig, provider })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="openai">OpenAI</SelectItem>
-                        <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                        <SelectItem value="gemini">Google Gemini</SelectItem>
-                        <SelectItem value="mistral">Mistral AI</SelectItem>
-                        <SelectItem value="ollama">Ollama (Local)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiApiKey')}</label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="password"
-                        value={tempAiConfig.apiKey}
-                        onChange={(e) => setTempAiConfig({ ...tempAiConfig, apiKey: e.target.value })}
-                        placeholder={tempAiConfig.provider === 'ollama' ? t('aiOptional') : t('aiApiKeyPlaceholder')}
-                        className="flex-1"
-                      />
-                      <Button
-                        onClick={saveAIConfig}
-                        disabled={savingAI || (!tempAiConfig.apiKey && tempAiConfig.provider !== 'ollama')}
-                        size="sm"
-                      >
-                        {savingAI ? <Loader2 className="animate-spin" size={16} /> : t('save')}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {tempAiConfig.provider === 'ollama' && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">{t('aiOllamaUrl')}</label>
-                      <Input
-                        value={tempAiConfig.ollamaUrl || 'http://localhost:11434'}
-                        onChange={(e) => setTempAiConfig({ ...tempAiConfig, ollamaUrl: e.target.value })}
-                        placeholder="http://localhost:11434"
-                      />
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiModel')} ({t('aiOptional')})</label>
-                    <Input
-                      value={tempAiConfig.model || ''}
-                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, model: e.target.value })}
-                      placeholder={
-                        tempAiConfig.provider === 'openai' ? 'gpt-4o-mini' :
-                        tempAiConfig.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
-                        tempAiConfig.provider === 'gemini' ? 'gemini-1.5-flash' :
-                        tempAiConfig.provider === 'mistral' ? 'mistral-small-latest' :
-                        'llama3.2'
-                      }
-                    />
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
-                </div>
-              )
-            )}
-          </section>
-        )}
-
-        {/* Sync — full width, only when Supabase is configured */}
-        {config.hasSync && (
-          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
-            <div className="flex items-center gap-2 text-foreground">
-              <Cloud size={16} className="text-primary" />
-              <h2 className="text-sm font-semibold">{t('syncSection')}</h2>
+              <Switch checked={tempAiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI} />
             </div>
 
             {user ? (
-              /* Logged in state */
+              /* ── Logged in ── */
               <div className="space-y-3">
+                {/* Email + plan badge */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 size={15} className="text-green-500 shrink-0" />
@@ -691,6 +567,213 @@ export default function SettingsPage() {
                     {isPro ? t('planPro') : t('planFree')}
                   </span>
                 </div>
+
+                {isPro ? (
+                  /* Pro: unlimited AI + sync controls */
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Sparkles size={12} className="text-primary" />
+                      <span>{t('aiUnlimited')}</span>
+                    </div>
+                    {lastSynced && (
+                      <p className="text-xs text-muted-foreground">
+                        {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
+                      </p>
+                    )}
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing} className="flex items-center gap-1.5">
+                        {syncing
+                          ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
+                          : <><RefreshCw size={13} />{t('syncNow')}</>}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleManagePlan}>
+                        {t('managePlan')}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground ml-auto">
+                        {t('syncSignOut')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Free: usage bar + upgrade CTA */
+                  <div className="space-y-3">
+                    {aiUsage && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{t('aiDailyUsage')}</span>
+                          <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
+                          />
+                        </div>
+                        {aiUsage.remaining === 0 && (
+                          <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
+                        )}
+                      </div>
+                    )}
+                    {/* Upgrade box */}
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-foreground">{t('proUpgradeBox')}</p>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        <li className="flex items-center gap-1.5"><Sparkles size={10} className="text-primary shrink-0" />{t('proUpgradeBullet1')}</li>
+                        <li className="flex items-center gap-1.5"><Cloud size={10} className="text-primary shrink-0" />{t('proUpgradeBullet2')}</li>
+                      </ul>
+                      <Button size="sm" onClick={() => handleUpgrade(false)} className="w-full gap-1.5 mt-1">
+                        <Sparkles size={13} />
+                        {t('upgradeToPro')}
+                      </Button>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground w-full">
+                      {t('syncSignOut')}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : linkSent ? (
+              /* ── Magic link sent ── */
+              <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+                <CheckCircle2 size={14} className="text-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground leading-relaxed">{t('syncEmailSent')}</p>
+              </div>
+            ) : (
+              /* ── Not logged in: show value prop + sign-in form ── */
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">{t('signInToUnlock')}</p>
+                  <ul className="text-xs text-muted-foreground space-y-1 pl-0.5">
+                    <li className="flex items-center gap-1.5">
+                      <Zap size={11} className="text-primary shrink-0" />
+                      {t('freeAiPerDay')}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <Cloud size={11} className="text-primary/60 shrink-0" />
+                      {t('proSyncBenefit')}
+                    </li>
+                  </ul>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={syncEmail}
+                    onChange={e => setSyncEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendLink()}
+                    placeholder={t('syncEmailPlaceholder')}
+                    className="flex-1 h-9 text-sm"
+                  />
+                  <Button size="sm" onClick={handleSendLink} disabled={sendingLink || !syncEmail.trim()}>
+                    {sendingLink ? <Loader2 size={13} className="animate-spin" /> : t('syncSendLink')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── COMMUNITY MODE: separate AI section (BYO key) ────────────────── */}
+        {!config.hasManagedAI && tempAiConfig && (
+          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-foreground">
+                <Sparkles size={16} className="text-primary" />
+                <h2 className="text-sm font-semibold">{t('aiSettings')}</h2>
+              </div>
+              <Switch checked={tempAiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI} />
+            </div>
+
+            {tempAiConfig.enabled && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('aiProvider')}</label>
+                  <Select
+                    value={tempAiConfig.provider}
+                    onValueChange={(provider: AIProvider) => setTempAiConfig({ ...tempAiConfig, provider })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                      <SelectItem value="gemini">Google Gemini</SelectItem>
+                      <SelectItem value="mistral">Mistral AI</SelectItem>
+                      <SelectItem value="ollama">Ollama (Local)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('aiApiKey')}</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      value={tempAiConfig.apiKey}
+                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, apiKey: e.target.value })}
+                      placeholder={tempAiConfig.provider === 'ollama' ? t('aiOptional') : t('aiApiKeyPlaceholder')}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={saveAIConfig}
+                      disabled={savingAI || (!tempAiConfig.apiKey && tempAiConfig.provider !== 'ollama')}
+                      size="sm"
+                    >
+                      {savingAI ? <Loader2 className="animate-spin" size={16} /> : t('save')}
+                    </Button>
+                  </div>
+                </div>
+
+                {tempAiConfig.provider === 'ollama' && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">{t('aiOllamaUrl')}</label>
+                    <Input
+                      value={tempAiConfig.ollamaUrl || 'http://localhost:11434'}
+                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, ollamaUrl: e.target.value })}
+                      placeholder="http://localhost:11434"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">{t('aiModel')} ({t('aiOptional')})</label>
+                  <Input
+                    value={tempAiConfig.model || ''}
+                    onChange={(e) => setTempAiConfig({ ...tempAiConfig, model: e.target.value })}
+                    placeholder={
+                      tempAiConfig.provider === 'openai' ? 'gpt-4o-mini' :
+                      tempAiConfig.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
+                      tempAiConfig.provider === 'gemini' ? 'gemini-1.5-flash' :
+                      tempAiConfig.provider === 'mistral' ? 'mistral-small-latest' :
+                      'llama3.2'
+                    }
+                  />
+                </div>
+
+                <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── COMMUNITY MODE: Sync section (only if Supabase configured) ───── */}
+        {!config.hasManagedAI && config.hasSync && (
+          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+            <div className="flex items-center gap-2 text-foreground">
+              <Cloud size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold">{t('syncSection')}</h2>
+            </div>
+
+            {user ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 size={15} className="text-green-500 shrink-0" />
+                    <span className="text-muted-foreground">
+                      {t('syncSignedInAs')} <span className="text-foreground font-medium">{user.email}</span>
+                    </span>
+                  </div>
+                </div>
                 {lastSynced && (
                   <p className="text-xs text-muted-foreground">
                     {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
@@ -700,32 +783,19 @@ export default function SettingsPage() {
                   <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing} className="flex items-center gap-1.5">
                     {syncing
                       ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
-                      : <><RefreshCw size={13} />{t('syncNow')}</>
-                    }
+                      : <><RefreshCw size={13} />{t('syncNow')}</>}
                   </Button>
-                  {isPro ? (
-                    <Button size="sm" variant="outline" onClick={handleManagePlan}>
-                      {t('managePlan')}
-                    </Button>
-                  ) : (
-                    <Button size="sm" onClick={() => handleUpgrade(false)} className="gap-1.5">
-                      <Sparkles size={13} />
-                      {t('upgradeToPro')}
-                    </Button>
-                  )}
                   <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground ml-auto">
                     {t('syncSignOut')}
                   </Button>
                 </div>
               </div>
             ) : linkSent ? (
-              /* Magic link sent state */
               <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
                 <CheckCircle2 size={14} className="text-primary mt-0.5 shrink-0" />
                 <p className="text-xs text-muted-foreground leading-relaxed">{t('syncEmailSent')}</p>
               </div>
             ) : (
-              /* Logged out state */
               <div className="space-y-3">
                 <p className="text-xs text-muted-foreground">{t('syncDescription')}</p>
                 <div className="flex gap-2">
@@ -737,11 +807,7 @@ export default function SettingsPage() {
                     placeholder={t('syncEmailPlaceholder')}
                     className="flex-1 h-9 text-sm"
                   />
-                  <Button
-                    size="sm"
-                    onClick={handleSendLink}
-                    disabled={sendingLink || !syncEmail.trim()}
-                  >
+                  <Button size="sm" onClick={handleSendLink} disabled={sendingLink || !syncEmail.trim()}>
                     {sendingLink ? <Loader2 size={13} className="animate-spin" /> : t('syncSendLink')}
                   </Button>
                 </div>
@@ -757,38 +823,45 @@ export default function SettingsPage() {
             <h2 className="text-sm font-semibold">{t('dataManagement')}</h2>
           </div>
 
-          {/* Browser ↔ PWA transfer tip — only shown in browser, not in standalone */}
-          {!isStandalone && (
-            <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
-              <Smartphone size={14} className="text-primary mt-0.5 shrink-0" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t('pwaTransferTip')}
-              </p>
+          
+
+          {!user && (
+            
+            <div className="pb-2 border-b border-border/50 flex flex-col gap-2">
+              {/* Browser ↔ PWA transfer tip — only shown in browser, not in standalone */}
+              {!isStandalone && (
+                <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+                  <Smartphone size={14} className="text-primary mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t('pwaTransferTip')}
+                  </p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleExport}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors"
+                >
+                  <Download size={15} />
+                  {t('exportData')}
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Upload size={15} />
+                  {importing ? '…' : t('importData')}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
+
+              <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={handleExport}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors"
-            >
-              <Download size={15} />
-              {t('exportData')}
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <Upload size={15} />
-              {importing ? '…' : t('importData')}
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
-          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-
           {stats && (
-            <div className="pt-2 border-t border-border/50">
+            <div className="pt-2">
               <div className="grid grid-cols-2 gap-y-2 gap-x-4">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">{t('statWatchlist')}</span>

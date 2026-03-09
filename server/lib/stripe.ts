@@ -42,7 +42,6 @@ export async function createCheckoutSession(opts: {
     // metadata on the session itself so checkout.session.completed can find the user
     metadata: { supabase_user_id: opts.userId },
     subscription_data: {
-      trial_period_days: 14,
       metadata: { supabase_user_id: opts.userId },
     },
   });
@@ -94,7 +93,6 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
         break;
       }
 
-      // Fetch the subscription to get its actual status (may be 'trialing' during trial)
       let subscriptionStatus = 'active';
       if (session.subscription) {
         try {
@@ -117,7 +115,7 @@ export async function handleWebhookEvent(rawBody: string, signature: string): Pr
         ?? await getUserIdByCustomer(sub.customer as string);
       if (!userId) break;
 
-      const isActive = sub.status === 'active' || sub.status === 'trialing';
+      const isActive = sub.status === 'active';
       await setUserPlan(userId, isActive ? 'pro' : 'free', {
         subscriptionId: sub.id,
         subscriptionStatus: sub.status,
