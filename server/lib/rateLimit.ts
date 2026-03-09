@@ -1,14 +1,22 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 
+type Period = 'daily' | 'monthly';
+
 interface UsageEntry {
   count: number;
-  date: string; // YYYY-MM-DD UTC
+  period: string; // YYYY-MM-DD for daily, YYYY-MM for monthly
 }
 
 const PERSIST_PATH = process.env.RATE_LIMIT_FILE || '/tmp/mykino-ratelimit.json';
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
+function periodKey(period: Period): string {
+  const now = new Date();
+  if (period === 'monthly') return now.toISOString().slice(0, 7); // YYYY-MM
+  return now.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function storeKey(ip: string, period: Period): string {
+  return `${ip}:${period}`;
 }
 
 function loadStore(): Map<string, UsageEntry> {
@@ -16,9 +24,13 @@ function loadStore(): Map<string, UsageEntry> {
     if (existsSync(PERSIST_PATH)) {
       const raw = readFileSync(PERSIST_PATH, 'utf-8');
       const obj = JSON.parse(raw) as Record<string, UsageEntry>;
-      const date = today();
-      // Only restore entries from today — discard stale ones
-      const entries = Object.entries(obj).filter(([, v]) => v.date === date);
+      const today = periodKey('daily');
+      const month = periodKey('monthly');
+      // Restore entries that are still current for their period
+      const entries = Object.entries(obj).filter(([k, v]) => {
+        if (k.endsWith(':monthly')) return v.period === month;
+        return v.period === today;
+      });
       return new Map(entries);
     }
   } catch { /* start fresh on any error */ }
@@ -38,16 +50,21 @@ const store: Map<string, UsageEntry> = loadStore();
  * Checks and increments usage for a given key (typically an IP address).
  * Returns { allowed, remaining, limit }.
  *
- * Pass limit = Infinity to skip rate limiting (community / pro users).
+ * Pass limit = Infinity to skip rate limiting (community users).
  */
-export function checkRateLimit(key: string, limit: number): { allowed: boolean; remaining: number; limit: number } {
+export function checkRateLimit(
+  ip: string,
+  limit: number,
+  period: Period = 'daily',
+): { allowed: boolean; remaining: number; limit: number } {
   if (!isFinite(limit)) return { allowed: true, remaining: Infinity, limit };
 
-  const date = today();
+  const key = storeKey(ip, period);
+  const current = periodKey(period);
   const entry = store.get(key);
 
-  if (!entry || entry.date !== date) {
-    store.set(key, { count: 1, date });
+  if (!entry || entry.period !== current) {
+    store.set(key, { count: 1, period: current });
     saveStore();
     return { allowed: true, remaining: limit - 1, limit };
   }
@@ -62,18 +79,26 @@ export function checkRateLimit(key: string, limit: number): { allowed: boolean; 
 }
 
 /** Returns current usage without incrementing (for status checks). */
-export function getUsage(key: string, limit: number): { used: number; remaining: number; limit: number } {
-  const date = today();
+export function getUsage(
+  ip: string,
+  limit: number,
+  period: Period = 'daily',
+): { used: number; remaining: number; limit: number } {
+  const key = storeKey(ip, period);
+  const current = periodKey(period);
   const entry = store.get(key);
-  const used = entry?.date === date ? entry.count : 0;
+  const used = entry?.period === current ? entry.count : 0;
   return { used, remaining: Math.max(0, limit - used), limit };
 }
 
 // Prune stale entries once per hour to avoid unbounded memory growth
 setInterval(() => {
-  const date = today();
+  const today = periodKey('daily');
+  const month = periodKey('monthly');
   for (const [key, entry] of store) {
-    if (entry.date !== date) store.delete(key);
+    const isMonthly = key.endsWith(':monthly');
+    if (isMonthly && entry.period !== month) store.delete(key);
+    else if (!isMonthly && entry.period !== today) store.delete(key);
   }
   saveStore();
 }, 60 * 60 * 1000);

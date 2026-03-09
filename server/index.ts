@@ -10,7 +10,8 @@ const app = new Hono();
 
 const PORT = Number(process.env.PORT || 3001);
 const COMMUNITY_MODE = process.env.COMMUNITY_MODE === 'true';
-const FREE_DAILY_LIMIT = Number(process.env.FREE_DAILY_LIMIT || 3);
+const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 30);
+const PRO_DAILY_LIMIT = Number(process.env.PRO_DAILY_LIMIT || 50);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 const STRIPE_ENABLED = !!(process.env.STRIPE_SECRET_KEY && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -48,18 +49,21 @@ app.post('/api/ai/recommendations', async (c) => {
     if (authHeader?.startsWith('Bearer ')) {
       try {
         const { plan } = await getUserPlan(authHeader.slice(7));
-        limit = plan === 'pro' ? Infinity : FREE_DAILY_LIMIT;
+        limit = plan === 'pro' ? PRO_DAILY_LIMIT : FREE_MONTHLY_LIMIT;
       } catch {
-        limit = FREE_DAILY_LIMIT;
+        limit = FREE_MONTHLY_LIMIT;
       }
     } else {
-      limit = FREE_DAILY_LIMIT;
+      limit = FREE_MONTHLY_LIMIT;
     }
   } else {
-    limit = FREE_DAILY_LIMIT;
+    limit = FREE_MONTHLY_LIMIT;
   }
 
-  const { allowed, remaining, limit: effectiveLimit } = checkRateLimit(ip, limit);
+  // Pro users: daily reset. Free users: monthly reset.
+  const isPro = limit === PRO_DAILY_LIMIT;
+  const period = isPro ? 'daily' : 'monthly';
+  const { allowed, remaining, limit: effectiveLimit } = checkRateLimit(ip, limit, period);
 
   if (!allowed) {
     const tomorrow = new Date();
@@ -182,7 +186,7 @@ app.post('/api/stripe/portal', async (c) => {
 console.log(`🎬 MyKino AI proxy starting on port ${PORT}`);
 console.log(`   Community mode: ${COMMUNITY_MODE}`);
 console.log(`   Stripe: ${STRIPE_ENABLED ? 'enabled' : 'disabled'}`);
-if (!COMMUNITY_MODE) console.log(`   Free daily limit: ${FREE_DAILY_LIMIT}`);
+if (!COMMUNITY_MODE) console.log(`   Free monthly limit: ${FREE_MONTHLY_LIMIT} | Pro daily limit: ${PRO_DAILY_LIMIT}`);
 
 try {
   detectProvider();

@@ -569,12 +569,27 @@ export default function SettingsPage() {
                 </div>
 
                 {isPro ? (
-                  /* Pro: unlimited AI + sync controls */
+                  /* Pro: usage bar + sync controls */
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Sparkles size={12} className="text-primary" />
-                      <span>{t('aiUnlimited')}</span>
-                    </div>
+                    {aiUsage ? (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{t('aiDailyUsage')}</span>
+                          <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
+                          />
+                        </div>
+                        {aiUsage.remaining === 0 && (
+                          <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{t('proAiLimit')}</p>
+                    )}
                     {lastSynced && (
                       <p className="text-xs text-muted-foreground">
                         {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
@@ -639,17 +654,21 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground leading-relaxed">{t('syncEmailSent')}</p>
               </div>
             ) : (
-              /* ── Not logged in: show value prop + sign-in form ── */
+              /* ── Not logged in (Demo mode): show value prop + sign-in form ── */
               <div className="space-y-3">
+                <div className="rounded-lg bg-secondary/60 border border-border px-3 py-2.5">
+                  <p className="text-xs font-semibold text-foreground">{t('demoModeLabel')}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('demoModeDesc')}</p>
+                </div>
                 <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground">{t('signInToUnlock')}</p>
+                  <p className="text-xs text-muted-foreground">{t('signInForFree')}</p>
                   <ul className="text-xs text-muted-foreground space-y-1 pl-0.5">
                     <li className="flex items-center gap-1.5">
                       <Zap size={11} className="text-primary shrink-0" />
-                      {t('freeAiPerDay')}
+                      {t('freeAiLimit')}
                     </li>
                     <li className="flex items-center gap-1.5">
-                      <Cloud size={11} className="text-primary/60 shrink-0" />
+                      <Cloud size={11} className="text-primary shrink-0" />
                       {t('proSyncBenefit')}
                     </li>
                   </ul>

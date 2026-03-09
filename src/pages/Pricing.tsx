@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Minus, Sparkles, Cloud, Brain, ShieldCheck } from 'lucide-react';
+import { Check, Minus, Sparkles, Cloud, Brain, ShieldCheck, Server } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import Footer from '@/components/Footer';
 
@@ -16,19 +16,20 @@ export default function Pricing() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  const demoFeatures = [
+    'pricingDF1', 'pricingDF2', 'pricingDF3', 'pricingDF4',
+  ] as const;
+
   const freeFeatures = [
-    { key: 'pricingFF1', included: true },
-    { key: 'pricingFF2', included: true },
-    { key: 'pricingFF3', included: true },
-    { key: 'pricingFF4', included: true },
-    { key: 'pricingFF5', included: false },
-    { key: 'pricingFF6', included: false },
-    { key: 'pricingFF7', included: false },
+    'pricingFF1', 'pricingFF2', 'pricingFF3',
   ] as const;
 
   const proFeatures = [
-    'pricingPF1', 'pricingPF2', 'pricingPF3', 'pricingPF4',
-    'pricingPF5', 'pricingPF6', 'pricingPF7',
+    'pricingPF1', 'pricingPF2', 'pricingPF3', 'pricingPF4', 'pricingPF5',
+  ] as const;
+
+  const communityFeatures = [
+    'pricingCF1', 'pricingCF2', 'pricingCF3',
   ] as const;
 
   const faqs = [
@@ -63,7 +64,7 @@ export default function Pricing() {
       </div>
 
       {/* Hero */}
-      <section className="px-6 py-24 text-center max-w-3xl mx-auto">
+      <section className="px-6 py-20 text-center max-w-5xl mx-auto">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-6">
           <Sparkles size={11} />
           {t('pricingBadge')}
@@ -75,7 +76,7 @@ export default function Pricing() {
           {t('pricingSubtitle')}
         </p>
 
-        {/* Billing toggle */}
+        {/* Billing toggle — affects Pro price only */}
         <div className="inline-flex items-center rounded-2xl border border-border bg-card p-1 mb-12">
           <button
             onClick={() => setIsAnnual(false)}
@@ -104,43 +105,75 @@ export default function Pricing() {
           </button>
         </div>
 
-        {/* Pricing cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+        {/* Pricing cards — Demo | Free | Pro in one row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left mb-3">
+
+          {/* Demo */}
+          <div className="rounded-2xl bg-card border border-border p-7">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              {t('pricingDemoTag')}
+            </span>
+            <div className="text-2xl font-bold text-foreground mt-3 mb-1">{t('pricingDemoName')}</div>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-5">{t('pricingDemoDesc')}</p>
+            <div className="mb-5">
+              <span className="text-4xl font-bold text-foreground tracking-tight">€0</span>
+              <p className="text-sm text-muted-foreground mt-1">{t('pricingDemoAlways')}</p>
+            </div>
+            <button
+              onClick={() => navigate('/app')}
+              className="w-full py-2.5 rounded-xl border border-border bg-transparent text-foreground font-semibold text-sm hover:bg-secondary transition-colors mb-5"
+            >
+              {t('pricingDemoBtn')}
+            </button>
+            <div className="border-t border-border pt-5">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground mb-3">
+                {t('pricingWhatsIncluded')}
+              </p>
+              <ul className="space-y-2.5">
+                {demoFeatures.map(key => (
+                  <li key={key} className="flex items-start gap-3 text-sm">
+                    <Check size={14} className="text-primary flex-shrink-0 mt-0.5" strokeWidth={2.5} />
+                    <span className="text-foreground">{t(key)}</span>
+                  </li>
+                ))}
+                <li className="flex items-start gap-3 text-sm">
+                  <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                  <span className="text-muted-foreground">AI recommendations</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm">
+                  <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                  <span className="text-muted-foreground">Cloud sync</span>
+                </li>
+              </ul>
+            </div>
+          </div>
 
           {/* Free */}
-          <div className="rounded-2xl bg-card border border-border p-8">
+          <div className="rounded-2xl bg-card border border-border p-7">
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
               {t('pricingFreeTag')}
             </span>
-            <div className="text-3xl font-bold text-foreground mt-4 mb-1">{t('pricingFreeName')}</div>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-6">{t('pricingFreeDesc')}</p>
-
-            <div className="mb-6">
-              <span className="text-5xl font-bold text-foreground tracking-tight">€0</span>
+            <div className="text-2xl font-bold text-foreground mt-3 mb-1">{t('pricingFreeName')}</div>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-5">{t('pricingFreeDesc')}</p>
+            <div className="mb-5">
+              <span className="text-4xl font-bold text-foreground tracking-tight">€0</span>
               <p className="text-sm text-muted-foreground mt-1">{t('pricingFreeAlways')}</p>
             </div>
-
             <button
-              onClick={() => navigate('/app')}
-              className="w-full py-3 rounded-xl border border-border bg-transparent text-foreground font-semibold text-sm hover:bg-secondary transition-colors mb-6"
+              onClick={() => navigate('/app/settings')}
+              className="w-full py-2.5 rounded-xl border border-border bg-transparent text-foreground font-semibold text-sm hover:bg-secondary transition-colors mb-5"
             >
               {t('pricingFreeBtn')}
             </button>
-
-            <div className="border-t border-border pt-6">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground mb-4">
+            <div className="border-t border-border pt-5">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground mb-3">
                 {t('pricingWhatsIncluded')}
               </p>
-              <ul className="space-y-3">
-                {freeFeatures.map(f => (
-                  <li key={f.key} className="flex items-center gap-3 text-sm">
-                    {f.included
-                      ? <Check size={15} className="text-primary flex-shrink-0" strokeWidth={2.5} />
-                      : <Minus size={15} className="text-muted-foreground/40 flex-shrink-0" strokeWidth={2} />
-                    }
-                    <span className={f.included ? 'text-foreground' : 'text-muted-foreground'}>
-                      {t(f.key)}
-                    </span>
+              <ul className="space-y-2.5">
+                {freeFeatures.map(key => (
+                  <li key={key} className="flex items-start gap-3 text-sm">
+                    <Check size={14} className="text-primary flex-shrink-0 mt-0.5" strokeWidth={2.5} />
+                    <span className="text-foreground">{t(key)}</span>
                   </li>
                 ))}
               </ul>
@@ -148,17 +181,16 @@ export default function Pricing() {
           </div>
 
           {/* Pro */}
-          <div className="rounded-2xl bg-card border-2 border-primary/40 p-8 relative overflow-hidden">
+          <div className="rounded-2xl bg-card border-2 border-primary/40 p-7 relative overflow-hidden">
             <div className="absolute inset-0 bg-primary/[0.03] pointer-events-none rounded-2xl" />
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
               <Sparkles size={10} />
               Pro
             </span>
-            <div className="text-3xl font-bold text-foreground mt-4 mb-1">Pro</div>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-6">{t('pricingProDesc')}</p>
-
-            <div className="mb-6">
-              <span className="text-5xl font-bold text-foreground tracking-tight">
+            <div className="text-2xl font-bold text-foreground mt-3 mb-1">Pro</div>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-5">{t('pricingProDesc')}</p>
+            <div className="mb-5">
+              <span className="text-4xl font-bold text-foreground tracking-tight">
                 {isAnnual ? '€3.25' : '€4.99'}
               </span>
               <p className="text-sm text-muted-foreground mt-1">
@@ -168,19 +200,17 @@ export default function Pricing() {
                 <p className="text-xs text-primary font-medium mt-1">{t('pricingProSaving')}</p>
               )}
             </div>
-
-            <button className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 mb-6">
+            <button className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 mb-5">
               {t('pricingProBtn')}
             </button>
-
-            <div className="border-t border-border pt-6">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground mb-4">
+            <div className="border-t border-border pt-5">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground mb-3">
                 {t('pricingEverythingPlus')}
               </p>
-              <ul className="space-y-3">
+              <ul className="space-y-2.5">
                 {proFeatures.map(key => (
-                  <li key={key} className="flex items-center gap-3 text-sm">
-                    <Check size={15} className="text-primary flex-shrink-0" strokeWidth={2.5} />
+                  <li key={key} className="flex items-start gap-3 text-sm">
+                    <Check size={14} className="text-primary flex-shrink-0 mt-0.5" strokeWidth={2.5} />
                     <span className="text-foreground">{t(key)}</span>
                   </li>
                 ))}
@@ -188,6 +218,45 @@ export default function Pricing() {
             </div>
           </div>
 
+        </div>
+
+        {/* Community — full-width card */}
+        <div className="rounded-2xl bg-card border border-dashed border-border p-8 text-left">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
+                  <Server size={17} className="text-muted-foreground" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground block leading-none mb-1">
+                    {t('pricingCommunityTag')}
+                  </span>
+                  <span className="text-lg font-bold text-foreground">{t('pricingCommunityName')}</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-4 max-w-xl">
+                {t('pricingCommunityDesc')}
+              </p>
+              <ul className="flex flex-wrap gap-x-6 gap-y-2">
+                {communityFeatures.map(key => (
+                  <li key={key} className="flex items-center gap-2 text-sm">
+                    <Check size={13} className="text-primary flex-shrink-0" strokeWidth={2.5} />
+                    <span className="text-foreground">{t(key)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex flex-col items-start sm:items-end gap-2 flex-shrink-0">
+              <p className="text-sm font-semibold text-muted-foreground">{t('pricingCommunityFree')}</p>
+              <button
+                onClick={() => navigate('/community')}
+                className="px-6 py-3 rounded-xl border border-border bg-transparent text-foreground font-semibold text-sm hover:bg-secondary transition-colors whitespace-nowrap"
+              >
+                {t('pricingCommunityBtn')}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -270,10 +339,10 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* Trust stats */}
+          {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
             {([
-              { stat: '14', label: 'pricingTrialStat' },
+              { stat: '30', label: 'pricingTrialStat' },
               { stat: '€0', label: 'pricingNoDataStat' },
               { stat: '∞', label: 'pricingUnlimitedStat' },
             ] as const).map(item => (
