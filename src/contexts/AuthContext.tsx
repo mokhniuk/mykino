@@ -6,6 +6,7 @@ import { config } from '@/lib/config';
 
 interface AuthContextType {
   user: User | null;
+  accessToken: string | null;
   /** True during the initial session check on mount. */
   loading: boolean;
   /** True while a full sync is in progress. */
@@ -15,6 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  accessToken: null,
   loading: false,
   syncing: false,
   triggerSync: async () => {},
@@ -22,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(config.hasSync);
   const [syncing, setSyncing] = useState(false);
 
@@ -67,11 +70,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setCachedPlan(null);
           setUser(null);
+          setAccessToken(null);
           return;
         }
 
         if (newUser) {
           setUser(newUser);
+          setAccessToken(session?.access_token ?? null);
           if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
             setLoading(false);
           }
@@ -109,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchAndCachePlan]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, syncing, triggerSync }}>
+    <AuthContext.Provider value={{ user, accessToken, loading, syncing, triggerSync }}>
       {children}
     </AuthContext.Provider>
   );

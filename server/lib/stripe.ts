@@ -52,11 +52,22 @@ export async function createCheckoutSession(opts: {
 /** Creates a Stripe Customer Portal session URL (for managing billing). */
 export async function createPortalSession(opts: {
   userId: string;
+  email: string;
   returnUrl: string;
 }): Promise<string> {
   const stripe = getStripe();
-  const customerId = await getStripeCustomerId(opts.userId);
-  if (!customerId) throw new Error('No Stripe customer found for this user');
+  let customerId = await getStripeCustomerId(opts.userId);
+
+  if (!customerId) {
+    // Fall back: search Stripe for an existing customer with this email
+    if (opts.email) {
+      const existing = await stripe.customers.list({ email: opts.email, limit: 1 });
+      if (existing.data.length > 0) {
+        customerId = existing.data[0].id;
+      }
+    }
+    if (!customerId) throw new Error('No Stripe customer found — please subscribe via the checkout flow first.');
+  }
 
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,

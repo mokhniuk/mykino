@@ -1,9 +1,9 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles, Zap, Cloud, CloudOff, CheckCircle2 } from 'lucide-react';
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles, Zap, Cloud, CloudOff, CheckCircle2, CreditCard } from 'lucide-react';
 import { config } from '@/lib/config';
 import { getAIUsage } from '@/lib/ai';
 import { useAuth } from '@/contexts/AuthContext';
-import { signInWithEmail, signOut, getSupabase } from '@/lib/supabase';
+import { signInWithEmail, signOut } from '@/lib/supabase';
 import { getLastSyncTime } from '@/lib/sync';
 import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface CategoryPickerProps {
   label: string;
@@ -119,12 +120,14 @@ export default function SettingsPage() {
   const [tempAiConfig, setTempAiConfig] = useState<AIConfig | null>(null);
   const [savingAI, setSavingAI] = useState(false);
   const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number } | null>(null);
-  const { user, syncing, triggerSync } = useAuth();
+  const { user, accessToken, syncing, triggerSync } = useAuth();
   const { isPro, refetch: refetchProfile } = useProfile();
   const [syncEmail, setSyncEmail] = useState('');
   const [sendingLink, setSendingLink] = useState(false);
   const [linkSent, setLinkSent] = useState(false);
   const [lastSynced, setLastSynced] = useState<number | null>(null);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [planModalAnnual, setPlanModalAnnual] = useState(false);
 
   useEffect(() => {
     if (config.hasSync) setLastSynced(getLastSyncTime());
@@ -217,18 +220,14 @@ export default function SettingsPage() {
   }, []);
 
   const handleUpgrade = async (annual: boolean) => {
-    const sb = getSupabase();
-    if (!sb) return;
-
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+    if (!accessToken) { toast.error('Please sign in first.'); return; }
 
     try {
       const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ annual }),
       });
@@ -241,17 +240,14 @@ export default function SettingsPage() {
   };
 
   const handleManagePlan = async () => {
-    const sb = getSupabase();
-    if (!sb) return;
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+    if (!accessToken) { toast.error('Please sign in first.'); return; }
 
     try {
       const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/portal`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({}),
       });
@@ -568,84 +564,58 @@ export default function SettingsPage() {
                   </span>
                 </div>
 
-                {isPro ? (
-                  /* Pro: usage bar + sync controls */
-                  <div className="space-y-3">
-                    {aiUsage ? (
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{t('aiDailyUsage')}</span>
-                          <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
-                          />
-                        </div>
-                        {aiUsage.remaining === 0 && (
-                          <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">{t('proAiLimit')}</p>
-                    )}
-                    {lastSynced && (
-                      <p className="text-xs text-muted-foreground">
-                        {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
-                      </p>
-                    )}
-                    <div className="flex gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing} className="flex items-center gap-1.5">
-                        {syncing
-                          ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
-                          : <><RefreshCw size={13} />{t('syncNow')}</>}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleManagePlan}>
-                        {t('managePlan')}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground ml-auto">
-                        {t('syncSignOut')}
-                      </Button>
+                {/* Usage bar — same for both Free and Pro */}
+                {aiUsage && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{t('aiDailyUsage')}</span>
+                      <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
                     </div>
-                  </div>
-                ) : (
-                  /* Free: usage bar + upgrade CTA */
-                  <div className="space-y-3">
-                    {aiUsage && (
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{t('aiDailyUsage')}</span>
-                          <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
-                          />
-                        </div>
-                        {aiUsage.remaining === 0 && (
-                          <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
-                        )}
-                      </div>
-                    )}
-                    {/* Upgrade box */}
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
-                      <p className="text-xs font-semibold text-foreground">{t('proUpgradeBox')}</p>
-                      <ul className="text-xs text-muted-foreground space-y-1">
-                        <li className="flex items-center gap-1.5"><Sparkles size={10} className="text-primary shrink-0" />{t('proUpgradeBullet1')}</li>
-                        <li className="flex items-center gap-1.5"><Cloud size={10} className="text-primary shrink-0" />{t('proUpgradeBullet2')}</li>
-                      </ul>
-                      <Button size="sm" onClick={() => handleUpgrade(false)} className="w-full gap-1.5 mt-1">
-                        <Sparkles size={13} />
-                        {t('upgradeToPro')}
-                      </Button>
+                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
+                      />
                     </div>
-                    <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground w-full">
-                      {t('syncSignOut')}
-                    </Button>
+                    {aiUsage.remaining === 0 && (
+                      <p className="text-xs text-muted-foreground">{t('aiLimitReached')}</p>
+                    )}
                   </div>
                 )}
+                {!aiUsage && !isPro && (
+                  <p className="text-xs text-muted-foreground">{t('freeAiLimit')}</p>
+                )}
+                {!aiUsage && isPro && (
+                  <p className="text-xs text-muted-foreground">{t('proAiLimit')}</p>
+                )}
+
+                {/* Sync + action buttons */}
+                {lastSynced && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
+                  </p>
+                )}
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing} className="flex items-center gap-1.5">
+                    {syncing
+                      ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
+                      : <><RefreshCw size={13} />{t('syncNow')}</>}
+                  </Button>
+                  {isPro ? (
+                    <Button size="sm" variant="outline" onClick={() => setPlanModalOpen(true)} className="flex items-center gap-1.5">
+                      <CreditCard size={13} />
+                      {t('managePlan')}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => handleUpgrade(false)} className="flex items-center gap-1.5">
+                      <CreditCard size={13} />
+                      {t('upgradeToPro')}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground ml-auto">
+                    {t('syncSignOut')}
+                  </Button>
+                </div>
               </div>
             ) : linkSent ? (
               /* ── Magic link sent ── */
@@ -956,6 +926,80 @@ export default function SettingsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Plan Modal */}
+        <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>
+                {isPro ? t('planModalTitle') : t('upgradeToPro')}
+              </DialogTitle>
+            </DialogHeader>
+
+            {isPro ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 size={16} className="text-green-500 shrink-0" />
+                  <span className="font-medium">{t('youreOnPro')}</span>
+                </div>
+
+                {aiUsage && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{t('aiDailyUsage')}</span>
+                      <span className="font-medium text-foreground">{aiUsage.used} / {aiUsage.limit}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${Math.min(100, (aiUsage.used / aiUsage.limit) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <Button className="w-full" onClick={handleManagePlan}>
+                  <CreditCard size={15} className="mr-2" />
+                  {t('openBillingPortal')}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">{t('billingPortalNote')}</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">{t('yourCurrentPlan')}: <span className="font-medium text-foreground">{t('planFree')}</span></p>
+
+                {/* Billing toggle */}
+                <div className="flex items-center justify-center gap-3 text-sm">
+                  <span className={!planModalAnnual ? 'font-medium text-foreground' : 'text-muted-foreground'}>{t('pricingMonthly')}</span>
+                  <button
+                    role="switch"
+                    aria-checked={planModalAnnual}
+                    onClick={() => setPlanModalAnnual(v => !v)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${planModalAnnual ? 'bg-primary' : 'bg-secondary'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${planModalAnnual ? 'translate-x-4' : 'translate-x-1'}`} />
+                  </button>
+                  <span className={planModalAnnual ? 'font-medium text-foreground' : 'text-muted-foreground'}>{t('pricingAnnual')}</span>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">{planModalAnnual ? t('pricingProAnnual') : t('pricingProMonthly')}</p>
+                  {planModalAnnual && <p className="text-xs text-green-600 font-medium">{t('pricingProSaving')}</p>}
+                </div>
+
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" />{t('pricingPF1')}</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" />{t('pricingPF2')}</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 size={14} className="text-green-500 shrink-0" />{t('pricingPF3')}</li>
+                </ul>
+
+                <Button className="w-full" onClick={() => { setPlanModalOpen(false); handleUpgrade(planModalAnnual); }}>
+                  {t('upgradeToPro')} →
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* App Info — full width */}
         <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">

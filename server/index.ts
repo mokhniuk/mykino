@@ -160,10 +160,11 @@ app.post('/api/stripe/portal', async (c) => {
   const authHeader = c.req.header('Authorization');
   if (!authHeader?.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401);
 
-  let userId: string;
+  let userId: string, email: string;
   try {
     const info = await getUserPlan(authHeader.slice(7));
     userId = info.userId;
+    email = info.email;
     if (!userId) return c.json({ error: 'Invalid token' }, 401);
   } catch {
     return c.json({ error: 'Invalid token' }, 401);
@@ -173,11 +174,11 @@ app.post('/api/stripe/portal', async (c) => {
   const returnUrl = `${appOrigin()}/app/settings`;
 
   try {
-    const url = await createPortalSession({ userId, returnUrl });
+    const url = await createPortalSession({ userId, email, returnUrl });
     return c.json({ url });
   } catch (e: any) {
     console.error('[Stripe portal]', e.message);
-    return c.json({ error: 'Failed to create portal session' }, 502);
+    return c.json({ error: e.message }, 502);
   }
 });
 
