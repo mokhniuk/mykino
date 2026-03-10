@@ -538,4 +538,7 @@ export const hr = {
   landingProFeature3Desc: 'Dodaj film na mobitelu. Pronađi ga navečer na laptopu. Sve se sinkronizira trenutno.',
   landingProCta: 'Nadogradi na Pro →',
   landingProCtaNote: 'Otkaži kada god želiš. Manje od jedne kinoulaznice mjesečno.',
+  landingTitle: 'Početna',
+  pricingTitle: 'Cijene',
+  communityTitle: 'Zajednica',
 } as const;

@@ -1,12 +1,12 @@
 {
   "name": "mykino",
   "private": true,
-  "version": "2.6.4",
+  "version": "2.6.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/version-bump.js && vite build && node scripts/post-build.js",
-    "build:static": "vite build && node scripts/post-build.js",
+    "build": "node scripts/version-bump.js && vite build && bun scripts/post-build.js",
+    "build:static": "vite build && bun scripts/post-build.js",
     "build:docker": "docker build -t mykino:$npm_package_version -t mykino:latest . && mkdir -p release && docker save mykino:latest | gzip > release/mykino-$npm_package_version.tar.gz && echo \"\\n✅ Saved to release/mykino-$npm_package_version.tar.gz\"",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

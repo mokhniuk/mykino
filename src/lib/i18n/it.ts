@@ -538,4 +538,7 @@ export const it = {
   landingProFeature3Desc: 'Aggiungi un film sul telefono. Trovalo sul laptop la sera stessa. Tutto si sincronizza all\'istante.',
   landingProCta: 'Passa a Pro →',
   landingProCtaNote: 'Annulla quando vuoi. Meno di un biglietto del cinema al mese.',
+  landingTitle: 'Home',
+  pricingTitle: 'Prezzi',
+  communityTitle: 'Comunità',
 } as const;

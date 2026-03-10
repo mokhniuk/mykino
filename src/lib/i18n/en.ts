@@ -566,4 +566,7 @@ export const en = {
   communityCTATitle: 'Ready to self-host?',
   communityCTADesc: 'Star the repo, open an issue, or submit a PR. Community contributions welcome.',
   communityCTABtn: 'View on GitHub →',
+  landingTitle: 'Home',
+  pricingTitle: 'Pricing',
+  communityTitle: 'Community',
 } as const;

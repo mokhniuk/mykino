@@ -543,4 +543,7 @@ export const de = {
   landingProFeature3Desc: 'Füge einen Film auf deinem Handy hinzu. Finde ihn abends auf deinem Laptop. Alles synchronisiert sich sofort.',
   landingProCta: 'Jetzt auf Pro upgraden →',
   landingProCtaNote: 'Jederzeit kündbar. Weniger als ein Kinoticket pro Monat.',
+  landingTitle: 'Startseite',
+  pricingTitle: 'Preise',
+  communityTitle: 'Community',
 } as const;

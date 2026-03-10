@@ -538,4 +538,7 @@ export const es = {
   landingProFeature3Desc: 'Añade una película en el móvil. Encuéntrala en el portátil esa misma noche. Todo se sincroniza al instante.',
   landingProCta: 'Actualizar a Pro →',
   landingProCtaNote: 'Cancela cuando quieras. Menos que una entrada de cine al mes.',
+  landingTitle: 'Inicio',
+  pricingTitle: 'Precios',
+  communityTitle: 'Comunidad',
 } as const;

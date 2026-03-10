@@ -543,4 +543,7 @@ export const ua = {
   landingProFeature3Desc: 'Додай фільм на телефоні. Знайди його на ноутбуці того ж вечора. Все синхронізується миттєво.',
   landingProCta: 'Перейти на Pro →',
   landingProCtaNote: 'Скасуй будь-коли. Дешевше за один похід у кіно на місяць.',
+  landingTitle: 'Головна',
+  pricingTitle: 'Тарифи',
+  communityTitle: 'Спільнота',
 } as const;

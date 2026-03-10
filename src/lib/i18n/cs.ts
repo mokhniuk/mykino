@@ -541,4 +541,7 @@ export const cs = {
   landingProFeature3Desc: 'Přidej film na telefonu. Najdi ho večer na laptopu. Vše se synchronizuje okamžitě.',
   landingProCta: 'Přejít na Pro →',
   landingProCtaNote: 'Zrušení kdykoliv. Méně než jedna vstupenka do kina za měsíc.',
+  landingTitle: 'Domů',
+  pricingTitle: 'Ceník',
+  communityTitle: 'Komunita',
 } as const;
