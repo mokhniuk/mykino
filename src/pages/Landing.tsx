@@ -814,6 +814,64 @@ export default function Landing() {
           </div>
         </div>
 
+        {/* ── Pro Upsell ── */}
+        <div className="w-full py-20 lg:py-28">
+          <div className="max-w-5xl mx-auto px-6">
+            <div className="relative rounded-3xl overflow-hidden border border-primary/20 bg-card p-10 lg:p-16 text-center">
+
+              {/* Atmospheric glows */}
+              <div className="absolute -top-32 -left-16 w-[480px] h-[480px] bg-primary/15 rounded-full blur-[100px] pointer-events-none" aria-hidden />
+              <div className="absolute -bottom-32 -right-16 w-[480px] h-[480px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" aria-hidden />
+              <div className="absolute inset-0 bg-gradient-to-b from-primary/6 via-transparent to-transparent pointer-events-none" aria-hidden />
+
+              {/* Content */}
+              <div className="relative">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-8">
+                  <Sparkles size={11} />
+                  {t('landingProBadge')}
+                </span>
+                <h2 className="text-4xl md:text-5xl font-bold text-foreground leading-[1.08] tracking-tight mb-6 max-w-3xl mx-auto">
+                  {t('landingProTitle')}
+                </h2>
+                <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-14 leading-relaxed">
+                  {t('landingProSubtitle')}
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-12 text-left">
+                  <div className="rounded-2xl bg-background/60 border border-border/60 backdrop-blur-sm p-7">
+                    <div className="text-5xl font-bold text-primary tracking-tight mb-3">50</div>
+                    <p className="font-semibold text-foreground text-sm mb-2">{t('landingProFeature1Title')}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{t('landingProFeature1Desc')}</p>
+                  </div>
+                  <div className="rounded-2xl bg-background/60 border border-border/60 backdrop-blur-sm p-7">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                      <Heart size={20} className="text-primary" />
+                    </div>
+                    <p className="font-semibold text-foreground text-sm mb-2">{t('landingProFeature2Title')}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{t('landingProFeature2Desc')}</p>
+                  </div>
+                  <div className="rounded-2xl bg-background/60 border border-border/60 backdrop-blur-sm p-7">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                      <Smartphone size={20} className="text-primary" />
+                    </div>
+                    <p className="font-semibold text-foreground text-sm mb-2">{t('landingProFeature3Title')}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{t('landingProFeature3Desc')}</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate('/pricing')}
+                  className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:opacity-90 transition-opacity shadow-lg shadow-primary/25 mb-4"
+                >
+                  {t('landingProCta')}
+                </button>
+                <p className="text-sm text-muted-foreground/60">{t('landingProCtaNote')}</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
         {/* ── About / trust section ── */}
         <div className="w-full py-20 lg:py-28">
           <div className="max-w-6xl mx-auto px-6 lg:px-12">
