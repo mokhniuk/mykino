@@ -458,7 +458,7 @@ export default function SettingsPage() {
 
       <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
         {/* Language */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-3">
+        <section className="rounded-xl glass-card p-5 space-y-3">
           <div className="flex items-center gap-2 text-foreground">
             <Globe size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('languageSetting')}</h2>
@@ -481,7 +481,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Theme */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-3">
+        <section className="rounded-xl glass-card p-5 space-y-3">
           <div className="flex items-center gap-2 text-foreground">
             <Palette size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('themeSetting')}</h2>
@@ -504,7 +504,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Content Settings — full width */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+        <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
           <div className="flex items-center gap-2 text-foreground">
             <SlidersHorizontal size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('contentSettings')}</h2>
@@ -598,7 +598,7 @@ export default function SettingsPage() {
 
         {/* ── PRODUCTION MODE: AI section ────────────────────────────────── */}
         {config.hasManagedAI && tempAiConfig && (
-          <section className="rounded-xl bg-card border border-border p-5 md:col-span-2">
+          <section className="rounded-xl glass-card p-5 md:col-span-2">
             {/* AI subsection */}
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1.5 flex-1 min-w-0">
@@ -730,7 +730,7 @@ export default function SettingsPage() {
 
         {/* ── COMMUNITY MODE: separate AI section (BYO key) ────────────────── */}
         {!config.hasManagedAI && tempAiConfig && (
-          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+          <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-foreground">
                 <Sparkles size={16} className="text-primary" />
@@ -816,7 +816,7 @@ export default function SettingsPage() {
 
         {/* ── COMMUNITY MODE: Sync section (only if Supabase configured) ───── */}
         {!config.hasManagedAI && config.hasSync && (
-          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+          <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
             <div className="flex items-center gap-2 text-foreground">
               <Cloud size={16} className="text-primary" />
               <h2 className="text-sm font-semibold">{t('syncSection')}</h2>
@@ -871,7 +871,7 @@ export default function SettingsPage() {
         )}
 
         {/* Data — full width */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-3 md:col-span-2">
+        <section className="rounded-xl glass-card p-5 space-y-3 md:col-span-2">
           <div className="flex items-center gap-2 text-foreground">
             <Database size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('dataManagement')}</h2>
@@ -994,7 +994,7 @@ export default function SettingsPage() {
 
 
         {/* App Info — full width */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+        <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-foreground">
               <Info size={16} className="text-primary" />

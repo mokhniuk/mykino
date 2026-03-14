@@ -512,7 +512,7 @@ export default function SearchPage() {
         {/* Search Input */}
         <form onSubmit={(e) => e.preventDefault()}>
           <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
+            <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors glass-shine">
               {useAI ? (
                 <Sparkles size={18} className="text-primary" />
               ) : (
@@ -548,7 +548,7 @@ export default function SearchPage() {
                   disabled={limitReached}
                   title={limitReached ? t('aiLimitReached') : undefined}
                   aria-label={t('aiAdvisor')}
-                  className={`flex items-center gap-2 px-3 py-3.5 rounded-xl border transition-colors shrink-0 ${
+                  className={`flex items-center gap-2 px-3 py-3.5 rounded-xl border transition-colors shrink-0 glass-shine ${
                     limitReached
                       ? 'bg-secondary border-border opacity-40 cursor-not-allowed'
                       : useAI

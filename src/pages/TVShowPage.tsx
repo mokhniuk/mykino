@@ -359,13 +359,13 @@ export default function TVShowPage() {
             <div className="mt-4 flex items-center justify-between">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 rounded-full glass text-foreground hover:bg-secondary transition-colors"
+                className="p-2 rounded-full glass glass-shine text-foreground hover:bg-secondary transition-colors"
               >
                 <ArrowLeft size={24} />
               </button>
               <button
                 onClick={toggleFavourite}
-                className={`p-2 rounded-full glass transition-colors ${inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
+                className={`p-2 rounded-full glass glass-shine transition-colors ${inFavourites ? 'text-destructive' : 'text-foreground hover:bg-secondary'
                   }`}
               >
                 <Heart size={24} fill={inFavourites ? 'currentColor' : 'none'} />
@@ -426,7 +426,7 @@ export default function TVShowPage() {
               }`}>
               <button
                 onClick={handleToggleWatchlist}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap glass-shine ${inWatchlist
                     ? 'w-[42px] bg-secondary text-primary'
                     : 'flex-1 bg-primary text-primary-foreground hover:opacity-90'
                   }`}
@@ -440,7 +440,7 @@ export default function TVShowPage() {
 
               <button
                 onClick={handleMarkCompleted}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap ${inWatchlist
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 font-medium text-sm overflow-hidden whitespace-nowrap glass-shine ${inWatchlist
                     ? 'flex-1 bg-primary text-primary-foreground hover:opacity-90'
                     : 'w-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80'
                   }`}
@@ -456,7 +456,7 @@ export default function TVShowPage() {
               }`}>
               <button
                 onClick={handleUnmarkCompleted}
-                className="w-full h-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors"
+                className="w-full h-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm font-medium transition-colors glass-shine"
               >
                 <CheckCircle2 size={24} className="text-primary" />
                 {t('tvStatus_completed')}

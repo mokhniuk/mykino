@@ -132,4 +132,46 @@
   .glass {
     @apply bg-card/80 backdrop-blur-md border border-border/50;
   }
+
+  /* Additive inner glow — works on any element regardless of bg/border state */
+  .glass-shine {
+    box-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.14),
+      inset 1px 0 0 oklch(100% 0 0 / 0.07),
+      0 1px 3px oklch(0% 0 0 / 0.05);
+  }
+
+  /* Gradient border on secondary-bg static cards */
+  .glass-secondary {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(hsl(var(--secondary)), hsl(var(--secondary))) padding-box,
+      linear-gradient(
+        135deg,
+        oklch(100% 0 0 / 0.28) 0%,
+        oklch(100% 0 0 / 0.06) 28%,
+        hsl(var(--border)) 55%,
+        hsl(var(--border)) 100%
+      ) border-box;
+    box-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.1),
+      0 1px 3px oklch(0% 0 0 / 0.04);
+  }
+
+  /* Glossy gradient border — simulates light hitting glass from top-left */
+  .glass-card {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+      linear-gradient(
+        135deg,
+        oklch(100% 0 0 / 0.28) 0%,
+        oklch(100% 0 0 / 0.06) 28%,
+        hsl(var(--border)) 55%,
+        hsl(var(--border)) 100%
+      ) border-box;
+    box-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.1),
+      0 1px 3px oklch(0% 0 0 / 0.04);
+  }
 }

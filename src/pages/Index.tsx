@@ -148,7 +148,7 @@ export default function Index() {
 
       {/* Search bar */}
       <Link to="/app/search" className="block">
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border hover:border-primary/30 transition-colors">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border hover:border-primary/30 transition-colors glass-shine">
           <Search size={18} className="text-muted-foreground" />
           <span className="text-sm text-muted-foreground">{t('searchForMovies')}</span>
         </div>
@@ -348,7 +348,7 @@ export default function Index() {
               <Link
                 key={director.slug}
                 to={`/app/director/${director.slug}`}
-                className="flex-shrink-0 w-36 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors overflow-hidden"
+                className="flex-shrink-0 w-36 rounded-xl overflow-hidden glass-secondary hover:opacity-90 transition-opacity"
               >
                 {/* Micro-poster thumbnails */}
                 <div className="flex h-20 overflow-hidden">
@@ -408,7 +408,7 @@ export default function Index() {
                 <Link
                   key={milestone.id}
                   to="/app/achievements/milestones"
-                  className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border transition-colors ${milestone.unlocked
+                  className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border transition-colors glass-shine ${milestone.unlocked
                     ? 'bg-primary/10 border-primary/20'
                     : 'bg-secondary border-border opacity-40'
                     }`}

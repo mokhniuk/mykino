@@ -56,13 +56,13 @@ export default function WatchedPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFavOnly((v) => !v)}
-            className={`w-auto h-auto p-2.5 rounded-xl transition-colors ${favOnly ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground hover:text-foreground'
+            className={`w-auto h-auto p-2.5 rounded-xl transition-colors glass-shine ${favOnly ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground hover:text-foreground'
               }`}
           >
             <Heart size={16} fill={favOnly ? 'currentColor' : 'none'} />
           </button>
           {/* Tabs on tablet+, select on mobile */}
-          <div className="hidden md:flex items-center gap-0.5 bg-secondary rounded-xl p-1">
+          <div className="hidden md:flex items-center gap-0.5 bg-secondary rounded-xl p-1 glass-shine">
             {(['all', 'movie', 'series'] as Filter[]).map((f) => (
               <button
                 key={f}
@@ -78,7 +78,7 @@ export default function WatchedPage() {
             ))}
           </div>
           <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-            <SelectTrigger className="md:hidden w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
+            <SelectTrigger className="md:hidden w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0 glass-shine">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

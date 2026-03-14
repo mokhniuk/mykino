@@ -48,7 +48,7 @@ export default function AchievementsMilestonesPage() {
             return (
               <div
                 key={milestone.id}
-                className={`rounded-xl p-4 flex flex-col gap-2 border transition-colors ${
+                className={`rounded-xl p-4 flex flex-col gap-2 border transition-colors glass-shine ${
                   milestone.unlocked
                     ? 'bg-primary/10 border-primary/20'
                     : 'bg-secondary border-border opacity-40'

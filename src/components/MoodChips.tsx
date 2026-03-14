@@ -53,7 +53,7 @@ export default function MoodChips({ onSelect }: MoodChipsProps) {
           } as React.CSSProperties}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
                      bg-secondary hover:bg-secondary/70 text-foreground
-                     transition-colors hover:scale-105 active:scale-95"
+                     transition-colors hover:scale-105 active:scale-95 glass-shine"
         >
           <Icon size={14} />
           {t(key as any)}

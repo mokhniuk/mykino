@@ -109,7 +109,7 @@ export default function AchievementsTop100Page() {
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </>
                 ) : (
-                  <div className="w-full h-full bg-secondary hover:bg-muted transition-colors flex flex-col items-center justify-center gap-1 border border-border/40">
+                  <div className="w-full h-full glass-secondary flex flex-col items-center justify-center gap-1">
                     <span className="text-[11px] font-bold text-muted-foreground/50 tabular-nums leading-none">
                       {index + 1}
                     </span>
