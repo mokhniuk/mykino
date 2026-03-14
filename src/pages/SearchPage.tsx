@@ -512,7 +512,11 @@ export default function SearchPage() {
         {/* Search Input */}
         <form onSubmit={(e) => e.preventDefault()}>
           <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors glass-shine">
+            <div className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              loading
+                ? 'glass-spin'
+                : 'bg-secondary border border-border focus-within:border-primary/40 glass-shine'
+            }`}>
               {useAI ? (
                 <Sparkles size={18} className="text-primary" />
               ) : (
