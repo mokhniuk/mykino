@@ -96,6 +96,7 @@ export default function SearchPage() {
   const [libraryMatch, setLibraryMatch] = useState<{ title: string; status: 'watched' | 'watchlist' } | null>(null);
   const observerRef = useRef<HTMLDivElement>(null);
   const libraryIdsRef = useRef<Set<string>>(new Set());
+  const searchSourceRef = useRef<'chip' | 'input'>('input');
   const { genres: tmdbGenres, countries: tmdbCountries } = useTmdbMetadata();
   const queryClient = useQueryClient();
 
@@ -272,6 +273,8 @@ export default function SearchPage() {
         ? `Find movies and TV series similar to "${pivotTitle}". Do not include "${pivotTitle}" itself. Give diverse, high-quality recommendations.`
         : q;
 
+      const fromChip = searchSourceRef.current === 'chip';
+
       const aiRecommendations = await getAIRecommendations({
         query: aiQuery,
         language: langName,
@@ -280,7 +283,8 @@ export default function SearchPage() {
         contentPreferences,
         favourites: favourites.slice(0, 10).map(m => ({ Title: m.Title, Year: m.Year, Genre: m.Genre })),
         watchlist: watchlist.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })),
-        watched: watched.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })),
+        // Chip searches: tell AI to exclude watched. Input searches: AI may surface them (sorted first client-side).
+        watched: fromChip ? watched.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })) : [],
       });
 
       // DEDUPLICATE AI recommendations by title BEFORE fetching movie data
@@ -304,10 +308,13 @@ export default function SearchPage() {
 
       const movieResults = await Promise.all(movieDataPromises);
 
-      // Filter by disliked countries / languages only
+      // Filter by disliked countries / languages; for chip searches also exclude watched
+      const watchedIds = new Set(watched.map(m => m.imdbID));
       const filteredResults = movieResults.filter(r => {
         if (!r.movieData) return false;
         const movie = r.movieData;
+
+        if (fromChip && watchedIds.has(movie.imdbID)) return false;
 
         if (movie.Country && contentPreferences.disliked_countries.length > 0) {
           const movieCountries = movie.Country.toLowerCase();
@@ -321,9 +328,16 @@ export default function SearchPage() {
 
         return true;
       });
-      
+
       const newResults: MovieWithReason[] = filteredResults
         .map(r => ({ ...r.movieData!, aiReason: r.reason }));
+
+      // For input AI searches, sort already-watched items to the top
+      if (!fromChip && watchedIds.size > 0) {
+        newResults.sort((a, b) =>
+          (watchedIds.has(b.imdbID) ? 1 : 0) - (watchedIds.has(a.imdbID) ? 1 : 0)
+        );
+      }
       
       if (pageNum === 1) {
         // Remove duplicates by imdbID
@@ -475,6 +489,7 @@ export default function SearchPage() {
 
   // Handle mood chip clicks
   const handleMoodClick = (mood: string) => {
+    searchSourceRef.current = 'chip';
     setQuery(mood);
   };
 
@@ -525,7 +540,7 @@ export default function SearchPage() {
               <input
                 type="search"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { searchSourceRef.current = 'input'; setQuery(e.target.value); }}
                 placeholder={useAI ? t('aiSearchPlaceholder') : t('typeToSearch')}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 autoFocus
