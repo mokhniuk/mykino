@@ -88,6 +88,7 @@ app.post('/api/ai/recommendations', async (c) => {
     return c.json(recommendations, 200, {
       'X-RateLimit-Limit': String(isFinite(effectiveLimit) ? effectiveLimit : 9999),
       'X-RateLimit-Remaining': String(isFinite(remaining) ? remaining : 9999),
+      'X-RateLimit-Period': period,
     });
   } catch (e: any) {
     console.error('[AI proxy] Error:', e.message);

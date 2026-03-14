@@ -4,7 +4,8 @@ import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain,
 import { useI18n } from '@/lib/i18n';
 import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
 import { type MovieData } from '@/lib/db';
-import { getAIRecommendations, isAIEnabled, type AIRecommendation } from '@/lib/ai';
+import { getAIRecommendations, isAIEnabled, getAIUsage, AILimitReachedError, type AIRecommendation } from '@/lib/ai';
+import { config } from '@/lib/config';
 import { getOrBuildTasteProfile } from '@/lib/tasteProfile';
 import { getContentPreferences, getFavourites, getWatchlist } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
@@ -78,6 +79,7 @@ export default function SearchPage() {
   const [searchPending, setSearchPending] = useState(false);
   const [error, setError] = useState('');
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiUsage, setAiUsage] = useState(() => config.hasManagedAI ? getAIUsage() : null);
   const [useAI, setUseAI] = useState(shouldRestoreCache ? cachedState.useAI : false);
   const [aiPage, setAiPage] = useState(shouldRestoreCache ? cachedState.aiPage : 1);
   const [aiHasMore, setAiHasMore] = useState(shouldRestoreCache ? cachedState.aiHasMore : false);
@@ -165,6 +167,15 @@ export default function SearchPage() {
     
     window.addEventListener('ai-config-changed', handleAIConfigChange as EventListener);
     return () => window.removeEventListener('ai-config-changed', handleAIConfigChange as EventListener);
+  }, []);
+
+  // Keep AI usage in sync so the toggle can be disabled when limit is reached
+  useEffect(() => {
+    if (!config.hasManagedAI) return;
+    const refresh = () => setAiUsage(getAIUsage());
+    window.addEventListener('ai-usage-updated', refresh);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    return () => window.removeEventListener('ai-usage-updated', refresh);
   }, []);
 
   // Save AI toggle state when user manually changes it
@@ -332,8 +343,12 @@ export default function SearchPage() {
         setAiHasMore(newResults.length >= 10);
       }
     } catch (error) {
-      console.error('AI search error:', error);
-      toast.error(t('aiError'));
+      if (error instanceof AILimitReachedError) {
+        toast.error(t('aiLimitReached'));
+      } else {
+        console.error('AI search error:', error);
+        toast.error(t('aiError'));
+      }
       setResults([]);
       setAiHasMore(false);
     } finally {
@@ -521,20 +536,27 @@ export default function SearchPage() {
               {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
             </div>
             
-            {aiEnabled && (
-              <button
-                type="button"
-                onClick={() => setUseAI(!useAI)}
-                className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors ${
-                  useAI 
-                    ? 'bg-primary/10 border-primary/40 text-primary' 
-                    : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
-                }`}
-                aria-label={t('aiAdvisor')}
-              >
-                <Sparkles size={18} />
-              </button>
-            )}
+            {aiEnabled && (() => {
+              const limitReached = aiUsage?.remaining === 0;
+              return (
+                <button
+                  type="button"
+                  onClick={() => !limitReached && setUseAI(!useAI)}
+                  disabled={limitReached}
+                  title={limitReached ? t('aiLimitReached') : t('aiAdvisor')}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors ${
+                    limitReached
+                      ? 'bg-secondary border-border text-muted-foreground opacity-40 cursor-not-allowed'
+                      : useAI
+                        ? 'bg-primary/10 border-primary/40 text-primary'
+                        : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                  aria-label={limitReached ? t('aiLimitReached') : t('aiAdvisor')}
+                >
+                  <Sparkles size={18} />
+                </button>
+              );
+            })()}
           </div>
         </form>
 

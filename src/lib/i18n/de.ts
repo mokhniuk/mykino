@@ -260,6 +260,7 @@ export const de = {
   aiConfigSaved: 'KI-Einstellungen gespeichert',
   aiManagedMode: 'Betrieben von MyKino',
   aiDailyUsage: 'KI-Empfehlungen diesen Monat',
+  aiUsageToday: 'KI-Empfehlungen heute',
   aiLimitReached: 'Monatslimit erreicht — setzt am 1. zurück.',
   aiUpgradeForMore: 'Auf Pro upgraden für mehr Empfehlungen →',
   aiUnlimited: 'Unbegrenzte KI-Empfehlungen',

@@ -260,6 +260,7 @@ export const ua = {
   aiConfigSaved: 'Налаштування AI збережено',
   aiManagedMode: 'Працює на MyKino',
   aiDailyUsage: 'Рекомендацій ШІ цього місяця',
+  aiUsageToday: 'Рекомендацій ШІ сьогодні',
   aiLimitReached: 'Місячний ліміт вичерпано — оновлюється 1-го числа.',
   aiUpgradeForMore: 'Перейдіть на Pro для більшої кількості рекомендацій →',
   aiUnlimited: 'Необмежені рекомендації ШІ',

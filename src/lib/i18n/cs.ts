@@ -258,6 +258,7 @@ export const cs = {
   aiConfigSaved: 'Nastavení AI uloženo',
   aiManagedMode: 'Využívá MyKino',
   aiDailyUsage: 'AI doporučení tento měsíc',
+  aiUsageToday: 'AI doporučení dnes',
   aiLimitReached: 'Měsíční limit dosažen — resetuje se 1. dne.',
   aiUpgradeForMore: 'Přejděte na Pro pro více doporučení →',
   aiUnlimited: 'Neomezená doporučení AI',

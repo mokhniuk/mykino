@@ -256,6 +256,7 @@ export const es = {
   aiConfigSaved: 'Ajustes de IA guardados',
   aiManagedMode: 'Desarrollado por MyKino',
   aiDailyUsage: 'Recomendaciones de IA este mes',
+  aiUsageToday: 'Recomendaciones de IA hoy',
   aiLimitReached: 'Límite mensual alcanzado — se reinicia el día 1.',
   aiUpgradeForMore: 'Actualiza a Pro para más recomendaciones →',
   aiUnlimited: 'Recomendaciones de IA ilimitadas',

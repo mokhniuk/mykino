@@ -256,6 +256,7 @@ export const hr = {
   aiConfigSaved: 'AI postavke spremljene',
   aiManagedMode: 'Pokreće MyKino',
   aiDailyUsage: 'AI preporuke ovaj mjesec',
+  aiUsageToday: 'AI preporuke danas',
   aiLimitReached: 'Dostignut mjesečni limit — resetira se 1. u mjesecu.',
   aiUpgradeForMore: 'Nadogradite na Pro za više preporuka →',
   aiUnlimited: 'Neograničene AI preporuke',

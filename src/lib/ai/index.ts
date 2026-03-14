@@ -8,6 +8,12 @@ import { GeminiClient } from './clients/gemini';
 import { MistralClient } from './clients/mistral';
 import { OllamaClient } from './clients/ollama';
 
+// ─── Typed error for limit exhaustion ────────────────────────────────────────
+
+export class AILimitReachedError extends Error {
+  constructor() { super('AI recommendation limit reached'); this.name = 'AILimitReachedError'; }
+}
+
 // ─── AI usage tracking (for managed proxy mode) ─────────────────────────────
 
 const AI_USAGE_KEY = 'ai_proxy_usage';
@@ -15,23 +21,71 @@ const AI_USAGE_KEY = 'ai_proxy_usage';
 interface AIUsageStore {
   remaining: number;
   limit: number;
-  date: string;
+  periodKey: string; // YYYY-MM-DD for daily, YYYY-MM for monthly
+  period: 'daily' | 'monthly';
 }
 
-function storeAIUsage(remaining: number, limit: number) {
+function storeAIUsage(remaining: number, limit: number, period: 'daily' | 'monthly') {
   try {
-    const entry: AIUsageStore = { remaining, limit, date: new Date().toISOString().slice(0, 10) };
+    const now = new Date();
+    const periodKey = period === 'daily'
+      ? now.toISOString().slice(0, 10)  // YYYY-MM-DD
+      : now.toISOString().slice(0, 7);  // YYYY-MM
+    const entry: AIUsageStore = { remaining, limit, periodKey, period };
     localStorage.setItem(AI_USAGE_KEY, JSON.stringify(entry));
+    window.dispatchEvent(new CustomEvent('ai-usage-updated'));
   } catch { /* ignore */ }
 }
 
-export function getAIUsage(): { used: number; remaining: number; limit: number } | null {
+/**
+ * Increments local usage by 1. Called before the real proxy request (after cache miss).
+ * Server headers will overwrite this with authoritative data once the response arrives.
+ * This ensures the counter updates even when headers are missing/unavailable.
+ */
+function incrementAIUsage() {
+  try {
+    const now = new Date();
+    const raw = localStorage.getItem(AI_USAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AIUsageStore>;
+      if (parsed.periodKey && parsed.period && parsed.limit != null && parsed.remaining != null) {
+        const currentKey = parsed.period === 'daily'
+          ? now.toISOString().slice(0, 10)
+          : now.toISOString().slice(0, 7);
+        if (parsed.periodKey === currentKey) {
+          // Same period — just decrement remaining
+          const entry: AIUsageStore = {
+            ...parsed as AIUsageStore,
+            remaining: Math.max(0, parsed.remaining - 1),
+          };
+          localStorage.setItem(AI_USAGE_KEY, JSON.stringify(entry));
+          window.dispatchEvent(new CustomEvent('ai-usage-updated'));
+          return;
+        }
+      }
+    }
+    // No existing entry or period rolled over — start fresh (daily assumption; server will correct)
+    const periodKey = now.toISOString().slice(0, 10);
+    const limit = config.aiProDailyLimit;
+    const entry: AIUsageStore = { remaining: limit - 1, limit, periodKey, period: 'daily' };
+    localStorage.setItem(AI_USAGE_KEY, JSON.stringify(entry));
+    window.dispatchEvent(new CustomEvent('ai-usage-updated'));
+  } catch { /* ignore */ }
+}
+
+export function getAIUsage(): { used: number; remaining: number; limit: number; period: 'daily' | 'monthly' } | null {
   try {
     const raw = localStorage.getItem(AI_USAGE_KEY);
     if (!raw) return null;
-    const { remaining, limit, date } = JSON.parse(raw) as AIUsageStore;
-    if (date !== new Date().toISOString().slice(0, 10)) return null;
-    return { used: limit - remaining, remaining, limit };
+    const parsed = JSON.parse(raw) as Partial<AIUsageStore>;
+    const { remaining, limit, periodKey, period = 'monthly' } = parsed;
+    if (remaining == null || limit == null || !periodKey) return null;
+    const now = new Date();
+    const currentKey = period === 'daily'
+      ? now.toISOString().slice(0, 10)
+      : now.toISOString().slice(0, 7);
+    if (periodKey !== currentKey) return null;
+    return { used: limit - remaining, remaining, limit, period };
   } catch {
     return null;
   }
@@ -59,15 +113,21 @@ async function getRecommendationsViaProxy(request: AIRecommendationRequest): Pro
     body: JSON.stringify(request),
   });
 
-  // Capture rate limit headers for display in Settings
+  // Capture rate limit headers — sync authoritative server data to local store
   const remaining = parseInt(res.headers.get('X-RateLimit-Remaining') ?? '-1');
   const limit = parseInt(res.headers.get('X-RateLimit-Limit') ?? '-1');
-  if (remaining >= 0 && limit > 0 && remaining <= limit) storeAIUsage(remaining, limit);
+  const period = (res.headers.get('X-RateLimit-Period') ?? 'daily') as 'daily' | 'monthly';
+  if (remaining >= 0 && limit > 0 && remaining <= limit) storeAIUsage(remaining, limit, period);
 
   if (res.status === 429) {
-    const body = await res.json().catch(() => ({}));
-    const resetAt = body.resetAt ? new Date(body.resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'midnight';
-    throw new Error(`Daily recommendation limit reached. Resets at ${resetAt}.`);
+    // Mark local store as exhausted so UI blocks further attempts immediately
+    if (limit > 0) storeAIUsage(0, limit, period);
+    else {
+      // No headers on 429 — mark exhausted using whatever we have stored
+      const cur = getAIUsage();
+      if (cur) storeAIUsage(0, cur.limit, cur.period);
+    }
+    throw new AILimitReachedError();
   }
 
   if (!res.ok) {
@@ -156,6 +216,12 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
       }
     } catch { /* ignore */ }
 
+    // Block immediately if local store already shows limit exhausted
+    const usage = getAIUsage();
+    if (usage && usage.remaining === 0) throw new AILimitReachedError();
+
+    // Optimistically increment local counter; server headers will sync the real value after
+    incrementAIUsage();
     const results = await getRecommendationsViaProxy(request);
 
     try {

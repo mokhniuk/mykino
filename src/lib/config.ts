@@ -16,8 +16,11 @@ export const config = {
    */
   aiProxyUrl: env.AI_PROXY_URL || import.meta.env.VITE_AI_PROXY_URL || '',
 
-  /** Daily AI recommendation limit for unauthenticated (free) users via the proxy. */
-  aiFreeDailyLimit: Number(env.AI_FREE_DAILY_LIMIT || import.meta.env.VITE_AI_FREE_DAILY_LIMIT || 3),
+  /** Monthly AI recommendation limit for free users via the proxy. */
+  aiFreeMonthlyLimit: Number(env.AI_FREE_MONTHLY_LIMIT || import.meta.env.VITE_AI_FREE_MONTHLY_LIMIT || 30),
+
+  /** Daily AI recommendation limit for Pro users via the proxy. */
+  aiProDailyLimit: Number(env.AI_PRO_DAILY_LIMIT || import.meta.env.VITE_AI_PRO_DAILY_LIMIT || 50),
 
   /** Supabase — used for auth + cross-device sync (Phase 2). */
   supabaseUrl: env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '',

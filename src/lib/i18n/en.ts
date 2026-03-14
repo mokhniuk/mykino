@@ -269,6 +269,7 @@ export const en = {
   aiConfigSaved: 'AI settings saved',
   aiManagedMode: 'Powered by MyKino',
   aiDailyUsage: 'AI recommendations this month',
+  aiUsageToday: 'AI recommendations today',
   aiLimitReached: 'Monthly limit reached — resets on the 1st.',
   aiUpgradeForMore: 'Upgrade to Pro for more recommendations →',
   aiUnlimited: 'Unlimited AI recommendations',

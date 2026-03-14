@@ -256,6 +256,7 @@ export const it = {
   aiConfigSaved: 'Impostazioni AI salvate',
   aiManagedMode: 'Alimentato da MyKino',
   aiDailyUsage: 'Raccomandazioni AI questo mese',
+  aiUsageToday: 'Raccomandazioni AI oggi',
   aiLimitReached: 'Limite mensile raggiunto — si azzera il 1° del mese.',
   aiUpgradeForMore: 'Passa a Pro per più raccomandazioni →',
   aiUnlimited: 'Raccomandazioni AI illimitate',

@@ -50,8 +50,24 @@ export default function WatchlistPage() {
           <h1 className="text-2xl md:text-3xl text-foreground">{t('watchlist')}</h1>
           {!isLoading && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
         </div>
+        {/* Tabs on tablet+, select on mobile */}
+        <div className="hidden md:flex items-center gap-0.5 bg-secondary rounded-xl p-1">
+          {(['all', 'movie', 'series'] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3.5 py-1 rounded-lg text-sm font-medium transition-colors ${
+                filter === f
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {f === 'all' ? t('tabAll') : f === 'movie' ? t('tabMovies') : t('tabSeries')}
+            </button>
+          ))}
+        </div>
         <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-          <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
+          <SelectTrigger className="md:hidden w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
