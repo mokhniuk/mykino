@@ -36,7 +36,9 @@ export default function WatchedPage() {
         favIds: list.filter((_, i) => favChecks[i]).map(m => m.imdbID),
       };
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const movies = data?.movies ?? [];
@@ -47,7 +49,7 @@ export default function WatchedPage() {
     .filter((m) => !favOnly || favIdSet.has(m.imdbID));
 
   return (
-    <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
+    <div className="px-4 md:px-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
         <div className="flex items-baseline gap-2">
           <h1 className="text-2xl md:text-3xl text-foreground">{t('watchedSection')}</h1>
@@ -101,7 +103,7 @@ export default function WatchedPage() {
           ))}
         </div>
       ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4 animate-fade-in">
           {filtered.map((movie) => (
             <MovieCard
               key={movie.imdbID}

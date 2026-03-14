@@ -686,11 +686,14 @@ export default function SearchPage() {
       {/* Load More button for AI */}
       {useAI && aiHasMore && results.length > 0 && (
         <div className="flex justify-center py-4">
-          <Button
+          <button
             onClick={loadMoreAI}
-            variant="outline"
-            className="gap-2"
             disabled={loadingMore}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              loadingMore
+                ? 'glass-spin text-muted-foreground cursor-not-allowed'
+                : 'bg-secondary border border-border glass-shine text-foreground hover:bg-secondary/70'
+            }`}
           >
             {loadingMore ? (
               <>
@@ -703,7 +706,7 @@ export default function SearchPage() {
                 {t('loadMore')}
               </>
             )}
-          </Button>
+          </button>
         </div>
       )}
 
