@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain, Zap, Coffee, Film, Search, Lightbulb, Droplets, Laugh, AlertTriangle, Drama, Rocket, Wand2, Fingerprint, Users, Star, Clock, Gem, CheckCircle2, BookmarkCheck } from 'lucide-react';
+import { Search as SearchIcon, Loader2, X, Sparkles, Search, CheckCircle2, BookmarkCheck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
 import { type MovieData } from '@/lib/db';
 import { getAIRecommendations, isAIEnabled, getAIUsage, AILimitReachedError, type AIRecommendation } from '@/lib/ai';
+import MoodChips from '@/components/MoodChips';
 import { config } from '@/lib/config';
 import { getOrBuildTasteProfile } from '@/lib/tasteProfile';
 import { getContentPreferences, getFavourites, getWatchlist } from '@/lib/db';
@@ -543,17 +544,22 @@ export default function SearchPage() {
                   type="button"
                   onClick={() => !limitReached && setUseAI(!useAI)}
                   disabled={limitReached}
-                  title={limitReached ? t('aiLimitReached') : t('aiAdvisor')}
-                  className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors ${
+                  title={limitReached ? t('aiLimitReached') : undefined}
+                  aria-label={t('aiAdvisor')}
+                  className={`flex items-center gap-2 px-3 py-3.5 rounded-xl border transition-colors shrink-0 ${
                     limitReached
-                      ? 'bg-secondary border-border text-muted-foreground opacity-40 cursor-not-allowed'
+                      ? 'bg-secondary border-border opacity-40 cursor-not-allowed'
                       : useAI
-                        ? 'bg-primary/10 border-primary/40 text-primary'
+                        ? 'bg-primary/10 border-primary/30 text-primary'
                         : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
                   }`}
-                  aria-label={limitReached ? t('aiLimitReached') : t('aiAdvisor')}
                 >
-                  <Sparkles size={18} />
+                  <Sparkles size={14} className={useAI ? 'text-primary' : ''} />
+                  <span className="text-xs font-semibold tracking-wide">AI</span>
+                  {/* Mini switch track */}
+                  <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${useAI && !limitReached ? 'bg-primary' : 'bg-border'}`}>
+                    <div className={`absolute top-0.5 w-3 h-3 rounded-full shadow-sm transition-all duration-200 ${useAI && !limitReached ? 'left-3.5 bg-primary-foreground' : 'left-0.5 bg-muted-foreground/60'}`} />
+                  </div>
                 </button>
               );
             })()}
@@ -616,148 +622,7 @@ export default function SearchPage() {
 
         {/* Mood Chips for AI */}
         {useAI && !query && (
-          <div className="flex flex-wrap justify-center gap-2 py-2">
-            <button
-              onClick={() => handleMoodClick(t('moodFun'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Smile size={14} />
-              {t('moodFun')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodScary'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Ghost size={14} />
-              {t('moodScary')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodRomantic'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Heart size={14} />
-              {t('moodRomantic')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodThinking'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Brain size={14} />
-              {t('moodThinking')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodAction'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Zap size={14} />
-              {t('moodAction')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodChill'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Coffee size={14} />
-              {t('moodChill')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodEpic'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Film size={14} />
-              {t('moodEpic')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodMystery'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Search size={14} />
-              {t('moodMystery')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodInspiring'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Lightbulb size={14} />
-              {t('moodInspiring')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodEmotional'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Droplets size={14} />
-              {t('moodEmotional')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodComedy'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Laugh size={14} />
-              {t('moodComedy')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodThriller'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <AlertTriangle size={14} />
-              {t('moodThriller')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodDrama'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Drama size={14} />
-              {t('moodDrama')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodSci'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Rocket size={14} />
-              {t('moodSci')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodFantasy'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Wand2 size={14} />
-              {t('moodFantasy')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodCrime'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Fingerprint size={14} />
-              {t('moodCrime')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodFamily'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Users size={14} />
-              {t('moodFamily')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodClassic'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Star size={14} />
-              {t('moodClassic')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodRecent'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Clock size={14} />
-              {t('moodRecent')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodUnderrated'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Gem size={14} />
-              {t('moodUnderrated')}
-            </button>
-          </div>
+          <MoodChips onSelect={handleMoodClick} />
         )}
       </div>
 
