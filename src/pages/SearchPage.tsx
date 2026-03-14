@@ -446,26 +446,28 @@ export default function SearchPage() {
     
     isInitialMount.current = false;
     
-    // Mark search as pending immediately
-    if (query.trim() || hasActiveFilters) {
-      setSearchPending(true);
-    } else {
-      setSearchPending(false);
-    }
-    
+    const hasQuery = query.trim().length > 0;
+    const queryLongEnough = query.trim().length >= 2;
+
+    // Delay the pending indicator so it doesn't flash on every keystroke
+    const pendingTimer = hasQuery ? setTimeout(() => setSearchPending(true), 150) : null;
+
+    const delay = useAI ? 300 : 500;
     const timer = setTimeout(() => {
-      setParams(query ? { q: query } : {}, { replace: true });
+      if (pendingTimer) clearTimeout(pendingTimer);
       setSearchPending(false);
-      
-      // Use AI search if enabled and toggle is on
-      if (useAI && query.trim()) {
+      setParams(query ? { q: query } : {}, { replace: true });
+
+      if (useAI && hasQuery) {
         doAISearch(query, 1);
-      } else {
+      } else if (queryLongEnough || hasActiveFilters) {
         doFetch(query, 1, false);
       }
-    }, 400);
+    }, delay);
+
     return () => {
       clearTimeout(timer);
+      if (pendingTimer) clearTimeout(pendingTimer);
       setSearchPending(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
