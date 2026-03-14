@@ -216,10 +216,11 @@ export default function SearchPage() {
       return;
     }
 
-    // Use loadingMore for pagination, loading for initial search
+    // Use loadingMore for pagination, loading for initial search.
+    // Keep stale results visible while loading — clearing them causes a blank flash
+    // and forces every SearchResultCard to remount (re-querying IDB watchlist/watched state).
     if (pageNum === 1) {
       setLoading(true);
-      setResults([]); // Clear results immediately
     } else {
       setLoadingMore(true);
     }
@@ -684,7 +685,7 @@ export default function SearchPage() {
               </div>
             ) : (
               <SearchResultCard
-                key={`${movie.imdbID}-${movie.Type}-${index}`}
+                key={`${movie.imdbID}-${movie.Type}`}
                 movie={movie}
                 aiReason={movie.aiReason}
                 onWatchlistChange={() => queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] })}
@@ -729,8 +730,8 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Loading state for AI search - SHOW THIS FIRST */}
-      {(loading || searchPending) && useAI && query ? (
+      {/* Loading state for AI search — only when no prior results to keep visible */}
+      {(loading || searchPending) && useAI && query && results.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <Loader2 size={28} className="text-primary animate-spin" />

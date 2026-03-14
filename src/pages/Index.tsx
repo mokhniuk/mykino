@@ -18,6 +18,7 @@ import { SECTION_SLUGS } from '@/lib/recommendations';
 import type { MilestoneId } from '@/lib/achievements';
 import MovieCard from '@/components/MovieCard';
 import RecoCard from '@/components/RecoCard';
+import HorizontalScroll from '@/components/HorizontalScroll';
 
 function useGreeting() {
   const { t } = useI18n();
@@ -166,7 +167,7 @@ export default function Index() {
               <ChevronRight size={32} />
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {watchingShows.map(show => {
               const movieData = watchingMovies.get(show.tvId) ?? {
                 imdbID: show.tvId,
@@ -184,7 +185,7 @@ export default function Index() {
                 />
               );
             })}
-          </div>
+          </HorizontalScroll>
         </section>
       )}
 
@@ -194,7 +195,7 @@ export default function Index() {
           <div className="flex items-center justify-between mb-3">
             <div className="h-5 w-40 bg-secondary rounded-lg animate-pulse" />
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {[...Array(4)].map((_, i) => (
               <div key={i} className="w-28 flex-shrink-0">
                 <div className="aspect-[2/3] rounded-lg bg-secondary animate-pulse mb-2" />
@@ -202,7 +203,7 @@ export default function Index() {
                 <div className="h-2.5 w-2/3 bg-secondary rounded animate-pulse" />
               </div>
             ))}
-          </div>
+          </HorizontalScroll>
         </section>
       ) : localizedWatchlist.length > 0 ? (
         <section>
@@ -215,7 +216,7 @@ export default function Index() {
               <ChevronRight size={32} />
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {localizedWatchlist.map((movie) => (
               <MovieCard
                 key={movie.imdbID}
@@ -227,7 +228,7 @@ export default function Index() {
                 })() : undefined}
               />
             ))}
-          </div>
+          </HorizontalScroll>
         </section>
       ) : null}
 
@@ -237,7 +238,7 @@ export default function Index() {
           <div className="flex items-center justify-between mb-3">
             <div className="h-5 w-40 bg-secondary rounded-lg animate-pulse" />
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {[...Array(4)].map((_, i) => (
               <div key={i} className="w-28 flex-shrink-0">
                 <div className="aspect-[2/3] rounded-lg bg-secondary animate-pulse mb-2" />
@@ -245,13 +246,13 @@ export default function Index() {
                 <div className="h-2.5 w-2/3 bg-secondary rounded animate-pulse" />
               </div>
             ))}
-          </div>
+          </HorizontalScroll>
         </section>
       ) : recoSections.length > 0 ? (
         recoSections.map(section => (
           <section key={section.id}>
             <RecoSectionHeader section={section} />
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+            <HorizontalScroll>
               {section.movies.slice(0, 10).map((movie) => (
                 <MovieCard
                   key={movie.imdbID}
@@ -263,7 +264,7 @@ export default function Index() {
                   })() : undefined}
                 />
               ))}
-            </div>
+            </HorizontalScroll>
           </section>
         ))
       ) : null}
@@ -274,7 +275,7 @@ export default function Index() {
           <div className="flex items-center justify-between mb-3">
             <div className="h-5 w-40 bg-secondary rounded-lg animate-pulse" />
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {[...Array(4)].map((_, i) => (
               <div key={i} className="w-28 flex-shrink-0">
                 <div className="aspect-[2/3] rounded-lg bg-secondary animate-pulse mb-2" />
@@ -282,7 +283,7 @@ export default function Index() {
                 <div className="h-2.5 w-2/3 bg-secondary rounded animate-pulse" />
               </div>
             ))}
-          </div>
+          </HorizontalScroll>
         </section>
       ) : localizedFavourites.length > 0 ? (
         <section>
@@ -295,7 +296,7 @@ export default function Index() {
               <ChevronRight size={32} />
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {localizedFavourites.map((movie) => (
               <MovieCard
                 key={movie.imdbID}
@@ -307,7 +308,7 @@ export default function Index() {
                 })() : undefined}
               />
             ))}
-          </div>
+          </HorizontalScroll>
         </section>
       ) : null}
 
@@ -343,7 +344,7 @@ export default function Index() {
             <Video size={24} className="text-primary mr-2" />
             <h2 className="text-2xl text-foreground">{t('achievementsDirectors')}</h2>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {directors.map(director => (
               <Link
                 key={director.slug}
@@ -385,7 +386,7 @@ export default function Index() {
                 </div>
               </Link>
             ))}
-          </div>
+          </HorizontalScroll>
         </section>
       )}
 
@@ -401,7 +402,7 @@ export default function Index() {
               <ChevronRight size={32} />
             </Link>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <HorizontalScroll>
             {milestones.map(milestone => {
               const Icon = MILESTONE_ICONS[milestone.id as MilestoneId];
               return (
@@ -420,7 +421,7 @@ export default function Index() {
                 </Link>
               );
             })}
-          </div>
+          </HorizontalScroll>
         </section>
       )}
     </div>
