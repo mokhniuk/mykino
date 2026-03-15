@@ -898,6 +898,18 @@ export const COLLECTIONS: Collection[] = [
   // },
 ];
 
+// ─── i18n key helpers ─────────────────────────────────────────────────────────
+
+/** Derives the i18n title key for a collection from its slug. */
+export function colTitleKey(slug: string): string {
+  return 'col' + slug.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join('') + 'Title';
+}
+
+/** Derives the i18n description key for a collection from its slug. */
+export function colDescKey(slug: string): string {
+  return 'col' + slug.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join('') + 'Desc';
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function getCollectionBySlug(slug: string): Collection | undefined {

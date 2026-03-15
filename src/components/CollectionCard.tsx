@@ -1,8 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchCollectionMovies } from '@/lib/api';
+import { fetchCollectionMovies, colTitleKey } from '@/lib/api';
 import type { Collection } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
 
 interface CollectionCardProps {
   collection: Collection;
@@ -10,7 +11,14 @@ interface CollectionCardProps {
   fixedWidth?: string;
 }
 
+const TYPE_KEY_MAP: Record<string, string> = {
+  franchise: 'colTypeFranchise', studio: 'colTypeStudio', director: 'colTypeDirector',
+  actor: 'colTypeActor', genre: 'colTypeGenre', tv: 'colTypeTv', decade: 'colTypeDecade',
+  mood: 'colTypeMood', awards: 'colTypeAwards', theme: 'colTypeTheme', classics: 'colTypeClassics',
+};
+
 export default function CollectionCard({ collection, fixedWidth }: CollectionCardProps) {
+  const { t } = useI18n();
   const ref = useRef<HTMLAnchorElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -72,10 +80,10 @@ export default function CollectionCard({ collection, fixedWidth }: CollectionCar
       {/* Info */}
       <div className="px-3 py-2.5">
         <span className="text-[10px] font-semibold text-primary uppercase tracking-wider leading-none">
-          {collection.type}
+          {t((TYPE_KEY_MAP[collection.type] ?? 'colTypeFranchise') as any)}
         </span>
         <p className="text-xs font-semibold text-foreground leading-snug mt-1 line-clamp-2">
-          {collection.title}
+          {t(colTitleKey(collection.slug) as any)}
         </p>
       </div>
     </Link>

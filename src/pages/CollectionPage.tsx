@@ -15,11 +15,12 @@ import {
   type MovieData,
 } from '@/lib/db';
 import MovieCard from '@/components/MovieCard';
+import { colTitleKey, colDescKey } from '@/lib/api';
 
-const TYPE_LABELS: Record<string, string> = {
-  franchise: 'Franchise', studio: 'Studio', director: 'Director',
-  actor: 'Actor', genre: 'Genre', tv: 'TV', decade: 'Decade',
-  mood: 'Mood', awards: 'Awards', theme: 'Theme', classics: 'Classics',
+const TYPE_KEY_MAP: Record<string, string> = {
+  franchise: 'colTypeFranchise', studio: 'colTypeStudio', director: 'colTypeDirector',
+  actor: 'colTypeActor', genre: 'colTypeGenre', tv: 'colTypeTv', decade: 'colTypeDecade',
+  mood: 'colTypeMood', awards: 'colTypeAwards', theme: 'colTypeTheme', classics: 'colTypeClassics',
 };
 
 export default function CollectionPage() {
@@ -150,7 +151,7 @@ export default function CollectionPage() {
             <ChevronLeft size={16} />
           </button>
           <Layers size={22} className="text-primary shrink-0" />
-          <h1 className="text-xl font-semibold text-foreground leading-tight">{collection.title}</h1>
+          <h1 className="text-xl font-semibold text-foreground leading-tight">{t(colTitleKey(collection.slug) as any)}</h1>
         </div>
         <div className="mt-12 flex flex-col items-center gap-4 text-center">
           <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -180,14 +181,14 @@ export default function CollectionPage() {
           <ChevronLeft size={16} />
         </button>
         <Layers size={22} className="text-primary shrink-0" />
-        <h1 className="text-xl font-semibold text-foreground leading-tight">{collection.title}</h1>
+        <h1 className="text-xl font-semibold text-foreground leading-tight">{t(colTitleKey(collection.slug) as any)}</h1>
       </div>
 
       <div className="flex items-center gap-2 mb-5 pl-0.5 flex-wrap">
         <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
-          {TYPE_LABELS[collection.type] ?? collection.type}
+          {t((TYPE_KEY_MAP[collection.type] ?? 'colTypeFranchise') as any)}
         </span>
-        <p className="text-sm text-muted-foreground">{collection.description}</p>
+        <p className="text-sm text-muted-foreground">{t(colDescKey(collection.slug) as any)}</p>
       </div>
 
       {/* Loading skeleton */}

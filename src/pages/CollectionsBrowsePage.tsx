@@ -1,25 +1,25 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Layers, Lock } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { getCollectionsByType, getFreeEditorialSlugs } from '@/lib/api';
+import { getCollectionsByType, getFreeEditorialSlugs, colTitleKey } from '@/lib/api';
 import CollectionCard from '@/components/CollectionCard';
 import type { CollectionType, Collection } from '@/lib/api';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { config } from '@/lib/config';
 
-const TYPE_LABELS: Record<CollectionType, string> = {
-  franchise: 'Franchises',
-  studio: 'Studios',
-  director: 'Directors',
-  actor: 'Actors',
-  genre: 'Genres',
-  tv: 'TV Shows',
-  decade: 'Decades',
-  mood: 'Moods',
-  awards: 'Awards',
-  theme: 'Themes',
-  classics: 'Classics',
+const TYPE_PLURAL_KEY_MAP: Record<CollectionType, string> = {
+  franchise: 'colTypesFranchises',
+  studio: 'colTypesStudios',
+  director: 'colTypesDirectors',
+  actor: 'colTypesActors',
+  genre: 'colTypesGenres',
+  tv: 'colTypesTvShows',
+  decade: 'colTypesDecades',
+  mood: 'colTypesMoods',
+  awards: 'colTypesAwards',
+  theme: 'colTypesThemes',
+  classics: 'colTypesClassics',
 };
 
 const TYPE_ORDER: CollectionType[] = [
@@ -30,6 +30,7 @@ const TYPE_ORDER: CollectionType[] = [
 export default function CollectionsBrowsePage() {
   const navigate = useNavigate();
   const { t } = useI18n();
+
   const { user, loading: authLoading } = useAuth();
   const { isPro, loading: profileLoading } = useProfile();
   const byType = getCollectionsByType();
@@ -75,7 +76,7 @@ export default function CollectionsBrowsePage() {
           return (
             <div key={type}>
               <h2 className="text-xs font-semibold text-primary uppercase tracking-widest mb-3">
-                {TYPE_LABELS[type]}
+                {t((TYPE_PLURAL_KEY_MAP[type] ?? type) as any)}
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {visibleCols.map(col => {
@@ -92,7 +93,7 @@ export default function CollectionsBrowsePage() {
                       </div>
                       <div className="px-3 py-2.5">
                         <span className="text-[10px] font-semibold text-primary uppercase tracking-wider leading-none">Pro</span>
-                        <p className="text-xs font-semibold text-foreground leading-snug mt-1 line-clamp-2">{col.title}</p>
+                        <p className="text-xs font-semibold text-foreground leading-snug mt-1 line-clamp-2">{t(colTitleKey(col.slug) as any)}</p>
                       </div>
                     </button>
                   );
