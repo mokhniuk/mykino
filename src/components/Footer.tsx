@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
+import { config } from '@/lib/config';
 
 export default function Footer() {
   const navigate = useNavigate();
@@ -13,10 +14,14 @@ export default function Footer() {
           <span className="opacity-40 ml-2">v{__APP_VERSION__}</span>
         </span>
         <div className="flex gap-6">
-          <button onClick={() => navigate('/pricing')} className="hover:text-foreground transition-colors">{t('footerPricing')}</button>
-          <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">{t('footerPrivacy')}</button>
-          <button onClick={() => navigate('/terms')} className="hover:text-foreground transition-colors">{t('footerTerms')}</button>
-          <button onClick={() => navigate('/contact')} className="hover:text-foreground transition-colors">{t('footerContact')}</button>
+          {config.hasManagedAI && (
+            <>
+              <button onClick={() => navigate('/pricing')} className="hover:text-foreground transition-colors">{t('footerPricing')}</button>
+              <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">{t('footerPrivacy')}</button>
+              <button onClick={() => navigate('/terms')} className="hover:text-foreground transition-colors">{t('footerTerms')}</button>
+              <button onClick={() => navigate('/contact')} className="hover:text-foreground transition-colors">{t('footerContact')}</button>
+            </>
+          )}
           <button onClick={() => navigate('/app')} className="hover:text-foreground transition-colors">{t('pricingFreeBtn')}</button>
         </div>
       </div>

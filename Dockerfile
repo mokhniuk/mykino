@@ -9,7 +9,8 @@ RUN bun install --frozen-lockfile
 
 # Copy source and build (skips interactive version-bump prompt)
 COPY . .
-RUN bun run build:static
+ARG IS_COMMUNITY=false
+RUN VITE_IS_COMMUNITY_BUILD=$IS_COMMUNITY bun run build:static
 
 # ── Serve stage ───────────────────────────────────────────────────────────────
 FROM docker.io/nginx:alpine

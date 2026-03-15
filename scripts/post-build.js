@@ -44,7 +44,7 @@ const spaRoutes = [
 ];
 
 // Marketing/Legal routes that should be SSG with content
-const ssgRoutes = [
+let ssgRoutes = [
   { path: '', template: 'landing' },
   { path: '/pricing', template: 'pricing' },
   { path: '/community', template: 'community' },
@@ -52,6 +52,13 @@ const ssgRoutes = [
   { path: '/terms', template: 'terms' },
   { path: '/contact', template: 'contact' }
 ];
+
+const IS_COMMUNITY = process.env.VITE_IS_COMMUNITY_BUILD === 'true';
+
+if (IS_COMMUNITY) {
+  console.log('🏗️ Community build detected. Filtering ssgRoutes...');
+  ssgRoutes = ssgRoutes.filter(r => r.template === 'community');
+}
 
 console.log('📄 Creating static HTML files for SPA routes...');
 spaRoutes.forEach(route => {
@@ -262,9 +269,11 @@ languages.forEach(lang => {
 });
 
 // Create a copy of landing.html as index.html in dist for non-SPA root
-if (fs.existsSync(path.join(distDir, 'landing.html'))) {
+if (!IS_COMMUNITY && fs.existsSync(path.join(distDir, 'landing.html'))) {
   fs.copyFileSync(path.join(distDir, 'landing.html'), path.join(distDir, 'index.html'));
   console.log('✅ Updated dist/index.html with pre-rendered landing page');
+} else if (IS_COMMUNITY) {
+  console.log('✅ Keeping dist/index.html as SPA shell for community build');
 }
 
 console.log('🎉 SSG generation complete!');
