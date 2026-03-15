@@ -3,7 +3,7 @@ import type { TVSeriesTracking } from './tvTracking';
 import { dispatchSyncEvent } from './sync';
 
 const DB_NAME = 'mykino';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const APP_DATA_VERSION = 5;
 
 
@@ -36,6 +36,14 @@ export interface MovieData {
   original_language?: string;
   addedAt?: number;
   [key: string]: unknown;
+}
+
+export interface SearchHistoryEntry {
+  id?: number;
+  query: string;
+  source: 'chip' | 'input';
+  results: (MovieData & { aiReason?: string })[];
+  timestamp: number;
 }
 
 export interface ContentPreferences {
@@ -159,6 +167,9 @@ async function migrateFromOldDatabase() {
         if (oldVersion < 5) {
           db.createObjectStore('metadata', { keyPath: 'key' });
         }
+        if (oldVersion < 6) {
+          db.createObjectStore('search_history', { keyPath: 'id', autoIncrement: true });
+        }
       },
     });
 
@@ -216,6 +227,9 @@ export async function getDB() {
           }
           if (oldVersion < 5) {
             db.createObjectStore('metadata', { keyPath: 'key' });
+          }
+          if (oldVersion < 6) {
+            db.createObjectStore('search_history', { keyPath: 'id', autoIncrement: true });
           }
         },
       });
@@ -469,4 +483,46 @@ export async function enrichWatchedMovie(enriched: MovieData) {
   const existing = await db.get('watched', enriched.imdbID);
   if (!existing) return;
   await db.put('watched', { ...existing, ...enriched, addedAt: existing.addedAt });
+}
+
+// Search History
+const SEARCH_HISTORY_MAX = 200;
+
+export async function saveSearchHistory(entry: Omit<SearchHistoryEntry, 'id'>) {
+  const db = await getDB();
+  await db.add('search_history', { ...entry });
+  // Prune oldest entries beyond the cap
+  const all = await db.getAll('search_history');
+  if (all.length > SEARCH_HISTORY_MAX) {
+    all.sort((a, b) => a.timestamp - b.timestamp);
+    const toDelete = all.slice(0, all.length - SEARCH_HISTORY_MAX);
+    const tx = db.transaction('search_history', 'readwrite');
+    for (const entry of toDelete) {
+      if (entry.id != null) tx.objectStore('search_history').delete(entry.id);
+    }
+    await tx.done;
+  }
+}
+
+export async function getSearchHistory(limit = 20, offset = 0): Promise<SearchHistoryEntry[]> {
+  const db = await getDB();
+  const all = await db.getAll('search_history');
+  return all
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(offset, offset + limit);
+}
+
+export async function getSearchHistoryCount(): Promise<number> {
+  const db = await getDB();
+  return db.count('search_history');
+}
+
+export async function deleteSearchHistoryEntry(id: number) {
+  const db = await getDB();
+  await db.delete('search_history', id);
+}
+
+export async function clearSearchHistory() {
+  const db = await getDB();
+  await db.clear('search_history');
 }

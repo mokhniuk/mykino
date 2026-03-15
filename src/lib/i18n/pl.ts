@@ -157,6 +157,7 @@ export const pl = {
   sectionHiddenGemsDesc: 'Docenione przez krytyków filmy, które mogłeś przeoczyć',
   tvStatus_watching: 'Oglądam',
   tvStatus_completed: 'Obejrzane',
+  tvMarkCompleted: 'Oznacz jako ukończone',
   tvStatus_planned: 'Planuję obejrzeć',
   tvEpisodesWatched: 'odcinków obejrzanych',
   tvEp: 'odc',
@@ -544,4 +545,14 @@ export const pl = {
   landingTitle: 'Strona główna',
   pricingTitle: 'Cennik',
   communityTitle: 'Społeczność',
+  // Search History
+  searchHistory: 'Historia wyszukiwania',
+  searchHistoryEmpty: 'Brak historii wyszukiwania',
+  searchHistoryEmptyHint: 'Tutaj pojawią się Twoje wyszukiwania AI według nastroju.',
+  searchHistoryClearAll: 'Wyczyść historię',
+  searchHistoryClearConfirm: 'Wyczyścić całą historię?',
+  searchHistoryToday: 'Dzisiaj',
+  searchHistoryYesterday: 'Wczoraj',
+  searchHistoryResults: 'wyników',
+  searchHistoryLoadMore: 'Załaduj więcej',
 } as const;

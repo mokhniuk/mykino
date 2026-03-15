@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, X, Sparkles, Search, CheckCircle2, BookmarkCheck } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Search as SearchIcon, Loader2, X, Sparkles, Search, CheckCircle2, BookmarkCheck, History } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
 import { type MovieData } from '@/lib/db';
@@ -8,7 +8,7 @@ import { getAIRecommendations, isAIEnabled, getAIUsage, AILimitReachedError, typ
 import MoodChips from '@/components/MoodChips';
 import { config } from '@/lib/config';
 import { getOrBuildTasteProfile } from '@/lib/tasteProfile';
-import { getContentPreferences, getFavourites, getWatchlist } from '@/lib/db';
+import { getContentPreferences, getFavourites, getWatchlist, saveSearchHistory } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -36,6 +36,8 @@ interface CachedSearchState {
   aiHasMore: boolean;
   allAiRecommendations: MovieWithReason[];
   useAI: boolean;
+  page: number;
+  hasMore: boolean;
   timestamp: number;
 }
 
@@ -90,8 +92,8 @@ export default function SearchPage() {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
 
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(shouldRestoreCache ? cachedState.page : 1);
+  const [hasMore, setHasMore] = useState(shouldRestoreCache ? cachedState.hasMore : false);
   const [isDiscovery, setIsDiscovery] = useState(false);
   const [libraryMatch, setLibraryMatch] = useState<{ title: string; status: 'watched' | 'watchlist' } | null>(null);
   const observerRef = useRef<HTMLDivElement>(null);
@@ -190,9 +192,9 @@ export default function SearchPage() {
   // Ref updated every render so the observer callback always has fresh state
   const loadMoreRef = useRef<(() => void) | null>(null);
   
-  // Cache search results when they change
+  // Cache search results when they change (both AI and non-AI)
   useEffect(() => {
-    if (results.length > 0 && useAI && query) {
+    if (results.length > 0 && query) {
       const cacheState: CachedSearchState = {
         query,
         results,
@@ -200,11 +202,13 @@ export default function SearchPage() {
         aiHasMore,
         allAiRecommendations,
         useAI,
+        page,
+        hasMore,
         timestamp: Date.now(),
       };
       sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheState));
     }
-  }, [results, query, aiPage, aiHasMore, allAiRecommendations, useAI]);
+  }, [results, query, aiPage, aiHasMore, allAiRecommendations, useAI, page, hasMore]);
 
   // AI search function
   const doAISearch = async (q: string, pageNum: number = 1) => {
@@ -342,12 +346,21 @@ export default function SearchPage() {
       
       if (pageNum === 1) {
         // Remove duplicates by imdbID
-        const uniqueResults = newResults.filter((movie, index, self) => 
+        const uniqueResults = newResults.filter((movie, index, self) =>
           index === self.findIndex(m => m.imdbID === movie.imdbID)
         );
         setResults(uniqueResults);
         setAllAiRecommendations(uniqueResults);
         setAiHasMore(uniqueResults.length >= 10);
+        // Save to search history (chip and input AI searches)
+        if (uniqueResults.length > 0) {
+          saveSearchHistory({
+            query: q,
+            source: fromChip ? 'chip' : 'input',
+            results: uniqueResults,
+            timestamp: Date.now(),
+          });
+        }
       } else {
         // Merge with existing results and remove duplicates
         const combined = [...allAiRecommendations, ...newResults];
@@ -429,6 +442,15 @@ export default function SearchPage() {
 
       setResults(prev => append ? [...prev, ...items] : items);
       setHasMore(data.Search.length >= 20);
+      // Save to search history on first page of a real query search
+      if (!append && q.trim() && !isDiscMode && items.length > 0) {
+        saveSearchHistory({
+          query: q,
+          source: 'input',
+          results: items,
+          timestamp: Date.now(),
+        });
+      }
     } else {
       if (!append) setResults([]);
       setHasMore(false);
@@ -585,6 +607,14 @@ export default function SearchPage() {
                 </button>
               );
             })()}
+
+            <Link
+              to="/app/history"
+              aria-label={t('searchHistory')}
+              className="flex items-center justify-center p-3.5 rounded-xl bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0 glass-shine"
+            >
+              <History size={16} />
+            </Link>
           </div>
         </form>
 

@@ -158,6 +158,7 @@ export const de = {
   // TV Tracking
   tvStatus_watching: 'Schaue ich',
   tvStatus_completed: 'Abgeschlossen',
+  tvMarkCompleted: 'Als abgeschlossen markieren',
   tvStatus_planned: 'Möchte ich sehen',
   tvEpisodesWatched: 'Episoden gesehen',
   tvEp: 'Ep.',
@@ -547,4 +548,14 @@ export const de = {
   landingTitle: 'Startseite',
   pricingTitle: 'Preise',
   communityTitle: 'Community',
+  // Search History
+  searchHistory: 'Suchverlauf',
+  searchHistoryEmpty: 'Noch kein Suchverlauf',
+  searchHistoryEmptyHint: 'Deine KI-Stimmungssuchen erscheinen hier.',
+  searchHistoryClearAll: 'Verlauf löschen',
+  searchHistoryClearConfirm: 'Gesamten Verlauf löschen?',
+  searchHistoryToday: 'Heute',
+  searchHistoryYesterday: 'Gestern',
+  searchHistoryResults: 'Ergebnisse',
+  searchHistoryLoadMore: 'Mehr laden',
 } as const;

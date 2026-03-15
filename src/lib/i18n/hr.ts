@@ -157,6 +157,7 @@ export const hr = {
   sectionHiddenGemsDesc: 'Kritički hvaljeni filmovi koje ste možda propustili',
   tvStatus_watching: 'Gledam',
   tvStatus_completed: 'Završeno',
+  tvMarkCompleted: 'Označi kao završeno',
   tvStatus_planned: 'Planiram gledati',
   tvEpisodesWatched: 'epizoda gledano',
   tvEp: 'ep',
@@ -542,4 +543,14 @@ export const hr = {
   landingTitle: 'Početna',
   pricingTitle: 'Cijene',
   communityTitle: 'Zajednica',
+  // Search History
+  searchHistory: 'Povijest pretraživanja',
+  searchHistoryEmpty: 'Još nema povijesti pretraživanja',
+  searchHistoryEmptyHint: 'Ovdje će se prikazati tvoja AI pretraživanja po raspoloženju.',
+  searchHistoryClearAll: 'Obriši povijest',
+  searchHistoryClearConfirm: 'Obrisati cijelu povijest?',
+  searchHistoryToday: 'Danas',
+  searchHistoryYesterday: 'Jučer',
+  searchHistoryResults: 'rezultata',
+  searchHistoryLoadMore: 'Učitaj više',
 } as const;

@@ -158,6 +158,7 @@ export const ua = {
   // TV Tracking
   tvStatus_watching: 'Дивлюсь',
   tvStatus_completed: 'Переглянуто',
+  tvMarkCompleted: 'Позначити як переглянуто',
   tvStatus_planned: 'Треба глянути',
   tvEpisodesWatched: 'серій переглянуто',
   tvEp: 'еп.',
@@ -547,4 +548,14 @@ export const ua = {
   landingTitle: 'Головна',
   pricingTitle: 'Тарифи',
   communityTitle: 'Спільнота',
+  // Search History
+  searchHistory: 'Історія пошуку',
+  searchHistoryEmpty: 'Історія пошуку порожня',
+  searchHistoryEmptyHint: "Тут з'являться ваші AI-пошуки за настроєм.",
+  searchHistoryClearAll: 'Очистити історію',
+  searchHistoryClearConfirm: 'Очистити всю історію?',
+  searchHistoryToday: 'Сьогодні',
+  searchHistoryYesterday: 'Вчора',
+  searchHistoryResults: 'результатів',
+  searchHistoryLoadMore: 'Завантажити більше',
 } as const;

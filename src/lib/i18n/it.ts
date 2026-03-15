@@ -157,6 +157,7 @@ export const it = {
   sectionHiddenGemsDesc: 'Film acclamati dalla critica che potresti aver perso',
   tvStatus_watching: 'In visione',
   tvStatus_completed: 'Completato',
+  tvMarkCompleted: 'Segna come completato',
   tvStatus_planned: 'Da guardare',
   tvEpisodesWatched: 'episodi visti',
   tvEp: 'ep',
@@ -542,4 +543,14 @@ export const it = {
   landingTitle: 'Home',
   pricingTitle: 'Prezzi',
   communityTitle: 'Comunità',
+  // Search History
+  searchHistory: 'Cronologia ricerche',
+  searchHistoryEmpty: 'Nessuna cronologia di ricerca',
+  searchHistoryEmptyHint: 'Le tue ricerche AI per umore appariranno qui.',
+  searchHistoryClearAll: 'Cancella cronologia',
+  searchHistoryClearConfirm: 'Cancellare tutta la cronologia?',
+  searchHistoryToday: 'Oggi',
+  searchHistoryYesterday: 'Ieri',
+  searchHistoryResults: 'risultati',
+  searchHistoryLoadMore: 'Carica altro',
 } as const;

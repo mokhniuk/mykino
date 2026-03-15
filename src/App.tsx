@@ -20,6 +20,7 @@ import AchievementsDirectorPage from "./pages/AchievementsDirectorPage";
 import AchievementsMilestonesPage from "./pages/AchievementsMilestonesPage";
 import TVShowPage from "./pages/TVShowPage";
 import DirectorPage from "./pages/DirectorPage";
+import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
 import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/app" element={<Layout />}>
                   <Route index element={<Index />} />
                   <Route path="search" element={<SearchPage />} />
+                  <Route path="history" element={<HistoryPage />} />
                   <Route path="watchlist" element={<WatchlistPage />} />
                   <Route path="watched" element={<WatchedPage />} />
                   <Route path="movie/:id" element={<MovieDetailsPage />} />

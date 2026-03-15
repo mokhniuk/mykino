@@ -77,7 +77,7 @@ export default function HorizontalScroll({ children, className = '' }: Props) {
     <div
       ref={ref}
       onMouseDown={onMouseDown}
-      className={`flex gap-3 overflow-x-auto -mx-4 px-4 pb-2 scrollbar-hide cursor-grab ${className}`}
+      className={`flex gap-3 overflow-x-auto -mx-4 px-4 pb-2 scrollbar-custom cursor-grab ${className}`}
     >
       {children}
     </div>

@@ -157,6 +157,7 @@ export const es = {
   sectionHiddenGemsDesc: 'Películas aclamadas por la crítica que podrías haberte perdido',
   tvStatus_watching: 'Viendo',
   tvStatus_completed: 'Completada',
+  tvMarkCompleted: 'Marcar como completado',
   tvStatus_planned: 'Por ver',
   tvEpisodesWatched: 'episodios vistos',
   tvEp: 'ep',
@@ -542,4 +543,14 @@ export const es = {
   landingTitle: 'Inicio',
   pricingTitle: 'Precios',
   communityTitle: 'Comunidad',
+  // Search History
+  searchHistory: 'Historial de búsqueda',
+  searchHistoryEmpty: 'Sin historial de búsqueda',
+  searchHistoryEmptyHint: 'Aquí aparecerán tus búsquedas de IA por estado de ánimo.',
+  searchHistoryClearAll: 'Borrar historial',
+  searchHistoryClearConfirm: '¿Borrar todo el historial?',
+  searchHistoryToday: 'Hoy',
+  searchHistoryYesterday: 'Ayer',
+  searchHistoryResults: 'resultados',
+  searchHistoryLoadMore: 'Cargar más',
 } as const;

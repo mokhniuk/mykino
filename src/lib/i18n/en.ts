@@ -168,6 +168,7 @@ export const en = {
   tvStatus_watching: 'Watching',
   tvStatus_completed: 'Completed',
   tvStatus_planned: 'Plan to Watch',
+  tvMarkCompleted: 'Mark as Completed',
   tvEpisodesWatched: 'episodes watched',
   tvEp: 'ep',
   tvNextEpisode: 'Next',
@@ -570,4 +571,14 @@ export const en = {
   landingTitle: 'Home',
   pricingTitle: 'Pricing',
   communityTitle: 'Community',
+  // Search History
+  searchHistory: 'Search History',
+  searchHistoryEmpty: 'No search history yet',
+  searchHistoryEmptyHint: 'Your AI mood searches will appear here.',
+  searchHistoryClearAll: 'Clear history',
+  searchHistoryClearConfirm: 'Clear all history?',
+  searchHistoryToday: 'Today',
+  searchHistoryYesterday: 'Yesterday',
+  searchHistoryResults: 'results',
+  searchHistoryLoadMore: 'Load more',
 } as const;

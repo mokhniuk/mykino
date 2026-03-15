@@ -157,6 +157,7 @@ export const cs = {
   sectionHiddenGemsDesc: 'Kriticky uznávané filmy, které jste možná přehlédli',
   tvStatus_watching: 'Sleduji',
   tvStatus_completed: 'Dokončeno',
+  tvMarkCompleted: 'Označit jako dokončené',
   tvStatus_planned: 'Plánuji sledovat',
   tvEpisodesWatched: 'epizod shlédnuto',
   tvEp: 'ep',
@@ -545,4 +546,14 @@ export const cs = {
   landingTitle: 'Domů',
   pricingTitle: 'Ceník',
   communityTitle: 'Komunita',
+  // Search History
+  searchHistory: 'Historie vyhledávání',
+  searchHistoryEmpty: 'Historie vyhledávání je prázdná',
+  searchHistoryEmptyHint: 'Zde se zobrazí vaše AI vyhledávání podle nálady.',
+  searchHistoryClearAll: 'Vymazat historii',
+  searchHistoryClearConfirm: 'Vymazat celou historii?',
+  searchHistoryToday: 'Dnes',
+  searchHistoryYesterday: 'Včera',
+  searchHistoryResults: 'výsledků',
+  searchHistoryLoadMore: 'Načíst více',
 } as const;

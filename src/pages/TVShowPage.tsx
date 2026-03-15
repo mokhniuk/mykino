@@ -444,10 +444,10 @@ export default function TVShowPage() {
                     ? 'flex-1 bg-primary text-primary-foreground hover:opacity-90'
                     : 'w-[42px] bg-secondary text-secondary-foreground hover:bg-secondary/80'
                   }`}
-                title={t('tvStatus_completed')}
+                title={t('tvMarkCompleted')}
               >
                 <CheckCircle2 size={24} className="flex-shrink-0" />
-                {inWatchlist && <span>{t('tvStatus_completed')}</span>}
+                {inWatchlist && <span>{t('tvMarkCompleted')}</span>}
               </button>
             </div>
 
