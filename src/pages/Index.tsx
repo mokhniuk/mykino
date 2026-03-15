@@ -6,6 +6,7 @@ import {
   ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem,
   Trophy, Video, Medal, Star, Clock, Globe, Languages, Tv2,
   Shuffle, Sparkles,
+  Popcorn, Crown, Zap, Hourglass, Timer, Rewind, CalendarDays, Award, ListOrdered,
   type LucideIcon,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
@@ -103,14 +104,23 @@ function RecoSectionHeader({ section }: { section: RecoSection }) {
 }
 
 const MILESTONE_ICONS: Record<MilestoneId, LucideIcon> = {
-  first_film: Clapperboard,
-  ten_films: Film,
-  fifty_films: Star,
-  hundred_films: Trophy,
-  classic: Clock,
-  world_explorer: Globe,
-  polyglot: Languages,
-  genre_master: Layers,
+  first_film:       Clapperboard,
+  ten_films:        Film,
+  twenty_five_films:Popcorn,
+  fifty_films:      Star,
+  hundred_films:    Trophy,
+  two_hundred_films:Crown,
+  top_contender:    ListOrdered,
+  classic:          Clock,
+  time_traveller:   Rewind,
+  world_explorer:   Globe,
+  polyglot:         Languages,
+  genre_master:     Layers,
+  decade_hopper:    CalendarDays,
+  director_devotee: Award,
+  binge_day:        Zap,
+  epic_viewer:      Hourglass,
+  quick_pick:       Timer,
 };
 
 // ─── Page ────────────────────────────────────────────────────────────────────

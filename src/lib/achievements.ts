@@ -129,12 +129,21 @@ export interface Milestone {
 export const MILESTONE_IDS = [
   'first_film',
   'ten_films',
+  'twenty_five_films',
   'fifty_films',
   'hundred_films',
+  'two_hundred_films',
+  'top_contender',
   'classic',
+  'time_traveller',
   'world_explorer',
   'polyglot',
   'genre_master',
+  'decade_hopper',
+  'director_devotee',
+  'binge_day',
+  'epic_viewer',
+  'quick_pick',
 ] as const;
 
 export type MilestoneId = typeof MILESTONE_IDS[number];
@@ -146,32 +155,74 @@ export function computeMilestones(watched: MovieData[]): Milestone[] {
   const countries = new Set<string>();
   const languages = new Set<string>();
   const genres = new Set<string>();
+  const decades = new Set<number>();
+  const directorCounts = new Map<string, number>();
+  const dateCounts = new Map<string, number>();
+
+  let hasEpic = false;
+  let hasQuick = false;
+  let hasClassic = false;
+  let hasTimeTraveller = false;
 
   for (const movie of watched) {
-    if (movie.Country && movie.Country !== 'N/A') {
+    if (movie.Country && movie.Country !== 'N/A')
       movie.Country.split(',').forEach(c => countries.add(c.trim()));
-    }
-    if (movie.Language && movie.Language !== 'N/A') {
+    if (movie.Language && movie.Language !== 'N/A')
       movie.Language.split(',').forEach(l => languages.add(l.trim()));
-    }
-    if (movie.Genre && movie.Genre !== 'N/A') {
+    if (movie.Genre && movie.Genre !== 'N/A')
       movie.Genre.split(',').forEach(g => genres.add(g.trim()));
+
+    const year = parseInt(movie.Year ?? '0', 10);
+    if (year > 0) decades.add(Math.floor(year / 10) * 10);
+    if (year > 0 && year < 1970) hasClassic = true;
+    if (year > 0 && year < 1950) hasTimeTraveller = true;
+
+    const rt = parseInt(movie.Runtime ?? '0', 10);
+    if (rt >= 180) hasEpic = true;
+    if (rt > 0 && rt < 80) hasQuick = true;
+
+    if (movie.Director && movie.Director !== 'N/A') {
+      movie.Director.split(',').map(n => n.trim()).filter(Boolean).forEach(name => {
+        directorCounts.set(name, (directorCounts.get(name) ?? 0) + 1);
+      });
+    }
+
+    if (movie.addedAt) {
+      const date = new Date(movie.addedAt).toISOString().slice(0, 10);
+      dateCounts.set(date, (dateCounts.get(date) ?? 0) + 1);
     }
   }
 
-  const hasClassic = watched.some(m => {
-    const year = parseInt(m.Year ?? '9999', 10);
-    return year < 1970;
-  });
+  const maxDirectorCount = directorCounts.size > 0 ? Math.max(...directorCounts.values()) : 0;
+  const hasBingeDay = [...dateCounts.values()].some(n => n >= 3);
+
+  // Top 100 count
+  const watchedIds = new Set(watched.map(m => m.imdbID));
+  const watchedTitles = new Set([
+    ...watched.map(m => (m.Title || '').toLowerCase()),
+    ...watched.flatMap(m => m.OriginalTitle ? [(m.OriginalTitle as string).toLowerCase()] : []),
+  ]);
+  const top100Count = TOP_100_MOVIES.filter(
+    m => watchedIds.has(m.imdbID) || (m.Title && watchedTitles.has(m.Title.toLowerCase()))
+  ).length;
 
   return [
-    { id: 'first_film', unlocked: count >= 1, progress: Math.min(count, 1), target: 1 },
-    { id: 'ten_films', unlocked: count >= 10, progress: Math.min(count, 10), target: 10 },
-    { id: 'fifty_films', unlocked: count >= 50, progress: Math.min(count, 50), target: 50 },
-    { id: 'hundred_films', unlocked: count >= 100, progress: Math.min(count, 100), target: 100 },
-    { id: 'classic', unlocked: hasClassic },
-    { id: 'world_explorer', unlocked: countries.size >= 5, progress: Math.min(countries.size, 5), target: 5 },
-    { id: 'polyglot', unlocked: languages.size >= 5, progress: Math.min(languages.size, 5), target: 5 },
-    { id: 'genre_master', unlocked: genres.size >= 10, progress: Math.min(genres.size, 10), target: 10 },
+    { id: 'first_film',       unlocked: count >= 1,   progress: Math.min(count, 1),   target: 1 },
+    { id: 'ten_films',        unlocked: count >= 10,  progress: Math.min(count, 10),  target: 10 },
+    { id: 'twenty_five_films',unlocked: count >= 25,  progress: Math.min(count, 25),  target: 25 },
+    { id: 'fifty_films',      unlocked: count >= 50,  progress: Math.min(count, 50),  target: 50 },
+    { id: 'hundred_films',    unlocked: count >= 100, progress: Math.min(count, 100), target: 100 },
+    { id: 'two_hundred_films',unlocked: count >= 200, progress: Math.min(count, 200), target: 200 },
+    { id: 'top_contender',    unlocked: top100Count >= 10, progress: Math.min(top100Count, 10), target: 10 },
+    { id: 'classic',          unlocked: hasClassic },
+    { id: 'time_traveller',   unlocked: hasTimeTraveller },
+    { id: 'world_explorer',   unlocked: countries.size >= 5,  progress: Math.min(countries.size, 5),  target: 5 },
+    { id: 'polyglot',         unlocked: languages.size >= 5,  progress: Math.min(languages.size, 5),  target: 5 },
+    { id: 'genre_master',     unlocked: genres.size >= 10,    progress: Math.min(genres.size, 10),    target: 10 },
+    { id: 'decade_hopper',    unlocked: decades.size >= 5,    progress: Math.min(decades.size, 5),    target: 5 },
+    { id: 'director_devotee', unlocked: maxDirectorCount >= 5, progress: Math.min(maxDirectorCount, 5), target: 5 },
+    { id: 'binge_day',        unlocked: hasBingeDay },
+    { id: 'epic_viewer',      unlocked: hasEpic },
+    { id: 'quick_pick',       unlocked: hasQuick },
   ];
 }
