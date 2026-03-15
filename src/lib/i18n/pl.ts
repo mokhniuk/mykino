@@ -179,6 +179,8 @@ export const pl = {
   findAMovie: 'Znajdź film',
   hoursWatched: 'h obejrzano',
   statsDirectors: 'reżyserów',
+  nextToUnlock: 'Następny',
+  top100UpNext: 'Następne w Top 100',
   directorFilmsWatched: 'filmów obejrzanych',
   directorFilmsWatched_1: 'film obejrzany',
   directorMoreFilms: 'Więcej filmów',

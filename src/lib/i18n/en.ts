@@ -190,6 +190,8 @@ export const en = {
   findAMovie: 'Find a movie',
   hoursWatched: 'h watched',
   statsDirectors: 'directors',
+  nextToUnlock: 'Next to unlock',
+  top100UpNext: 'Up next in Top 100',
   directorFilmsWatched: 'films watched',
   directorFilmsWatched_1: 'film watched',
   directorMoreFilms: 'More films',

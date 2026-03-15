@@ -116,6 +116,7 @@ export function useAchievements() {
     dailyPickMovie,
     dailyPickLoading,
     top100Progress,
+    unwatchedTop100,
     isLoading,
     shuffleDailyPick,
   };

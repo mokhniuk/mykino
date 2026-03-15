@@ -122,6 +122,8 @@ export function computeDirectorCompletions(watched: MovieData[]): DirectorComple
 export interface Milestone {
   id: string;
   unlocked: boolean;
+  progress?: number;
+  target?: number;
 }
 
 export const MILESTONE_IDS = [
@@ -163,13 +165,13 @@ export function computeMilestones(watched: MovieData[]): Milestone[] {
   });
 
   return [
-    { id: 'first_film', unlocked: count >= 1 },
-    { id: 'ten_films', unlocked: count >= 10 },
-    { id: 'fifty_films', unlocked: count >= 50 },
-    { id: 'hundred_films', unlocked: count >= 100 },
+    { id: 'first_film', unlocked: count >= 1, progress: Math.min(count, 1), target: 1 },
+    { id: 'ten_films', unlocked: count >= 10, progress: Math.min(count, 10), target: 10 },
+    { id: 'fifty_films', unlocked: count >= 50, progress: Math.min(count, 50), target: 50 },
+    { id: 'hundred_films', unlocked: count >= 100, progress: Math.min(count, 100), target: 100 },
     { id: 'classic', unlocked: hasClassic },
-    { id: 'world_explorer', unlocked: countries.size >= 5 },
-    { id: 'polyglot', unlocked: languages.size >= 5 },
-    { id: 'genre_master', unlocked: genres.size >= 10 },
+    { id: 'world_explorer', unlocked: countries.size >= 5, progress: Math.min(countries.size, 5), target: 5 },
+    { id: 'polyglot', unlocked: languages.size >= 5, progress: Math.min(languages.size, 5), target: 5 },
+    { id: 'genre_master', unlocked: genres.size >= 10, progress: Math.min(genres.size, 10), target: 10 },
   ];
 }

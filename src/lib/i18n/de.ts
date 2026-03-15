@@ -181,6 +181,8 @@ export const de = {
   findAMovie: 'Film finden',
   hoursWatched: 'Std. geschaut',
   statsDirectors: 'Regisseure',
+  nextToUnlock: 'Nächster',
+  top100UpNext: 'Nächster in Top 100',
   directorFilmsWatched: 'Filme gesehen',
   directorFilmsWatched_1: 'Film gesehen',
   directorMoreFilms: 'Weitere Filme',

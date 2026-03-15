@@ -120,7 +120,7 @@ export default function Index() {
   const navigate = useNavigate();
   const greeting = useGreeting();
   const { sections: recoSections, isLoading: recoLoading } = useRecommendations();
-  const { watched, directors, milestones, dailyPickMovie, dailyPickLoading, top100Progress, shuffleDailyPick } = useAchievements();
+  const { watched, directors, milestones, dailyPickMovie, dailyPickLoading, top100Progress, unwatchedTop100, shuffleDailyPick } = useAchievements();
   const { trackingList } = useTVTracking();
 
   const trackingMap = useMemo(
@@ -130,6 +130,7 @@ export default function Index() {
   const watchingShows = trackingList.filter(s => s.status === 'watching');
   const [watchingMovies, setWatchingMovies] = useState<Map<string, MovieData>>(new Map());
   const [recentSearches, setRecentSearches] = useState<SearchHistoryEntry[]>([]);
+  const [upNextMovies, setUpNextMovies] = useState<MovieData[]>([]);
 
   useEffect(() => {
     if (watchingShows.length === 0) return;
@@ -156,6 +157,16 @@ export default function Index() {
       setRecentSearches(unique.slice(0, 4));
     });
   }, []);
+
+  useEffect(() => {
+    if (unwatchedTop100.length === 0) return;
+    const skip = new Set([dailyPickMovie?.imdbID].filter(Boolean) as string[]);
+    const slice = unwatchedTop100.filter(m => !skip.has(m.imdbID)).slice(0, 10);
+    Promise.all(slice.map(async m => {
+      const cached = await getCachedMovie(m.imdbID);
+      return cached ?? { imdbID: m.imdbID, Title: m.Title, Year: m.Year, Poster: 'N/A', Type: 'movie' as const };
+    })).then(setUpNextMovies);
+  }, [unwatchedTop100, dailyPickMovie?.imdbID]);
 
   // Stats
   const totalMinutes = useMemo(
@@ -224,6 +235,27 @@ export default function Index() {
     && watched.length === 0
     && localizedWatchlist.length === 0
     && localizedFavourites.length === 0;
+
+  // Directors sorted by most-recently watched movie
+  const sortedDirectors = useMemo(
+    () => [...directors].sort((a, b) => {
+      const aMax = Math.max(...a.movies.map(m => m.addedAt ?? 0));
+      const bMax = Math.max(...b.movies.map(m => m.addedAt ?? 0));
+      return bMax - aMax;
+    }),
+    [directors],
+  );
+
+  // Next milestone to unlock (closest to completion, not yet unlocked)
+  const nextMilestone = useMemo(() => {
+    const locked = milestones.filter(m => !m.unlocked);
+    if (locked.length === 0) return null;
+    const withRatio = locked.map(m => ({
+      ...m,
+      ratio: m.target ? (m.progress ?? 0) / m.target : 0,
+    }));
+    return withRatio.sort((a, b) => b.ratio - a.ratio)[0];
+  }, [milestones]);
 
   const skeletonRow = (
     <HorizontalScroll>
@@ -573,25 +605,38 @@ export default function Index() {
         </section>
       ) : null}
 
-      {/* ── Top 100 Challenge (progress only — daily pick promoted to top) ── */}
+      {/* ── Top 100 Challenge ── */}
       <section className="pb-2">
-        <div className="flex items-center justify-between mb-3">
-          <Link to="/app/achievements/top100" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <Trophy size={24} className="text-primary" />
-            <h2 className="text-2xl text-foreground">{t('achievementsTop100')}</h2>
-          </Link>
-          <Link to="/app/achievements/top100" className="text-primary">
-            <ChevronRight size={32} />
-          </Link>
-        </div>
-        <p className="text-md text-muted-foreground font-medium tabular-nums mb-2">
-          {top100Progress} / 100 {t('top100Unlocked')}
-        </p>
-        <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary rounded-full transition-all duration-700"
-            style={{ width: `${top100Progress}%` }}
-          />
+        <div className="rounded-2xl glass-secondary p-4">
+          <div className="flex items-center justify-between mb-3">
+            <Link to="/app/achievements/top100" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Trophy size={22} className="text-primary" />
+              <h2 className="text-xl font-semibold text-foreground">{t('achievementsTop100')}</h2>
+            </Link>
+            <Link to="/app/achievements/top100" className="text-primary">
+              <ChevronRight size={28} />
+            </Link>
+          </div>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-sm text-muted-foreground">{t('top100Unlocked')}</p>
+            <p className="text-sm font-semibold text-primary tabular-nums">{top100Progress} / 100</p>
+          </div>
+          <div className="w-full h-2 bg-background/50 rounded-full overflow-hidden mb-4">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-700"
+              style={{ width: `${top100Progress}%` }}
+            />
+          </div>
+          {upNextMovies.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground font-medium mb-2.5">{t('top100UpNext')}</p>
+              <HorizontalScroll>
+                {upNextMovies.map(movie => (
+                  <MovieCard key={movie.imdbID} movie={movie} size="sm" />
+                ))}
+              </HorizontalScroll>
+            </div>
+          )}
         </div>
       </section>
 
@@ -603,40 +648,51 @@ export default function Index() {
             <h2 className="text-2xl text-foreground">{t('achievementsDirectors')}</h2>
           </div>
           <HorizontalScroll>
-            {directors.map(director => (
-              <Link
-                key={director.slug}
-                to={`/app/director/${director.slug}`}
-                className="flex-shrink-0 w-36 rounded-xl overflow-hidden glass-secondary hover:opacity-90 transition-opacity"
-              >
-                <div className="flex h-20 overflow-hidden">
-                  {director.movies.slice(0, 3).map((movie, i) => {
-                    const poster = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
-                    return (
-                      <div
-                        key={movie.imdbID}
-                        className="flex-1 overflow-hidden bg-muted"
-                        style={{ marginLeft: i > 0 ? '1px' : 0 }}
-                      >
-                        {poster ? (
-                          <img src={poster} alt={movie.Title} className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Film size={12} className="text-muted-foreground/30" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="px-2.5 py-2">
-                  <p className="text-xs font-semibold text-foreground leading-snug line-clamp-1">{director.name}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {director.movies.length} {t('directorFilmsWatched')}
-                  </p>
-                </div>
-              </Link>
-            ))}
+            {sortedDirectors.map(director => {
+              const backdropPoster = director.movies.find(m => m.Poster && m.Poster !== 'N/A')?.Poster;
+              return (
+                <Link
+                  key={director.slug}
+                  to={`/app/director/${director.slug}`}
+                  className="flex-shrink-0 w-44 rounded-xl overflow-hidden glass-secondary hover:opacity-90 transition-opacity relative"
+                >
+                  {/* Blurred backdrop */}
+                  {backdropPoster && (
+                    <img
+                      src={backdropPoster}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover opacity-[0.12] blur-lg scale-110 pointer-events-none select-none"
+                    />
+                  )}
+                  <div className="relative flex h-[4.5rem] overflow-hidden">
+                    {director.movies.slice(0, 3).map((movie, i) => {
+                      const poster = movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : null;
+                      return (
+                        <div
+                          key={movie.imdbID}
+                          className="flex-1 overflow-hidden bg-muted/50"
+                          style={{ marginLeft: i > 0 ? '1px' : 0 }}
+                        >
+                          {poster ? (
+                            <img src={poster} alt={movie.Title} className="w-full h-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Film size={12} className="text-muted-foreground/30" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="relative px-2.5 py-2">
+                    <p className="text-xs font-semibold text-foreground leading-snug line-clamp-1">{director.name}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {director.movies.length} {t('directorFilmsWatched')}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </HorizontalScroll>
         </section>
       )}
@@ -653,6 +709,42 @@ export default function Index() {
               <ChevronRight size={32} />
             </Link>
           </div>
+
+          {/* Featured: next milestone to unlock */}
+          {nextMilestone && (() => {
+            const Icon = MILESTONE_ICONS[nextMilestone.id as MilestoneId];
+            return (
+              <Link to="/app/achievements/milestones" className="block mb-3">
+                <div className="rounded-2xl p-4 glass-secondary hover:opacity-90 transition-opacity">
+                  <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-2">{t('nextToUnlock')}</p>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl glass-spin flex items-center justify-center flex-shrink-0">
+                      <Icon size={20} className="text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground leading-snug">{t(`milestone_${nextMilestone.id}` as Parameters<typeof t>[0])}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t(`milestone_${nextMilestone.id}_desc` as Parameters<typeof t>[0])}</p>
+                      {nextMilestone.target && nextMilestone.progress !== undefined && (
+                        <div className="mt-2.5">
+                          <div className="w-full h-1.5 bg-background/50 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full transition-all duration-700"
+                              style={{ width: `${(nextMilestone.progress / nextMilestone.target) * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                            {nextMilestone.progress} / {nextMilestone.target}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })()}
+
+          {/* All milestones as labelled cards */}
           <HorizontalScroll>
             {milestones.map(milestone => {
               const Icon = MILESTONE_ICONS[milestone.id as MilestoneId];
@@ -660,11 +752,31 @@ export default function Index() {
                 <Link
                   key={milestone.id}
                   to="/app/achievements/milestones"
-                  className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center border transition-colors glass-shine ${
-                    milestone.unlocked ? 'bg-primary/10 border-primary/20' : 'bg-secondary border-border opacity-40'
+                  className={`flex-shrink-0 w-28 rounded-xl p-3 border glass-shine transition-all relative ${
+                    milestone.unlocked
+                      ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20 shadow-[0_0_14px_hsl(var(--primary)/0.18)]'
+                      : 'bg-secondary border-border opacity-50'
                   }`}
                 >
-                  <Icon size={22} className={milestone.unlocked ? 'text-primary' : 'text-muted-foreground'} />
+                  {milestone.unlocked && (
+                    <div className="absolute top-2 right-2">
+                      <Star size={10} className="text-primary drop-shadow-[0_0_4px_hsl(var(--primary)/0.7)]" fill="currentColor" />
+                    </div>
+                  )}
+                  <Icon size={18} className={milestone.unlocked ? 'text-primary' : 'text-muted-foreground'} />
+                  <p className={`text-xs font-medium mt-2 leading-snug line-clamp-2 pr-3 ${milestone.unlocked ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {t(`milestone_${milestone.id}` as Parameters<typeof t>[0])}
+                  </p>
+                  {milestone.target && !milestone.unlocked && milestone.progress !== undefined && milestone.progress > 0 && (
+                    <div className="mt-2">
+                      <div className="w-full h-0.5 bg-border rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary/50 rounded-full"
+                          style={{ width: `${(milestone.progress / milestone.target) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </Link>
               );
             })}

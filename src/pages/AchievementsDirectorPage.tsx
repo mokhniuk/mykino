@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Video } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
@@ -9,6 +9,7 @@ import MovieCard from '@/components/MovieCard';
 
 export default function AchievementsDirectorPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { t, lang } = useI18n();
   const { watched, directors, isLoading: achievementsLoading } = useAchievements();
 
@@ -39,9 +40,9 @@ export default function AchievementsDirectorPage() {
     return (
       <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
         <div className="flex items-center gap-3 pt-6 mb-6">
-          <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft size={28} />
-          </Link>
+          <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+            <ChevronLeft size={16} />
+          </button>
           <div className="h-7 w-48 bg-secondary rounded animate-pulse" />
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -60,9 +61,9 @@ export default function AchievementsDirectorPage() {
     return (
       <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
         <div className="flex items-center gap-3 pt-6 mb-6">
-          <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft size={28} />
-          </Link>
+          <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+            <ChevronLeft size={16} />
+          </button>
           <h1 className="text-2xl font-semibold text-foreground">{t('achievementsDirectors')}</h1>
         </div>
         <p className="text-muted-foreground">{t('noResults')}</p>
@@ -74,13 +75,13 @@ export default function AchievementsDirectorPage() {
     <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3 pt-6 mb-1">
-        <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft size={28} />
-        </Link>
+        <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+          <ChevronLeft size={16} />
+        </button>
         <Video size={24} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">{director.name}</h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-8 ml-14">
+      <p className="text-sm text-muted-foreground mb-8">
         {director.movies.length} {t('directorFilmsWatched')}
         {allTmdbMovies.length > 0 && !tmdbLoading && (
           <> · {allTmdbMovies.length} total</>

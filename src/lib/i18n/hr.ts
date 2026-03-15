@@ -179,6 +179,8 @@ export const hr = {
   findAMovie: 'Pronađi film',
   hoursWatched: 'h gledano',
   statsDirectors: 'redatelja',
+  nextToUnlock: 'Sljedeći',
+  top100UpNext: 'Sljedeći u Top 100',
   directorFilmsWatched: 'filmova gledano',
   directorFilmsWatched_1: 'film gledan',
   directorMoreFilms: 'Više filmova',

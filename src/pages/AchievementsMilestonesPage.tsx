@@ -26,8 +26,8 @@ export default function AchievementsMilestonesPage() {
   return (
     <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
       <div className="flex items-center gap-3 pt-6 mb-6">
-        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft size={28} />
+        <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+          <ChevronLeft size={16} />
         </button>
         <Medal size={24} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">{t('allMilestones')}</h1>

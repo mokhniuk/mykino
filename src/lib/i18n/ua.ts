@@ -181,6 +181,8 @@ export const ua = {
   findAMovie: 'Знайти фільм',
   hoursWatched: 'год переглянуто',
   statsDirectors: 'режисерів',
+  nextToUnlock: 'Наступний',
+  top100UpNext: 'Наступні у Топ 100',
   directorFilmsWatched: 'Переглянуто',
   directorFilmsWatched_1: 'Переглянуто',
   directorMoreFilms: 'Ще фільми',

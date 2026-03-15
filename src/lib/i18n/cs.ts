@@ -179,6 +179,8 @@ export const cs = {
   findAMovie: 'Najít film',
   hoursWatched: 'h sledováno',
   statsDirectors: 'režisérů',
+  nextToUnlock: 'Další k odemknutí',
+  top100UpNext: 'Další v Top 100',
   directorFilmsWatched: 'filmů shlédnuto',
   directorFilmsWatched_1: 'film shlédnut',
   directorMoreFilms: 'Další filmy',
