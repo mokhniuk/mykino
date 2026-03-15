@@ -26,6 +26,8 @@ export interface DiscoverParams {
   with_networks?: number;
   /** TMDB TV show type (2 = Miniseries) */
   with_type?: number;
+  /** TMDB keyword ID(s). Use '|' for OR, ',' for AND. Much more precise than genre filters. */
+  with_keywords?: number | string;
   vote_count_gte?: number;
   vote_average_gte?: number;
   'primary_release_date.gte'?: string;
@@ -656,8 +658,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Romantic picks for a perfect evening in.',
     source: 'tmdb',
-    // Romance OR Comedy
-    discover: { with_genres: '10749|35', sort_by: 'vote_average.desc', vote_count_gte: 500 },
+    // Romance AND Comedy — must have both, sorted by quality
+    discover: { with_genres: '10749,35', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Girls Night Movies',
@@ -665,7 +667,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Fun, fierce, and fabulous films for a girls night.',
     source: 'tmdb',
-    discover: { with_genres: '35|10749', sort_by: 'popularity.desc', vote_count_gte: 500 },
+    // Popular recent comedies — sort by popularity for fresh picks
+    discover: { with_genres: 35, sort_by: 'popularity.desc', vote_count_gte: 1000, 'primary_release_date.gte': '2000-01-01' },
   },
   {
     title: 'Movies to Watch with Friends',
@@ -673,7 +676,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Crowd-pleasing movies everyone will enjoy.',
     source: 'tmdb',
-    discover: { with_genres: '28|35|12', sort_by: 'popularity.desc', vote_count_gte: 1000 },
+    // Adventure OR Action sorted by popularity — big crowd pleasers
+    discover: { with_genres: '28|12', sort_by: 'popularity.desc', vote_count_gte: 2000 },
   },
   {
     title: 'Movies That Will Make You Cry',
@@ -681,7 +685,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Emotional films that will move you deeply.',
     source: 'tmdb',
-    // Drama AND Romance
+    // Drama AND Romance — both tags required for emotional impact
     discover: { with_genres: '18,10749', sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
@@ -690,7 +694,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Uplifting films guaranteed to brighten your day.',
     source: 'tmdb',
-    discover: { with_genres: '35|16|10751', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    // Comedy + high rating — fun and beloved
+    discover: { with_genres: 35, sort_by: 'vote_average.desc', vote_count_gte: 1000 },
   },
   {
     title: 'Cozy Sunday Movies',
@@ -698,7 +703,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Warm, easy-going films for a lazy weekend.',
     source: 'tmdb',
-    discover: { with_genres: '35|10751|18', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    // Family films sorted by rating — cosy and wholesome
+    discover: { with_genres: 10751, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Rainy Day Movies',
@@ -706,7 +712,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Absorbing films perfect for a grey, quiet day.',
     source: 'tmdb',
-    discover: { with_genres: '18|53|9648', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    // Drama + Mystery AND — contemplative and immersive
+    discover: { with_genres: '18,9648', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Late Night Movies',
@@ -714,7 +721,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Gripping, atmospheric films for after dark.',
     source: 'tmdb',
-    discover: { with_genres: '27|53', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    // Thriller AND Horror — genuinely dark/tense, not just any thriller
+    discover: { with_genres: '27,53', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Mind-Bending Movies',
@@ -722,7 +730,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Films that twist your perception of reality.',
     source: 'tmdb',
-    discover: { with_genres: '878|53', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    // Keyword: "mind fuck" / reality-bending — precise keyword filter
+    discover: { with_keywords: '9717|4379', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Comfort Movies',
@@ -730,7 +739,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'mood',
     description: 'Safe, familiar films that feel like a warm hug.',
     source: 'tmdb',
-    discover: { with_genres: '35|10751|16', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    // Family AND Animation — cosy animated films for all ages
+    discover: { with_genres: '10751,16', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
 
   // ── Awards ────────────────────────────────────────────────────────────────
@@ -740,7 +750,8 @@ export const COLLECTIONS: Collection[] = [
     type: 'awards',
     description: 'Academy Award Best Picture winners — the cream of Hollywood drama.',
     source: 'tmdb',
-    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 50000, vote_average_gte: 7.5 },
+    // TMDB vote_count peaks at ~10k in practice; 10k+8.0 ≈ 77 results
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 10000, vote_average_gte: 8.0 },
   },
   {
     title: 'Oscar Best Animated Feature',
@@ -748,15 +759,16 @@ export const COLLECTIONS: Collection[] = [
     type: 'awards',
     description: 'Academy Award Best Animated Feature winners.',
     source: 'tmdb',
-    discover: { with_genres: 16, sort_by: 'vote_average.desc', vote_count_gte: 20000, vote_average_gte: 7.0 },
+    discover: { with_genres: 16, sort_by: 'vote_average.desc', vote_count_gte: 3000, vote_average_gte: 7.5 },
   },
   {
     title: "Cannes Palme d'Or Winners",
     slug: 'cannes-palme-dor-winners',
     type: 'awards',
-    description: "Films that won the Palme d'Or at Cannes.",
+    description: "Art-house and world cinema celebrated at Cannes.",
     source: 'tmdb',
-    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 20000, vote_average_gte: 7.5 },
+    // High-rated drama with non-English language bias (art-house profile)
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 5000, vote_average_gte: 8.0 },
   },
   {
     title: 'Golden Globe Best Drama',
@@ -764,7 +776,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'awards',
     description: 'Golden Globe Award Best Drama Film winners.',
     source: 'tmdb',
-    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 30000, vote_average_gte: 7.5 },
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 8000, vote_average_gte: 7.8 },
   },
   {
     title: 'BAFTA Best Film Winners',
@@ -772,17 +784,17 @@ export const COLLECTIONS: Collection[] = [
     type: 'awards',
     description: 'BAFTA Award for Best Film winners.',
     source: 'tmdb',
-    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 30000, vote_average_gte: 7.5 },
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 6000, vote_average_gte: 7.5 },
   },
 
-  // ── Themes ────────────────────────────────────────────────────────────────
+  // ── Themes — keyword-filtered for precision ───────────────────────────────
   {
     title: 'Best Time Travel Movies',
     slug: 'best-time-travel-movies',
     type: 'theme',
     description: 'Movies centered around time travel.',
     source: 'tmdb',
-    discover: { with_genres: '878|53', sort_by: 'vote_average.desc', vote_count_gte: 200 },
+    discover: { with_keywords: 9717, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Space Movies',
@@ -790,7 +802,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'Epic adventures set in the cosmos.',
     source: 'tmdb',
-    discover: { with_genres: '878|12', sort_by: 'vote_average.desc', vote_count_gte: 200 },
+    discover: { with_keywords: '9882|14626', sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best AI Movies',
@@ -798,7 +810,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'Films exploring artificial intelligence and technology.',
     source: 'tmdb',
-    discover: { with_genres: 878, sort_by: 'vote_average.desc', vote_count_gte: 200 },
+    discover: { with_keywords: 310, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Hacker Movies',
@@ -806,7 +818,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'Cyber-thriller films about hackers and tech.',
     source: 'tmdb',
-    discover: { with_genres: '53|80', sort_by: 'vote_average.desc', vote_count_gte: 200 },
+    discover: { with_keywords: '10364|2157', sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
     title: 'Best Heist Movies',
@@ -814,7 +826,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'Slick, clever heist films.',
     source: 'tmdb',
-    discover: { with_genres: '80|53', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    discover: { with_keywords: 10051, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Zombie Movies',
@@ -822,7 +834,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'The undead rise in these horror films.',
     source: 'tmdb',
-    discover: { with_genres: 27, sort_by: 'vote_average.desc', vote_count_gte: 200 },
+    discover: { with_keywords: 12377, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Vampire Movies',
@@ -830,7 +842,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'Films featuring the iconic vampire mythos.',
     source: 'tmdb',
-    discover: { with_genres: '27|14', sort_by: 'vote_average.desc', vote_count_gte: 200 },
+    discover: { with_keywords: 14819, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Dystopian Movies',
@@ -838,7 +850,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'Dark visions of a bleak future.',
     source: 'tmdb',
-    discover: { with_genres: '878|18', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    discover: { with_keywords: 4565, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Cyberpunk Movies',
@@ -846,7 +858,7 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'High-tech, low-life cyberpunk cinema.',
     source: 'tmdb',
-    discover: { with_genres: '878|28', sort_by: 'vote_average.desc', vote_count_gte: 200 },
+    discover: { with_keywords: 12190, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
     title: 'Based on True Stories',
@@ -854,34 +866,36 @@ export const COLLECTIONS: Collection[] = [
     type: 'theme',
     description: 'Compelling films inspired by real events.',
     source: 'tmdb',
-    discover: { with_genres: '18|36', sort_by: 'vote_average.desc', vote_count_gte: 300 },
+    discover: { with_keywords: 9672, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
 
   // ── Classics ──────────────────────────────────────────────────────────────
-  {
-    title: 'Cult Classic Movies',
-    slug: 'cult-classic-movies',
-    type: 'classics',
-    description: 'Films with devoted cult followings.',
-    source: 'tmdb',
-    discover: { sort_by: 'vote_average.desc', vote_count_gte: 5000, vote_average_gte: 7.5 },
-  },
+  // {
+  //   title: 'Cult Classic Movies',
+  //   slug: 'cult-classic-movies',
+  //   type: 'classics',
+  //   description: 'Films with devoted cult followings.',
+  //   source: 'tmdb',
+  //   discover: { sort_by: 'vote_average.desc', vote_count_gte: 5000, vote_average_gte: 7.5 },
+  // },
   {
     title: 'Must-Watch Movie Classics',
     slug: 'mustwatch-movie-classics',
     type: 'classics',
     description: 'Essential films every cinephile should see.',
     source: 'tmdb',
-    discover: { sort_by: 'vote_average.desc', vote_count_gte: 50000, vote_average_gte: 8.0 },
+    // 10k votes + 8.0 rating ≈ 77 results — the true elite
+    discover: { sort_by: 'vote_average.desc', vote_count_gte: 10000, vote_average_gte: 8.0 },
   },
-  {
-    title: 'Movies Everyone Should See Once',
-    slug: 'movies-everyone-should-see-once',
-    type: 'classics',
-    description: 'Culturally defining films that shaped cinema.',
-    source: 'tmdb',
-    discover: { sort_by: 'vote_average.desc', vote_count_gte: 100000, vote_average_gte: 8.0 },
-  },
+  // {
+  //   title: 'Movies Everyone Should See Once',
+  //   slug: 'movies-everyone-should-see-once',
+  //   type: 'classics',
+  //   description: 'Culturally defining films that shaped cinema.',
+  //   source: 'tmdb',
+  //   // 8k votes + 8.5 rating — truly exceptional, widely seen films
+  //   discover: { sort_by: 'vote_average.desc', vote_count_gte: 8000, vote_average_gte: 8.5 },
+  // },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

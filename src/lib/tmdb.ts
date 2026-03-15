@@ -1,4 +1,4 @@
-import { cacheMovie, getCachedMovie, type MovieData } from './db';
+import { cacheMovie, getCachedMovie, getContentPreferences, type MovieData } from './db';
 import type { CollectionSource, DiscoverParams } from './collections';
 import { COLLECTION_MOVIES } from './collectionMovies';
 
@@ -772,6 +772,17 @@ export async function fetchCollectionMovies(
 ): Promise<{ movies: MovieData[]; totalPages: number }> {
   if (!API_KEY) return { movies: [], totalPages: 0 };
 
+  // Load user content preferences once for all paths
+  const prefs = await getContentPreferences();
+  const excludedLangs = new Set(prefs.disliked_languages);
+  const excludedCountries = new Set(prefs.disliked_countries);
+
+  const passesContentFilter = (m: MovieData): boolean => {
+    if (m.original_language && excludedLangs.has(m.original_language)) return false;
+    if (m.origin_country?.some(c => excludedCountries.has(c))) return false;
+    return true;
+  };
+
   // ── Editorial: TMDB Collection API ────────────────────────────────────────
   if (source === 'editorial' && tmdbCollectionId !== undefined) {
     try {
@@ -792,7 +803,8 @@ export async function fetchCollectionMovies(
       const totalPages = Math.ceil(allParts.length / PAGE_SIZE);
       const pageItems = allParts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
       const results = await Promise.all(pageItems.map(p => getMovieDetails(`m-${p.id}`, lang)));
-      return { movies: results.filter((m): m is MovieData => m !== null), totalPages };
+      const movies = results.filter((m): m is MovieData => m !== null).filter(passesContentFilter);
+      return { movies, totalPages };
     } catch {
       return { movies: [], totalPages: 0 };
     }
@@ -808,7 +820,8 @@ export async function fetchCollectionMovies(
     const results = await Promise.all(
       pageItems.map(({ id, tv }) => getMovieDetails(tv ? `tv-${id}` : `m-${id}`, lang))
     );
-    return { movies: results.filter((m): m is MovieData => m !== null), totalPages };
+    const movies = results.filter((m): m is MovieData => m !== null).filter(passesContentFilter);
+    return { movies, totalPages };
   }
 
   // ── TMDB Discover ─────────────────────────────────────────────────────────
@@ -828,18 +841,25 @@ export async function fetchCollectionMovies(
     if (discover?.with_crew !== undefined)      params.with_crew     = String(discover.with_crew);
     if (discover?.with_networks !== undefined)  params.with_networks = String(discover.with_networks);
     if (discover?.with_type !== undefined)      params.with_type     = String(discover.with_type);
+    if (discover?.with_keywords !== undefined)  params.with_keywords = String(discover.with_keywords);
     if (discover?.vote_count_gte !== undefined) params['vote_count.gte']   = String(discover.vote_count_gte);
     if (discover?.vote_average_gte !== undefined) params['vote_average.gte'] = String(discover.vote_average_gte);
     if (discover?.['primary_release_date.gte']) params['primary_release_date.gte'] = discover['primary_release_date.gte'];
     if (discover?.['primary_release_date.lte']) params['primary_release_date.lte'] = discover['primary_release_date.lte'];
     if (discover?.['first_air_date.gte'])       params['first_air_date.gte'] = discover['first_air_date.gte'];
     if (discover?.['first_air_date.lte'])       params['first_air_date.lte'] = discover['first_air_date.lte'];
+    // Apply content preferences at the API level for efficiency
+    if (excludedLangs.size > 0) params.without_original_language = [...excludedLangs].join('|');
+    if (excludedCountries.size > 0) params.without_origin_country = [...excludedCountries].join('|');
+    if (prefs.disliked_genres.length > 0) params.without_genres = prefs.disliked_genres.join('|');
 
     const type = isTV ? 'tv' : 'movie';
     const data = await tmdbFetch<{ results: TmdbSearchItem[]; total_pages: number }>(
       `${endpoint}?${new URLSearchParams(params)}`, tmdbLang
     );
-    const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: type }, type));
+    const movies = data.results
+      .map(r => mapTmdbItemToMovieData({ ...r, media_type: type }, type))
+      .filter(passesContentFilter);
     for (const m of movies) { if (!await getCachedMovie(m.imdbID)) await cacheMovie({ ...m, _lang: lang }); }
     return { movies, totalPages: data.total_pages };
   } catch {
