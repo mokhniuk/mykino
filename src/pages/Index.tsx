@@ -316,7 +316,7 @@ export default function Index() {
       {/* ── Search bar ── */}
       <div className="space-y-3">
         <Link to="/app/search" className="block">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border hover:border-primary/30 transition-colors glass-shine">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl glass-card hover:opacity-90 transition-opacity">
             <Search size={18} className="text-muted-foreground" />
             <span className="text-sm text-muted-foreground">{t('searchForMovies')}</span>
           </div>
@@ -330,7 +330,7 @@ export default function Index() {
               <Link
                 key={entry.id}
                 to={`/app/search?q=${encodeURIComponent(entry.query)}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary border border-border text-xs text-foreground hover:border-primary/30 transition-colors glass-shine"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-card text-xs text-foreground hover:opacity-90 transition-opacity"
               >
                 {entry.source === 'chip' && <Sparkles size={10} className="text-primary" />}
                 {entry.query}
@@ -342,7 +342,7 @@ export default function Index() {
 
       {/* #5 — Empty state for new users */}
       {isNewUser && !recoLoading && (
-        <section className="rounded-2xl border border-border p-5 glass-secondary space-y-3">
+        <section className="rounded-2xl p-5 glass-card space-y-3">
           <h2 className="text-lg font-semibold text-foreground">{t('newUserTitle')}</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">{t('newUserHint')}</p>
           <div className="flex gap-2 flex-wrap">
@@ -371,7 +371,7 @@ export default function Index() {
             <div className="relative">
               <Link
                 to={dailyPickMovie.Type === 'series' ? `/app/tv/${dailyPickMovie.imdbID}` : `/app/movie/${dailyPickMovie.imdbID}`}
-                className="flex items-stretch rounded-2xl overflow-hidden glass-secondary group hover:opacity-90 transition-opacity relative"
+                className="flex items-stretch rounded-2xl overflow-hidden glass-card group hover:opacity-90 transition-opacity relative"
               >
                 {/* Blurred poster backdrop */}
                 {dailyPickMovie.Poster && dailyPickMovie.Poster !== 'N/A' && (
@@ -617,7 +617,7 @@ export default function Index() {
 
       {/* ── Top 100 Challenge ── */}
       <section className="pb-2">
-        <div className="rounded-2xl glass-secondary p-4">
+        <div className="rounded-2xl glass-card p-4">
           <div className="flex items-center justify-between mb-3">
             <Link to="/app/achievements/top100" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <Trophy size={22} className="text-primary" />
@@ -664,7 +664,7 @@ export default function Index() {
                 <Link
                   key={director.slug}
                   to={`/app/director/${director.slug}`}
-                  className="flex-shrink-0 w-44 rounded-xl overflow-hidden glass-secondary hover:opacity-90 transition-opacity relative"
+                  className="flex-shrink-0 w-44 rounded-xl overflow-hidden glass-card hover:opacity-90 transition-opacity relative"
                 >
                   {/* Blurred backdrop */}
                   {backdropPoster && (
@@ -725,7 +725,7 @@ export default function Index() {
             const Icon = MILESTONE_ICONS[nextMilestone.id as MilestoneId];
             return (
               <Link to="/app/achievements/milestones" className="block mb-3">
-                <div className="rounded-2xl p-4 glass-secondary hover:opacity-90 transition-opacity">
+                <div className="rounded-2xl p-4 glass-card hover:opacity-90 transition-opacity">
                   <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-2">{t('nextToUnlock')}</p>
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl glass-spin flex items-center justify-center flex-shrink-0">
@@ -762,10 +762,10 @@ export default function Index() {
                 <Link
                   key={milestone.id}
                   to="/app/achievements/milestones"
-                  className={`flex-shrink-0 w-28 rounded-xl p-3 border glass-shine transition-all relative ${
+                  className={`flex-shrink-0 w-28 rounded-xl p-3 glass-card transition-all relative ${
                     milestone.unlocked
-                      ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20 shadow-[0_0_14px_hsl(var(--primary)/0.18)]'
-                      : 'bg-secondary border-border opacity-50'
+                      ? 'ring-1 ring-primary/30 shadow-[0_0_14px_hsl(var(--primary)/0.18)]'
+                      : 'opacity-50'
                   }`}
                 >
                   {milestone.unlocked && (

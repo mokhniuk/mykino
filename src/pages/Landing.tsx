@@ -13,6 +13,7 @@ import {
   Check, ChevronDown, Lock, WifiOff, UserX,
   Search, Loader2, Sun, Moon, Monitor,
   ShieldCheck, Globe, RefreshCw, BarChart2, Heart, Smartphone, Sparkles,
+  Trophy, History, ListOrdered,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import Footer from '@/components/Footer';
@@ -508,11 +509,12 @@ export default function Landing() {
 
           <div className="flex flex-wrap justify-center gap-2 mt-12">
             {[
-              { icon: Lock,    label: t('landingFeaturePrivate')   },
-              { icon: WifiOff, label: t('landingFeatureOffline')   },
-              { icon: UserX,   label: t('landingFeatureNoAccount') },
+              { icon: Lock,    label: t('landingFeaturePrivate')       },
+              { icon: WifiOff, label: t('landingFeatureOffline')       },
+              { icon: UserX,   label: t('landingFeatureNoAccount')     },
+              { icon: Trophy,  label: t('landingFeatureAchievements')  },
             ].map(({ icon: Icon, label }) => (
-              <span key={label} className="flex items-center gap-1.5 text-xs text-foreground/70 bg-secondary px-3 py-1.5 rounded-full border border-border">
+              <span key={label} className="glass-card flex items-center gap-1.5 text-xs text-foreground/70 bg-secondary px-3 py-1.5 rounded-full border border-border">
                 <Icon size={11} />
                 {label}
               </span>
@@ -563,7 +565,7 @@ export default function Landing() {
                     className={`flex flex-row sm:flex-col items-center gap-3 px-4 py-4 sm:py-7 rounded-2xl border-2 transition-all text-left sm:text-center ${
                       lang === value
                         ? 'border-primary bg-primary/8 text-foreground'
-                        : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                        : 'glass-card border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
                     }`}
                   >
                     <Flag className="w-7 sm:w-9 h-auto rounded-sm flex-shrink-0" />
@@ -596,7 +598,7 @@ export default function Landing() {
                     className={`flex flex-col items-center gap-4 py-8 rounded-2xl border-2 transition-all ${
                       theme === value
                         ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                        : 'glass-card border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground'
                     }`}
                   >
                     <Icon size={26} />
@@ -629,7 +631,7 @@ export default function Landing() {
                     <button
                       key={g.id}
                       onClick={() => cycleGenre(g.id)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                      className={`glass-card px-4 py-2 rounded-full text-sm font-medium border transition-all ${
                         liked
                           ? 'bg-green-500/15 border-green-500/40 text-green-700 dark:text-green-400'
                           : disliked
@@ -690,7 +692,7 @@ export default function Landing() {
             </div>
             <div className="flex-1 w-full">
               {/* Search */}
-              <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-card border border-border focus-within:border-primary/40 transition-colors mb-3">
+              <div className="glass-card flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-card border border-border focus-within:border-primary/40 transition-colors mb-3">
                 <Search size={16} className="text-muted-foreground flex-shrink-0" />
                 <input
                   type="search"
@@ -882,7 +884,7 @@ export default function Landing() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              <div className="rounded-2xl bg-card border border-border p-6">
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
                   <ShieldCheck size={20} className="text-primary" />
                 </div>
@@ -890,7 +892,7 @@ export default function Landing() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{t('infoPrivacyDesc')}</p>
               </div>
 
-              <div className="rounded-2xl bg-card border border-border p-6">
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
                   <Globe size={20} className="text-primary" />
                 </div>
@@ -898,7 +900,7 @@ export default function Landing() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{t('infoTmdbDesc')}</p>
               </div>
 
-              <div className="rounded-2xl bg-card border border-border p-6">
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
                   <RefreshCw size={20} className="text-primary" />
                 </div>
@@ -906,7 +908,7 @@ export default function Landing() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{t('infoUpdatesDesc')}</p>
               </div>
 
-              <div className="rounded-2xl bg-card border border-border p-6">
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
                   <BarChart2 size={20} className="text-primary" />
                 </div>
@@ -925,8 +927,35 @@ export default function Landing() {
               </div>
             </div>
 
+            {/* Second row — new features */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <Trophy size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('landingAchievementsTitle')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('landingAchievementsDesc')}</p>
+              </div>
+
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <ListOrdered size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('landingTop100Title')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('landingTop100Desc')}</p>
+              </div>
+
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <History size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('landingHistoryTitle')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('landingHistoryDesc')}</p>
+              </div>
+            </div>
+
             {/* Sponsor banner */}
-            <div className="rounded-2xl bg-card border border-border p-7 flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-8">
+            <div className="glass-card rounded-2xl bg-card border border-border p-7 flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-8">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Heart size={20} className="text-primary" />
               </div>
@@ -954,7 +983,7 @@ export default function Landing() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
               {/* iOS */}
-              <div className="rounded-2xl bg-card border border-border p-7">
+              <div className="glass-card rounded-2xl bg-card border border-border p-7">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Smartphone size={20} className="text-primary" />
@@ -973,7 +1002,7 @@ export default function Landing() {
                 </ol>
               </div>
               {/* Android */}
-              <div className="rounded-2xl bg-card border border-border p-7">
+              <div className="glass-card rounded-2xl bg-card border border-border p-7">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Smartphone size={20} className="text-primary" />
