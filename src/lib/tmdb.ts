@@ -1,5 +1,6 @@
 import { cacheMovie, getCachedMovie, type MovieData } from './db';
 import type { CollectionRules } from './collections';
+import { COLLECTION_MOVIES } from './collectionMovies';
 
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
@@ -762,12 +763,26 @@ const MOVIE_GENRE_IDS: Record<string, number> = {
 // ─── Collection fetcher ───────────────────────────────────────────────────────
 
 export async function fetchCollectionMovies(
+  slug: string,
   rules: CollectionRules,
   sort: 'rating' | 'release_date' | 'popularity',
   page: number,
   lang: string
 ): Promise<{ movies: MovieData[]; totalPages: number }> {
   if (!API_KEY) return { movies: [], totalPages: 0 };
+
+  // ── Static curated list (if available for this slug) ──────────────────────
+  const staticList = COLLECTION_MOVIES[slug];
+  if (staticList?.length) {
+    const PAGE_SIZE = 20;
+    const totalPages = Math.ceil(staticList.length / PAGE_SIZE);
+    const pageItems = staticList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const results = await Promise.all(
+      pageItems.map(({ id, tv }) => getMovieDetails(tv ? `tv-${id}` : `m-${id}`, lang))
+    );
+    const movies = results.filter((m): m is MovieData => m !== null);
+    return { movies, totalPages };
+  }
 
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   const sortBy =

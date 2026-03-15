@@ -41,7 +41,7 @@ export default function CollectionPage() {
     queryKey: ['collection', slug, lang],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
-      fetchCollectionMovies(collection!.rules, collection!.sort, pageParam as number, lang),
+      fetchCollectionMovies(collection!.slug, collection!.rules, collection!.sort, pageParam as number, lang),
     getNextPageParam: (lastPage, allPages) => {
       const next = allPages.length + 1;
       return next <= Math.min(lastPage.totalPages, maxPages) ? next : undefined;

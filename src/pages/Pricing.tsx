@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Minus, Sparkles, Cloud, Brain, ShieldCheck, Server, Loader2, CheckCircle2 } from 'lucide-react';
+import { Check, Minus, Sparkles, Cloud, Brain, ShieldCheck, Server, Loader2, CheckCircle2, BookOpen } from 'lucide-react';
 import { useI18n, formatDate } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
@@ -76,8 +76,8 @@ export default function Pricing() {
   };
 
   const demoFeatures = ['pricingDF1', 'pricingDF2', 'pricingDF3', 'pricingDF4'] as const;
-  const freeFeatures = ['pricingFF1', 'pricingFF2', 'pricingFF3'] as const;
-  const proFeatures = ['pricingPF1', 'pricingPF2', 'pricingPF3', 'pricingPF4', 'pricingPF5'] as const;
+  const freeFeatures = ['pricingFF1', 'pricingFF2', 'pricingFF3', 'pricingFF4'] as const;
+  const proFeatures = ['pricingPF1', 'pricingPF2', 'pricingPF3', 'pricingPF4', 'pricingPF5', 'pricingPF6'] as const;
   const communityFeatures = ['pricingCF1', 'pricingCF2', 'pricingCF3'] as const;
 
   const faqs = [
@@ -277,6 +277,10 @@ export default function Pricing() {
                   <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
                   <span className="text-muted-foreground">{t('pricingDemoNoSync')}</span>
                 </li>
+                <li className="flex items-start gap-3 text-sm">
+                  <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
+                  <span className="text-muted-foreground">{t('pricingDemoNoCollections')}</span>
+                </li>
               </ul>
             </div>
           </div>
@@ -433,7 +437,7 @@ export default function Pricing() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-2xl bg-card border border-border p-6">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
                 <Cloud size={20} className="text-primary" />
@@ -447,6 +451,13 @@ export default function Pricing() {
               </div>
               <h3 className="font-bold text-foreground mb-2">{t('pricingTasteTitle')}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{t('pricingTasteDesc')}</p>
+            </div>
+            <div className="rounded-2xl bg-card border border-border p-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                <BookOpen size={20} className="text-primary" />
+              </div>
+              <h3 className="font-bold text-foreground mb-2">{t('pricingCollectionsTitle')}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{t('pricingCollectionsDesc')}</p>
             </div>
           </div>
 

@@ -27,7 +27,7 @@ export default function CollectionCard({ collection, fixedWidth }: CollectionCar
 
   const { data, isLoading } = useQuery({
     queryKey: ['collection-preview', collection.slug],
-    queryFn: () => fetchCollectionMovies(collection.rules, collection.sort, 1, 'en'),
+    queryFn: () => fetchCollectionMovies(collection.slug, collection.rules, collection.sort, 1, 'en'),
     enabled: visible,
     staleTime: 30 * 60 * 1000,
   });

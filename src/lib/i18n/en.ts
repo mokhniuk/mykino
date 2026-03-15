@@ -483,12 +483,20 @@ export const en = {
   pricingFF1: 'Everything in Demo',
   pricingFF2: 'Cloud sync across all devices',
   pricingFF3: '30 AI calls per month',
+  pricingFF4: '5 curated editorial collections',
   // Pro features (everything in Free, plus)
   pricingPF1: 'Everything in Free',
   pricingPF2: '50 AI recommendations per day',
-  pricingPF3: 'Personalised taste profile',
-  pricingPF4: 'Early access to new features',
-  pricingPF5: 'Priority support',
+  pricingPF3: 'All 95+ editorial collections',
+  pricingPF4: 'Personalised taste profile',
+  pricingPF5: 'Early access to new features',
+  pricingPF6: 'Priority support',
+  // Demo "not included" labels
+  pricingDemoNoCollections: 'No editorial collections',
+  // Editorial collections showcase card
+  pricingCollectionsTitle: 'Editorial Collections',
+  pricingCollectionsDesc: 'Handpicked lists by studio, director, decade, mood, and awards — curated to help you discover what to watch next. Free accounts unlock 5 collections; Pro unlocks all 95+.',
+  pricingCollectionsHint: '5 collections on Free · all 95+ on Pro',
   backBtn: '← Back',
   legalLabel: 'Legal',
   footerPricing: 'Pricing',

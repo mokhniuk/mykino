@@ -13,7 +13,7 @@ import {
   Check, ChevronDown, Lock, WifiOff, UserX,
   Search, Loader2, Sun, Moon, Monitor,
   ShieldCheck, Globe, RefreshCw, BarChart2, Heart, Smartphone, Sparkles,
-  Trophy, History, ListOrdered,
+  Trophy, History, ListOrdered, BookOpen,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import Footer from '@/components/Footer';
@@ -839,7 +839,7 @@ export default function Landing() {
                   {t('landingProSubtitle')}
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-12 text-left">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-12 text-left">
                   <div className="rounded-2xl bg-background/60 border border-border/60 backdrop-blur-sm p-7">
                     <div className="text-5xl font-bold text-primary tracking-tight mb-3">50</div>
                     <p className="font-semibold text-foreground text-sm mb-2">{t('landingProFeature1Title')}</p>
@@ -858,6 +858,11 @@ export default function Landing() {
                     </div>
                     <p className="font-semibold text-foreground text-sm mb-2">{t('landingProFeature3Title')}</p>
                     <p className="text-sm text-muted-foreground leading-relaxed">{t('landingProFeature3Desc')}</p>
+                  </div>
+                  <div className="rounded-2xl bg-background/60 border border-border/60 backdrop-blur-sm p-7">
+                    <div className="text-5xl font-bold text-primary tracking-tight mb-3">95+</div>
+                    <p className="font-semibold text-foreground text-sm mb-2">{t('editorialCollections')}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{t('editorialCollectionsDesc')}</p>
                   </div>
                 </div>
 
@@ -928,7 +933,7 @@ export default function Landing() {
             </div>
 
             {/* Second row — new features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div className="glass-card rounded-2xl bg-card border border-border p-6">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
                   <Trophy size={20} className="text-primary" />
@@ -951,6 +956,14 @@ export default function Landing() {
                 </div>
                 <h4 className="font-semibold text-foreground mb-2">{t('landingHistoryTitle')}</h4>
                 <p className="text-sm text-muted-foreground leading-relaxed">{t('landingHistoryDesc')}</p>
+              </div>
+
+              <div className="glass-card rounded-2xl bg-card border border-border p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
+                  <BookOpen size={20} className="text-primary" />
+                </div>
+                <h4 className="font-semibold text-foreground mb-2">{t('editorialCollections')}</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t('collectionsSignInDesc')}</p>
               </div>
             </div>
 
