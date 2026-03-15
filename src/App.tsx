@@ -27,6 +27,8 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
 import Community from "./pages/Community";
+import CollectionPage from "./pages/CollectionPage";
+import CollectionsBrowsePage from "./pages/CollectionsBrowsePage";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -67,6 +69,8 @@ const App = () => (
                   <Route path="director/:slug" element={<DirectorPage />} />
                   <Route path="achievements/director/:slug" element={<AchievementsDirectorPage />} />
                   <Route path="achievements/milestones" element={<AchievementsMilestonesPage />} />
+                  <Route path="collection/:slug" element={<CollectionPage />} />
+                  <Route path="collections" element={<CollectionsBrowsePage />} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />

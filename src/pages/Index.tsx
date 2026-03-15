@@ -15,7 +15,7 @@ import {
   getSearchHistory,
   type MovieData, type SearchHistoryEntry,
 } from '@/lib/db';
-import { getMovieDetails } from '@/lib/api';
+import { getMovieDetails, COLLECTIONS } from '@/lib/api';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useTVTracking } from '@/hooks/useTVTracking';
@@ -25,6 +25,7 @@ import type { MilestoneId } from '@/lib/achievements';
 import type { TVSeriesTracking } from '@/lib/tvTracking';
 import MovieCard from '@/components/MovieCard';
 import HorizontalScroll from '@/components/HorizontalScroll';
+import CollectionCard from '@/components/CollectionCard';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -793,6 +794,24 @@ export default function Index() {
           </HorizontalScroll>
         </section>
       )}
+
+      {/* ── Editorial Collections ── */}
+      <section className="pb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Layers size={24} className="text-primary" />
+            <h2 className="text-2xl text-foreground">{t('editorialCollections')}</h2>
+          </div>
+          <Link to="/app/collections" className="text-xs text-primary font-medium hover:opacity-70 transition-opacity">
+            {t('browseAllCollections')}
+          </Link>
+        </div>
+        <HorizontalScroll>
+          {COLLECTIONS.slice(0, 20).map(col => (
+            <CollectionCard key={col.slug} collection={col} fixedWidth="w-40" />
+          ))}
+        </HorizontalScroll>
+      </section>
     </div>
   );
 }
