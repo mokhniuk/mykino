@@ -1,9 +1,13 @@
 import { useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Layers } from 'lucide-react';
+import { ChevronLeft, Layers, Lock } from 'lucide-react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
 import { getCollectionBySlug, fetchCollectionMovies } from '@/lib/api';
+import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/contexts/AuthContext';
+import { config } from '@/lib/config';
+import { COLLECTIONS, FREE_COLLECTIONS_LIMIT } from '@/lib/api';
 import {
   getWatched, getWatchlist, getFavourites,
   addToWatched, removeFromWatched,
@@ -23,7 +27,13 @@ export default function CollectionPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { t, lang } = useI18n();
+  const { user } = useAuth();
+  const { isPro } = useProfile();
   const collection = slug ? getCollectionBySlug(slug) : undefined;
+  const collectionIndex = collection ? COLLECTIONS.findIndex(c => c.slug === collection.slug) : -1;
+  const isFreeCollection = collectionIndex >= 0 && collectionIndex < FREE_COLLECTIONS_LIMIT;
+  const isSignedOut = config.hasSync && !user;
+  const isProLocked = config.hasSync && !!user && !isPro && !isFreeCollection;
   const maxPages = collection ? Math.ceil(collection.limit / 20) : 1;
 
   // ── Collection movies ──────────────────────────────────────────────────────
@@ -104,6 +114,39 @@ export default function CollectionPage() {
           </button>
         </div>
         <p className="text-muted-foreground">{t('noResults')}</p>
+      </div>
+    );
+  }
+
+  if (isSignedOut || isProLocked) {
+    const title = isSignedOut ? t('collectionsSignInTitle') : t('collectionsProTitle');
+    const desc = isSignedOut ? t('collectionsSignInDesc') : t('collectionsProDesc');
+    const cta = isSignedOut ? t('collectionsSignInCta') : t('collectionsProCta');
+    return (
+      <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
+        <div className="flex items-center gap-3 pt-6 mb-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <Layers size={22} className="text-primary shrink-0" />
+          <h1 className="text-xl font-semibold text-foreground leading-tight">{collection.title}</h1>
+        </div>
+        <div className="mt-12 flex flex-col items-center gap-4 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <Lock size={24} className="text-primary" />
+          </div>
+          <p className="text-base font-semibold text-foreground">{title}</p>
+          <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">{desc}</p>
+          <button
+            onClick={() => navigate('/app/settings')}
+            className="mt-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+          >
+            {cta}
+          </button>
+        </div>
       </div>
     );
   }

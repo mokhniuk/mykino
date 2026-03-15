@@ -606,7 +606,10 @@ export default function SettingsPage() {
                   <Sparkles size={15} className="text-primary shrink-0" />
                   <h2 className="text-sm font-semibold text-foreground">{t('aiSettings')}</h2>
                 </div>
-                {tempAiConfig.enabled && (() => {
+                {!user && (
+                  <p className="text-xs text-muted-foreground pt-0.5">{t('signInToUnlock')}</p>
+                )}
+                {user && tempAiConfig.enabled && (() => {
                   const used = aiUsage?.used ?? 0;
                   const period = aiUsage?.period ?? (isPro ? 'daily' : 'monthly');
                   const limit = aiUsage?.limit ?? (isPro ? config.aiProDailyLimit : config.aiFreeMonthlyLimit);
@@ -631,7 +634,7 @@ export default function SettingsPage() {
                   );
                 })()}
               </div>
-              <Switch checked={tempAiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI} className="mt-0.5 shrink-0" />
+              <Switch checked={tempAiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI || !user} className="mt-0.5 shrink-0" />
             </div>
 
             {/* Divider */}

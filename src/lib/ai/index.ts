@@ -196,7 +196,17 @@ export async function setAIConfig(config: AIConfig): Promise<void> {
 
 export async function isAIEnabled(): Promise<boolean> {
   const aiConfig = await getAIConfig();
-  if (config.hasManagedAI) return aiConfig.enabled;
+  if (config.hasManagedAI) {
+    if (!aiConfig.enabled) return false;
+    const sb = getSupabase();
+    if (!sb) return false;
+    try {
+      const { data } = await sb.auth.getSession();
+      return !!data.session;
+    } catch {
+      return false;
+    }
+  }
   return aiConfig.enabled && !!aiConfig.apiKey;
 }
 
@@ -205,6 +215,11 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
   if (config.hasManagedAI) {
     const aiConfig = await getAIConfig();
     if (!aiConfig.enabled) throw new Error('AI is not enabled');
+
+    // Require authentication for managed AI
+    const sb = getSupabase();
+    const session = sb ? (await sb.auth.getSession()).data.session : null;
+    if (!session) throw new Error('Sign in to use AI recommendations');
 
     // Check persistent cache before calling the proxy
     const cacheKey = buildCacheKey(request, { provider: 'managed', apiKey: '', enabled: true } as any);

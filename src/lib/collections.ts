@@ -926,6 +926,9 @@ export const COLLECTIONS: Collection[] = [
   },
 ];
 
+/** Number of collections available to free (signed-in) users. The rest require Pro. */
+export const FREE_COLLECTIONS_LIMIT = 5;
+
 export function getCollectionBySlug(slug: string): Collection | undefined {
   return COLLECTIONS.find(c => c.slug === slug);
 }

@@ -5,7 +5,7 @@ import {
   Search, Film, Heart, ChevronRight,
   ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem,
   Trophy, Video, Medal, Star, Clock, Globe, Languages, Tv2,
-  Shuffle, Sparkles,
+  Shuffle, Sparkles, Lock,
   Popcorn, Crown, Zap, Hourglass, Timer, Rewind, CalendarDays, Award, ListOrdered,
   type LucideIcon,
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import {
   getSearchHistory,
   type MovieData, type SearchHistoryEntry,
 } from '@/lib/db';
-import { getMovieDetails, COLLECTIONS } from '@/lib/api';
+import { getMovieDetails, COLLECTIONS, FREE_COLLECTIONS_LIMIT } from '@/lib/api';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useAchievements } from '@/hooks/useAchievements';
 import { useTVTracking } from '@/hooks/useTVTracking';
@@ -26,6 +26,9 @@ import type { TVSeriesTracking } from '@/lib/tvTracking';
 import MovieCard from '@/components/MovieCard';
 import HorizontalScroll from '@/components/HorizontalScroll';
 import CollectionCard from '@/components/CollectionCard';
+import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/contexts/AuthContext';
+import { config } from '@/lib/config';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -133,6 +136,14 @@ export default function Index() {
   const { sections: recoSections, isLoading: recoLoading } = useRecommendations();
   const { watched, directors, milestones, dailyPickMovie, dailyPickLoading, top100Progress, unwatchedTop100, shuffleDailyPick } = useAchievements();
   const { trackingList } = useTVTracking();
+  const { user } = useAuth();
+  const { isPro } = useProfile();
+  // Collections visibility logic:
+  // - signed out → hide entirely
+  // - signed in + free (managed mode) → 5 free collections + pro teaser
+  // - signed in + pro, or community (no Supabase) → all collections
+  const collectionsVisible = !!user || !config.hasSync;
+  const collectionsProLocked = config.hasSync && !!user && !isPro;
 
   const trackingMap = useMemo(
     () => Object.fromEntries(trackingList.map(tr => [tr.tvId, tr])),
@@ -795,23 +806,41 @@ export default function Index() {
         </section>
       )}
 
-      {/* ── Editorial Collections ── */}
-      <section className="pb-8">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Layers size={24} className="text-primary" />
-            <h2 className="text-2xl text-foreground">{t('editorialCollections')}</h2>
+      {/* ── Editorial Collections (signed-in only) ── */}
+      {collectionsVisible && (
+        <section className="pb-8">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Layers size={24} className="text-primary" />
+              <h2 className="text-2xl text-foreground">{t('editorialCollections')}</h2>
+              {collectionsProLocked && (
+                <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  <Lock size={9} />Pro
+                </span>
+              )}
+            </div>
+            <Link to="/app/collections" className="text-xs text-primary font-medium hover:opacity-70 transition-opacity">
+              {t('browseAllCollections')}
+            </Link>
           </div>
-          <Link to="/app/collections" className="text-xs text-primary font-medium hover:opacity-70 transition-opacity">
-            {t('browseAllCollections')}
-          </Link>
-        </div>
-        <HorizontalScroll>
-          {COLLECTIONS.slice(0, 20).map(col => (
-            <CollectionCard key={col.slug} collection={col} fixedWidth="w-40" />
-          ))}
-        </HorizontalScroll>
-      </section>
+          <HorizontalScroll>
+            {COLLECTIONS.slice(0, collectionsProLocked ? FREE_COLLECTIONS_LIMIT : 20).map(col => (
+              <CollectionCard key={col.slug} collection={col} fixedWidth="w-40" />
+            ))}
+            {collectionsProLocked && (
+              <div className="flex-shrink-0 w-40 h-full flex items-center justify-center">
+                <button
+                  onClick={() => navigate('/app/settings')}
+                  className="flex flex-col items-center gap-2 px-4 py-5 rounded-xl glass-card text-center hover:opacity-80 transition-opacity w-full"
+                >
+                  <Lock size={18} className="text-primary" />
+                  <span className="text-xs font-semibold text-foreground">{t('collectionsProCta')}</span>
+                </button>
+              </div>
+            )}
+          </HorizontalScroll>
+        </section>
+      )}
     </div>
   );
 }
