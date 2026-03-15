@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useEffect, useRef, useState } from 'react';
-import { getWatched, enrichWatchedMovie, type MovieData } from '@/lib/db';
+import { getWatched, enrichWatchedMovie, setSetting, type MovieData } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import {
@@ -80,6 +80,15 @@ export function useAchievements() {
     getDailyTop100Pick(unwatchedTop100).then(setDailyPickId);
   }, [isLoading, unwatchedTop100]);
 
+  const shuffleDailyPick = async () => {
+    if (unwatchedTop100.length === 0) return;
+    const pool = unwatchedTop100.filter(m => m.imdbID !== dailyPickId);
+    const pick = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : unwatchedTop100[0];
+    await setSetting('daily_top100_date', new Date().toISOString().slice(0, 10));
+    await setSetting('daily_top100_id', pick.imdbID);
+    setDailyPickId(pick.imdbID);
+  };
+
   // Fetch movie details for the daily pick
   useEffect(() => {
     if (!dailyPickId) {
@@ -108,5 +117,6 @@ export function useAchievements() {
     dailyPickLoading,
     top100Progress,
     isLoading,
+    shuffleDailyPick,
   };
 }
