@@ -763,26 +763,5 @@ export const COLLECTION_MOVIES: Record<string, StaticMovie[]> = {
   { id: 862 },
   { id: 773 },
   { id: 1585 }
-],
-'cult-classic-movies': [
-  { id: 115 },
-  { id: 141 },
-  { id: 680 },
-  { id: 1878 }
-],
-
-'mustwatch-movie-classics': [
-  { id: 238 },
-  { id: 278 },
-  { id: 550 },
-  { id: 680 }
-],
-
-'movies-everyone-should-see-once': [
-  { id: 278 },
-  { id: 238 },
-  { id: 13 },
-  { id: 550 },
-  { id: 155 }
-],
+]
 };

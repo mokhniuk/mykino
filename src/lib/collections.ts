@@ -5,33 +5,33 @@ export type CollectionType =
   | 'genre' | 'tv' | 'decade' | 'mood' | 'awards'
   | 'theme' | 'classics';
 
-export interface CollectionRules {
-  /** TMDB keyword names — resolved to IDs at fetch time, OR-ed together */
-  keywords?: string[];
-  /** TMDB company name — resolved to ID at fetch time */
-  studio?: string;
-  /** Director name — resolved via person search + crew credits */
-  director?: string;
-  /** Actor name — resolved via person search + with_cast */
-  actor?: string;
-  /** Single genre name (movie) — mapped to TMDB genre ID */
-  genre?: string;
-  /** Multiple genre names (movie) — OR-ed together */
-  genres?: string[];
-  /** Force TV-only results */
+/** Whether the collection uses a static curated list or TMDB Discover. */
+export type CollectionSource = 'editorial' | 'tmdb';
+
+/**
+ * TMDB Discover query parameters — used when source === 'tmdb'.
+ * Person / company IDs must be pre-resolved (no runtime name lookups).
+ * Multiple genre IDs: use '878|53' for OR, '878,53' for AND.
+ */
+export interface DiscoverParams {
   media_type?: 'movie' | 'tv';
-  /** Pre-resolved TMDB network ID (e.g. HBO=49, Netflix=213) */
-  network_id?: number;
-  /** Pre-resolved TMDB TV genre ID */
-  tv_genre_id?: number;
-  /** TMDB TV show type: 0=Documentary, 1=News, 2=Miniseries, 3=Reality, 4=Scripted, 5=Talk, 6=Video */
+  sort_by?: string;
+  with_genres?: number | string;
+  with_companies?: number | string;
+  /** TMDB person ID — discovers movies where person is in the cast */
+  with_cast?: number;
+  /** TMDB person ID — discovers movies where person is in the crew */
+  with_crew?: number;
+  /** TMDB TV network ID */
+  with_networks?: number;
+  /** TMDB TV show type (2 = Miniseries) */
   with_type?: number;
-  /** Year range start (inclusive) */
-  release_date_gte?: number;
-  /** Year range end (inclusive) */
-  release_date_lte?: number;
-  /** Minimum vote average */
-  rating_gte?: number;
+  vote_count_gte?: number;
+  vote_average_gte?: number;
+  'primary_release_date.gte'?: string;
+  'primary_release_date.lte'?: string;
+  'first_air_date.gte'?: string;
+  'first_air_date.lte'?: string;
 }
 
 export interface Collection {
@@ -39,905 +39,871 @@ export interface Collection {
   slug: string;
   type: CollectionType;
   description: string;
-  rules: CollectionRules;
-  sort: 'rating' | 'release_date' | 'popularity';
-  limit: number;
+  /** 'editorial' → static list from collectionMovies.ts | 'tmdb' → TMDB Discover */
+  source: CollectionSource;
+  /** Required when source === 'tmdb' */
+  discover?: DiscoverParams;
+  /**
+   * Official TMDB Collection ID(s) for editorial franchises.
+   * When set, fetchCollectionMovies uses /collection/{id} instead of the static list.
+   * Collections WITHOUT this field (e.g. MCU, DC) are hidden for non-authenticated users.
+   */
+  tmdbCollectionId?: number | number[];
 }
 
-// ─── Collection data ──────────────────────────────────────────────────────────
+// ─── Free tier limit ──────────────────────────────────────────────────────────
+
+/** Number of editorial collections available to free (signed-in) users. */
+export const FREE_COLLECTIONS_LIMIT = 5;
+
+// ─── Collection definitions ───────────────────────────────────────────────────
 
 export const COLLECTIONS: Collection[] = [
-  // ── Franchises ───────────────────────────────────────────────────────────────
+
+  // ── Franchises — editorial ────────────────────────────────────────────────
+  // Collections with tmdbCollectionId use TMDB's /collection/{id} endpoint and
+  // are accessible to non-authenticated users. Those without (MCU, DC) rely on
+  // curated static lists and are hidden for non-authenticated users.
   {
     title: 'Marvel Cinematic Universe',
     slug: 'marvel-cinematic-universe',
     type: 'franchise',
-    description: 'Movies and series that are part of the Marvel Cinematic Universe.',
-    rules: { keywords: ['marvel cinematic universe', 'marvel studios'] },
-    sort: 'release_date',
-    limit: 60,
+    description: 'Every film in the Marvel Cinematic Universe, in release order.',
+    source: 'editorial',
+    // No single TMDB collection covers the full MCU — uses static curated list.
   },
   {
     title: 'Star Wars Universe',
     slug: 'star-wars-universe',
     type: 'franchise',
-    description: 'Movies and shows set in the Star Wars universe.',
-    rules: { keywords: ['star wars'] },
-    sort: 'release_date',
-    limit: 40,
+    description: 'The Skywalker Saga and standalone stories from a galaxy far, far away.',
+    source: 'editorial',
+    tmdbCollectionId: 10, // Star Wars Collection (9 mainline films)
   },
   {
     title: 'DC Universe Movies',
     slug: 'dc-universe-movies',
     type: 'franchise',
-    description: 'Movies based on DC Comics characters.',
-    rules: { keywords: ['dc comics', 'dc universe'] },
-    sort: 'release_date',
-    limit: 60,
+    description: 'Films from the DC Extended Universe and the Dark Knight trilogy.',
+    source: 'editorial',
+    // No single TMDB collection covers the full DCU — uses static curated list.
   },
   {
     title: 'Wizarding World',
     slug: 'wizarding-world',
     type: 'franchise',
-    description: 'Harry Potter and Fantastic Beasts movies.',
-    rules: { keywords: ['harry potter', 'wizarding world'] },
-    sort: 'release_date',
-    limit: 20,
+    description: 'Harry Potter and Fantastic Beasts — the complete Wizarding World.',
+    source: 'editorial',
+    tmdbCollectionId: [1241, 435259], // Harry Potter + Fantastic Beasts
   },
   {
     title: 'Alien & Predator Universe',
     slug: 'alien-predator-universe',
     type: 'franchise',
-    description: 'Movies set in the Alien and Predator universes.',
-    rules: { keywords: ['alien', 'predator', 'xenomorph'] },
-    sort: 'release_date',
-    limit: 20,
+    description: 'The full Alien and Predator film franchise.',
+    source: 'editorial',
+    tmdbCollectionId: [8091, 399, 115762], // Alien + Predator + AVP
   },
   {
     title: 'The Lord of the Rings Saga',
     slug: 'the-lord-of-the-rings-saga',
     type: 'franchise',
-    description: 'Middle‑earth movies.',
-    rules: { keywords: ['middle earth', 'lord of the rings'] },
-    sort: 'release_date',
-    limit: 10,
+    description: 'Tolkien\'s Middle-earth — the LotR trilogy and The Hobbit.',
+    source: 'editorial',
+    tmdbCollectionId: [119, 121938], // The Lord of the Rings + The Hobbit
   },
   {
     title: 'James Bond Movies',
     slug: 'james-bond-movies',
     type: 'franchise',
-    description: 'All official James Bond movies.',
-    rules: { keywords: ['james bond'] },
-    sort: 'release_date',
-    limit: 30,
+    description: 'Every official James Bond film across six decades.',
+    source: 'editorial',
+    tmdbCollectionId: 645, // James Bond Collection (26 films)
   },
   {
-    title: 'Mission Impossible Movies',
+    title: 'Mission: Impossible Movies',
     slug: 'mission-impossible-movies',
     type: 'franchise',
-    description: 'Spy action franchise starring Tom Cruise.',
-    rules: { keywords: ['mission impossible'] },
-    sort: 'release_date',
-    limit: 10,
+    description: 'Tom Cruise\'s globe-trotting spy action franchise.',
+    source: 'editorial',
+    tmdbCollectionId: 87359, // Mission: Impossible Collection (8 films)
   },
   {
     title: 'Fast & Furious Saga',
     slug: 'fast-furious-saga',
     type: 'franchise',
-    description: 'Street racing action franchise.',
-    rules: { keywords: ['fast and furious'] },
-    sort: 'release_date',
-    limit: 15,
+    description: 'Family, fast cars, and impossible stunts.',
+    source: 'editorial',
+    tmdbCollectionId: 9485, // The Fast and the Furious Collection (10 films)
   },
   {
     title: 'Jurassic Park Franchise',
     slug: 'jurassic-park-franchise',
     type: 'franchise',
-    description: 'Dinosaur adventure franchise.',
-    rules: { keywords: ['jurassic park', 'jurassic world'] },
-    sort: 'release_date',
-    limit: 10,
+    description: 'Life finds a way — the complete dinosaur adventure series.',
+    source: 'editorial',
+    tmdbCollectionId: 328, // Jurassic Park Collection (7 films)
   },
 
-  // ── Studios ───────────────────────────────────────────────────────────────────
+  // ── Studios — TMDB Discover by company ID ────────────────────────────────
   {
-    title: 'Pixar Animation Studios Movies',
+    title: 'Pixar Animation Studios',
     slug: 'pixar-animation-studios-movies',
     type: 'studio',
-    description: 'Movies produced by Pixar Animation Studios.',
-    rules: { studio: 'Pixar Animation Studios' },
-    sort: 'rating',
-    limit: 60,
+    description: 'Every feature film from Pixar, ranked by audience acclaim.',
+    source: 'tmdb',
+    discover: { with_companies: 3, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Studio Ghibli Movies',
     slug: 'studio-ghibli-movies',
     type: 'studio',
-    description: 'Movies produced by Studio Ghibli.',
-    rules: { studio: 'Studio Ghibli' },
-    sort: 'rating',
-    limit: 60,
+    description: 'The magical, handcrafted worlds of Studio Ghibli.',
+    source: 'tmdb',
+    discover: { with_companies: 10342, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
     title: 'A24 Movies',
     slug: 'a24-movies',
     type: 'studio',
-    description: 'Movies produced by A24.',
-    rules: { studio: 'A24' },
-    sort: 'rating',
-    limit: 60,
+    description: 'Bold, auteur-driven cinema from the most talked-about studio in Hollywood.',
+    source: 'tmdb',
+    discover: { with_companies: 41077, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'DreamWorks Animation Movies',
+    title: 'DreamWorks Animation',
     slug: 'dreamworks-animation-movies',
     type: 'studio',
-    description: 'Movies produced by DreamWorks Animation.',
-    rules: { studio: 'DreamWorks Animation' },
-    sort: 'rating',
-    limit: 60,
+    description: 'Animated adventures from Shrek to How to Train Your Dragon.',
+    source: 'tmdb',
+    discover: { with_companies: 521, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Walt Disney Animation Studios Movies',
+    title: 'Walt Disney Animation',
     slug: 'walt-disney-animation-studios-movies',
     type: 'studio',
-    description: 'Movies produced by Walt Disney Animation Studios.',
-    rules: { studio: 'Walt Disney Animation Studios' },
-    sort: 'rating',
-    limit: 60,
+    description: 'The timeless classics and modern hits from Disney Animation.',
+    source: 'tmdb',
+    discover: { with_companies: 6125, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Laika Movies',
     slug: 'laika-movies',
     type: 'studio',
-    description: 'Movies produced by Laika.',
-    rules: { studio: 'Laika' },
-    sort: 'rating',
-    limit: 60,
+    description: 'Stop-motion masterpieces — Coraline, Kubo, and more.',
+    source: 'tmdb',
+    discover: { with_companies: 12236, sort_by: 'vote_average.desc', vote_count_gte: 20 },
   },
   {
     title: 'Illumination Movies',
     slug: 'illumination-movies',
     type: 'studio',
-    description: 'Movies produced by Illumination.',
-    rules: { studio: 'Illumination' },
-    sort: 'rating',
-    limit: 60,
+    description: 'Minions, Despicable Me, and crowd-pleasing animated fun.',
+    source: 'tmdb',
+    discover: { with_companies: 6704, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Warner Bros Movies',
+    title: 'Warner Bros. Movies',
     slug: 'warner-bros-movies',
     type: 'studio',
-    description: 'Movies produced by Warner Bros.',
-    rules: { studio: 'Warner Bros. Pictures' },
-    sort: 'rating',
-    limit: 60,
+    description: 'A century of cinema from one of Hollywood\'s great studios.',
+    source: 'tmdb',
+    discover: { with_companies: 174, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
-    title: 'Legendary Pictures Movies',
+    title: 'Legendary Pictures',
     slug: 'legendary-pictures-movies',
     type: 'studio',
-    description: 'Movies produced by Legendary Pictures.',
-    rules: { studio: 'Legendary Pictures' },
-    sort: 'rating',
-    limit: 60,
+    description: 'Epic blockbusters — Nolan\'s Batman, Godzilla, Dune, and more.',
+    source: 'tmdb',
+    discover: { with_companies: 923, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
-    title: 'Blumhouse Productions Movies',
+    title: 'Blumhouse Productions',
     slug: 'blumhouse-productions-movies',
     type: 'studio',
-    description: 'Movies produced by Blumhouse Productions.',
-    rules: { studio: 'Blumhouse Productions' },
-    sort: 'rating',
-    limit: 60,
+    description: 'Low-budget, high-impact horror and thriller films.',
+    source: 'tmdb',
+    discover: { with_companies: 3172, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
 
-  // ── Directors ─────────────────────────────────────────────────────────────────
+  // ── Directors — TMDB Discover by crew person ID ──────────────────────────
   {
-    title: 'Movies by Christopher Nolan',
+    title: 'Christopher Nolan',
     slug: 'movies-by-christopher-nolan',
     type: 'director',
-    description: 'Films directed by Christopher Nolan.',
-    rules: { director: 'Christopher Nolan' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Mind-bending blockbusters from one of cinema\'s greatest architects.',
+    source: 'tmdb',
+    discover: { with_crew: 525, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Quentin Tarantino',
+    title: 'Quentin Tarantino',
     slug: 'movies-by-quentin-tarantino',
     type: 'director',
-    description: 'Films directed by Quentin Tarantino.',
-    rules: { director: 'Quentin Tarantino' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Stylised violence, razor-sharp dialogue, and unforgettable soundtracks.',
+    source: 'tmdb',
+    discover: { with_crew: 138, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Steven Spielberg',
+    title: 'Steven Spielberg',
     slug: 'movies-by-steven-spielberg',
     type: 'director',
-    description: 'Films directed by Steven Spielberg.',
-    rules: { director: 'Steven Spielberg' },
-    sort: 'rating',
-    limit: 30,
+    description: 'The master of adventure, wonder, and emotional storytelling.',
+    source: 'tmdb',
+    discover: { with_crew: 488, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Martin Scorsese',
+    title: 'Martin Scorsese',
     slug: 'movies-by-martin-scorsese',
     type: 'director',
-    description: 'Films directed by Martin Scorsese.',
-    rules: { director: 'Martin Scorsese' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Crime, guilt, and the American dream through Scorsese\'s lens.',
+    source: 'tmdb',
+    discover: { with_crew: 1032, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Denis Villeneuve',
+    title: 'Denis Villeneuve',
     slug: 'movies-by-denis-villeneuve',
     type: 'director',
-    description: 'Films directed by Denis Villeneuve.',
-    rules: { director: 'Denis Villeneuve' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Slow-burn sci-fi and psychological thrillers of stunning scope.',
+    source: 'tmdb',
+    discover: { with_crew: 137427, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Ridley Scott',
+    title: 'Ridley Scott',
     slug: 'movies-by-ridley-scott',
     type: 'director',
-    description: 'Films directed by Ridley Scott.',
-    rules: { director: 'Ridley Scott' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Epic world-building from Alien to Gladiator to Napoleon.',
+    source: 'tmdb',
+    discover: { with_crew: 578, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Wes Anderson',
+    title: 'Wes Anderson',
     slug: 'movies-by-wes-anderson',
     type: 'director',
-    description: 'Films directed by Wes Anderson.',
-    rules: { director: 'Wes Anderson' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Symmetrical frames, pastel palettes, and deadpan wit.',
+    source: 'tmdb',
+    discover: { with_crew: 5655, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by David Fincher',
+    title: 'David Fincher',
     slug: 'movies-by-david-fincher',
     type: 'director',
-    description: 'Films directed by David Fincher.',
-    rules: { director: 'David Fincher' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Dark, meticulous thrillers with an obsessive eye for detail.',
+    source: 'tmdb',
+    discover: { with_crew: 7467, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Greta Gerwig',
+    title: 'Greta Gerwig',
     slug: 'movies-by-greta-gerwig',
     type: 'director',
-    description: 'Films directed by Greta Gerwig.',
-    rules: { director: 'Greta Gerwig' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Intimate, witty films about womanhood, ambition, and identity.',
+    source: 'tmdb',
+    discover: { with_crew: 45400, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
   {
-    title: 'Movies by Hayao Miyazaki',
+    title: 'Hayao Miyazaki',
     slug: 'movies-by-hayao-miyazaki',
     type: 'director',
-    description: 'Films directed by Hayao Miyazaki.',
-    rules: { director: 'Hayao Miyazaki' },
-    sort: 'rating',
-    limit: 30,
+    description: 'Hand-drawn worlds of wonder from Japan\'s greatest animation master.',
+    source: 'tmdb',
+    discover: { with_crew: 608, sort_by: 'vote_average.desc', vote_count_gte: 50 },
   },
 
-  // ── Actors ────────────────────────────────────────────────────────────────────
+  // ── Actors — TMDB Discover by cast person ID ─────────────────────────────
   {
-    title: 'Movies with Leonardo DiCaprio',
+    title: 'Leonardo DiCaprio',
     slug: 'movies-with-leonardo-dicaprio',
     type: 'actor',
-    description: 'Movies starring Leonardo DiCaprio.',
-    rules: { actor: 'Leonardo DiCaprio' },
-    sort: 'rating',
-    limit: 40,
+    description: 'Acclaimed performances across three decades of Hollywood.',
+    source: 'tmdb',
+    discover: { with_cast: 6193, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Tom Hanks',
+    title: 'Tom Hanks',
     slug: 'movies-with-tom-hanks',
     type: 'actor',
-    description: 'Movies starring Tom Hanks.',
-    rules: { actor: 'Tom Hanks' },
-    sort: 'rating',
-    limit: 40,
+    description: 'America\'s everyman in his most beloved roles.',
+    source: 'tmdb',
+    discover: { with_cast: 31, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Robert De Niro',
+    title: 'Robert De Niro',
     slug: 'movies-with-robert-de-niro',
     type: 'actor',
-    description: 'Movies starring Robert De Niro.',
-    rules: { actor: 'Robert De Niro' },
-    sort: 'rating',
-    limit: 40,
+    description: 'The master of method acting, from Taxi Driver to The Irishman.',
+    source: 'tmdb',
+    discover: { with_cast: 380, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Scarlett Johansson',
+    title: 'Scarlett Johansson',
     slug: 'movies-with-scarlett-johansson',
     type: 'actor',
-    description: 'Movies starring Scarlett Johansson.',
-    rules: { actor: 'Scarlett Johansson' },
-    sort: 'rating',
-    limit: 40,
+    description: 'Action hero, dramatic lead, and one of Hollywood\'s most versatile stars.',
+    source: 'tmdb',
+    discover: { with_cast: 1245, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Brad Pitt',
+    title: 'Brad Pitt',
     slug: 'movies-with-brad-pitt',
     type: 'actor',
-    description: 'Movies starring Brad Pitt.',
-    rules: { actor: 'Brad Pitt' },
-    sort: 'rating',
-    limit: 40,
+    description: 'From Fight Club to Babylon — a career of bold choices.',
+    source: 'tmdb',
+    discover: { with_cast: 287, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Meryl Streep',
+    title: 'Meryl Streep',
     slug: 'movies-with-meryl-streep',
     type: 'actor',
-    description: 'Movies starring Meryl Streep.',
-    rules: { actor: 'Meryl Streep' },
-    sort: 'rating',
-    limit: 40,
+    description: 'The most Oscar-nominated actor in history.',
+    source: 'tmdb',
+    discover: { with_cast: 5064, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Christian Bale',
+    title: 'Christian Bale',
     slug: 'movies-with-christian-bale',
     type: 'actor',
-    description: 'Movies starring Christian Bale.',
-    rules: { actor: 'Christian Bale' },
-    sort: 'rating',
-    limit: 40,
+    description: 'Total physical transformations and intense dramatic performances.',
+    source: 'tmdb',
+    discover: { with_cast: 3894, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Keanu Reeves',
+    title: 'Keanu Reeves',
     slug: 'movies-with-keanu-reeves',
     type: 'actor',
-    description: 'Movies starring Keanu Reeves.',
-    rules: { actor: 'Keanu Reeves' },
-    sort: 'rating',
-    limit: 40,
+    description: 'The internet\'s favourite action star — John Wick to The Matrix.',
+    source: 'tmdb',
+    discover: { with_cast: 6384, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Emma Stone',
+    title: 'Emma Stone',
     slug: 'movies-with-emma-stone',
     type: 'actor',
-    description: 'Movies starring Emma Stone.',
-    rules: { actor: 'Emma Stone' },
-    sort: 'rating',
-    limit: 40,
+    description: 'Oscar-winning charm across comedy, drama, and musical.',
+    source: 'tmdb',
+    discover: { with_cast: 54693, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Movies with Ryan Gosling',
+    title: 'Ryan Gosling',
     slug: 'movies-with-ryan-gosling',
     type: 'actor',
-    description: 'Movies starring Ryan Gosling.',
-    rules: { actor: 'Ryan Gosling' },
-    sort: 'rating',
-    limit: 40,
+    description: 'Deadpan leading man with serious dramatic range.',
+    source: 'tmdb',
+    discover: { with_cast: 30614, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
 
-  // ── Genres ────────────────────────────────────────────────────────────────────
+  // ── Genres ───────────────────────────────────────────────────────────────
   {
     title: 'Best Science Fiction Movies',
     slug: 'best-science-fiction-movies',
     type: 'genre',
     description: 'Highly rated science fiction movies.',
-    rules: { genre: 'Science Fiction' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 878, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Best Horror Movies',
     slug: 'best-horror-movies',
     type: 'genre',
     description: 'Highly rated horror movies.',
-    rules: { genre: 'Horror' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 27, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Best Romance Movies',
     slug: 'best-romance-movies',
     type: 'genre',
     description: 'Highly rated romance movies.',
-    rules: { genre: 'Romance' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 10749, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Best Action Movies',
     slug: 'best-action-movies',
     type: 'genre',
     description: 'Highly rated action movies.',
-    rules: { genre: 'Action' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 28, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Best Comedy Movies',
     slug: 'best-comedy-movies',
     type: 'genre',
     description: 'Highly rated comedy movies.',
-    rules: { genre: 'Comedy' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 35, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Best Adventure Movies',
     slug: 'best-adventure-movies',
     type: 'genre',
     description: 'Highly rated adventure movies.',
-    rules: { genre: 'Adventure' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 12, sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Best War Movies',
     slug: 'best-war-movies',
     type: 'genre',
     description: 'Highly rated war movies.',
-    rules: { genre: 'War' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 10752, sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Best Western Movies',
     slug: 'best-western-movies',
     type: 'genre',
     description: 'Highly rated western movies.',
-    rules: { genre: 'Western' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 37, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Documentary Movies',
     slug: 'best-documentary-movies',
     type: 'genre',
     description: 'Highly rated documentary movies.',
-    rules: { genre: 'Documentary' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 99, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Animation Movies',
     slug: 'best-animation-movies',
     type: 'genre',
     description: 'Highly rated animation movies.',
-    rules: { genre: 'Animation' },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 16, sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
 
-  // ── TV Shows ──────────────────────────────────────────────────────────────────
+  // ── TV Shows ─────────────────────────────────────────────────────────────
   {
     title: 'Best Sitcoms Ever',
     slug: 'best-sitcoms-ever',
     type: 'tv',
     description: 'The greatest sitcoms of all time.',
-    rules: { media_type: 'tv', tv_genre_id: 35 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_genres: 35, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best HBO Shows',
     slug: 'best-hbo-shows',
     type: 'tv',
     description: 'Premium drama and genre television from HBO.',
-    rules: { media_type: 'tv', network_id: 49 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_networks: 49, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Netflix Originals',
     slug: 'best-netflix-originals',
     type: 'tv',
     description: 'Original series produced by Netflix.',
-    rules: { media_type: 'tv', network_id: 213 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_networks: 213, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
-    title: 'Best Mini Series',
+    title: 'Best Mini-Series',
     slug: 'best-mini-series',
     type: 'tv',
     description: 'Compelling limited series with complete stories.',
-    // with_type 2 = Miniseries on TMDB
-    rules: { media_type: 'tv', with_type: 2 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_type: 2, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Crime TV Shows',
     slug: 'best-crime-tv-shows',
     type: 'tv',
     description: 'Gripping crime dramas and thrillers.',
-    rules: { media_type: 'tv', tv_genre_id: 80 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_genres: 80, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
-    title: 'Best Sci‑Fi TV Shows',
+    title: 'Best Sci-Fi TV Shows',
     slug: 'best-scifi-tv-shows',
     type: 'tv',
-    description: 'The best science fiction and fantasy on television.',
-    rules: { media_type: 'tv', tv_genre_id: 10765 },
-    sort: 'rating',
-    limit: 80,
+    description: 'The best science fiction on television.',
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_genres: 10765, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Fantasy TV Shows',
     slug: 'best-fantasy-tv-shows',
     type: 'tv',
     description: 'Epic fantasy worlds brought to life on screen.',
-    rules: { media_type: 'tv', tv_genre_id: 10765 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    // Sci-Fi & Fantasy genre + Drama to bias toward fantasy-leaning shows
+    discover: { media_type: 'tv', with_genres: '10765,18', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Animated TV Shows',
     slug: 'best-animated-tv-shows',
     type: 'tv',
     description: 'Top-rated animated series for all ages.',
-    rules: { media_type: 'tv', tv_genre_id: 16 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_genres: 16, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Mystery Shows',
     slug: 'best-mystery-shows',
     type: 'tv',
     description: 'Suspenseful mystery and detective shows.',
-    rules: { media_type: 'tv', tv_genre_id: 9648 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_genres: 9648, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
   {
     title: 'Best Teen TV Shows',
     slug: 'best-teen-tv-shows',
     type: 'tv',
     description: 'Coming-of-age stories and youth drama.',
-    rules: { media_type: 'tv', tv_genre_id: 10762 },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { media_type: 'tv', with_genres: 10762, sort_by: 'vote_average.desc', vote_count_gte: 100 },
   },
 
-  // ── Decades ───────────────────────────────────────────────────────────────────
+  // ── Decades ───────────────────────────────────────────────────────────────
   {
     title: 'Best Movies of the 1960s',
     slug: 'best-movies-of-the-1960s',
     type: 'decade',
     description: 'Top movies released in the 1960s.',
-    rules: { release_date_gte: 1960, release_date_lte: 1969 },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: {
+      'primary_release_date.gte': '1960-01-01',
+      'primary_release_date.lte': '1969-12-31',
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 100,
+    },
   },
   {
     title: 'Best Movies of the 1970s',
     slug: 'best-movies-of-the-1970s',
     type: 'decade',
     description: 'Top movies released in the 1970s.',
-    rules: { release_date_gte: 1970, release_date_lte: 1979 },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: {
+      'primary_release_date.gte': '1970-01-01',
+      'primary_release_date.lte': '1979-12-31',
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 150,
+    },
   },
   {
     title: 'Best Movies of the 1980s',
     slug: 'best-movies-of-the-1980s',
     type: 'decade',
     description: 'Top movies released in the 1980s.',
-    rules: { release_date_gte: 1980, release_date_lte: 1989 },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: {
+      'primary_release_date.gte': '1980-01-01',
+      'primary_release_date.lte': '1989-12-31',
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 200,
+    },
   },
   {
     title: 'Best Movies of the 1990s',
     slug: 'best-movies-of-the-1990s',
     type: 'decade',
     description: 'Top movies released in the 1990s.',
-    rules: { release_date_gte: 1990, release_date_lte: 1999 },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: {
+      'primary_release_date.gte': '1990-01-01',
+      'primary_release_date.lte': '1999-12-31',
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 300,
+    },
   },
   {
     title: 'Best Movies of the 2000s',
     slug: 'best-movies-of-the-2000s',
     type: 'decade',
     description: 'Top movies released in the 2000s.',
-    rules: { release_date_gte: 2000, release_date_lte: 2009 },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: {
+      'primary_release_date.gte': '2000-01-01',
+      'primary_release_date.lte': '2009-12-31',
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 400,
+    },
   },
   {
     title: 'Best Movies of the 2010s',
     slug: 'best-movies-of-the-2010s',
     type: 'decade',
     description: 'Top movies released in the 2010s.',
-    rules: { release_date_gte: 2010, release_date_lte: 2019 },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: {
+      'primary_release_date.gte': '2010-01-01',
+      'primary_release_date.lte': '2019-12-31',
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 500,
+    },
   },
   {
     title: 'Best Movies of the 2020s',
     slug: 'best-movies-of-the-2020s',
     type: 'decade',
     description: 'Top movies released in the 2020s.',
-    rules: { release_date_gte: 2020, release_date_lte: 2029 },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: {
+      'primary_release_date.gte': '2020-01-01',
+      'primary_release_date.lte': '2029-12-31',
+      sort_by: 'vote_average.desc',
+      vote_count_gte: 300,
+    },
   },
 
-  // ── Mood ──────────────────────────────────────────────────────────────────────
+  // ── Mood ──────────────────────────────────────────────────────────────────
   {
     title: 'Perfect Date Night Movies',
     slug: 'perfect-date-night-movies',
     type: 'mood',
     description: 'Romantic picks for a perfect evening in.',
-    rules: { genres: ['Romance', 'Comedy'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    // Romance OR Comedy
+    discover: { with_genres: '10749|35', sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
     title: 'Girls Night Movies',
     slug: 'girls-night-movies',
     type: 'mood',
     description: 'Fun, fierce, and fabulous films for a girls night.',
-    rules: { genres: ['Comedy', 'Romance', 'Drama'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '35|10749', sort_by: 'popularity.desc', vote_count_gte: 500 },
   },
   {
     title: 'Movies to Watch with Friends',
     slug: 'movies-to-watch-with-friends',
     type: 'mood',
     description: 'Crowd-pleasing movies everyone will enjoy.',
-    rules: { genres: ['Comedy', 'Action', 'Adventure'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '28|35|12', sort_by: 'popularity.desc', vote_count_gte: 1000 },
   },
   {
     title: 'Movies That Will Make You Cry',
     slug: 'movies-that-will-make-you-cry',
     type: 'mood',
     description: 'Emotional films that will move you deeply.',
-    rules: { genres: ['Drama', 'Romance'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    // Drama AND Romance
+    discover: { with_genres: '18,10749', sort_by: 'vote_average.desc', vote_count_gte: 500 },
   },
   {
-    title: 'Feel‑Good Movies',
+    title: 'Feel-Good Movies',
     slug: 'feelgood-movies',
     type: 'mood',
     description: 'Uplifting films guaranteed to brighten your day.',
-    rules: { genres: ['Comedy', 'Animation', 'Family'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '35|16|10751', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Cozy Sunday Movies',
     slug: 'cozy-sunday-movies',
     type: 'mood',
     description: 'Warm, easy-going films for a lazy weekend.',
-    rules: { genres: ['Comedy', 'Drama', 'Family'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '35|10751|18', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Rainy Day Movies',
     slug: 'rainy-day-movies',
     type: 'mood',
     description: 'Absorbing films perfect for a grey, quiet day.',
-    rules: { genres: ['Drama', 'Thriller', 'Mystery'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '18|53|9648', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Late Night Movies',
     slug: 'late-night-movies',
     type: 'mood',
     description: 'Gripping, atmospheric films for after dark.',
-    rules: { genres: ['Horror', 'Thriller', 'Mystery'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '27|53', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
-    title: 'Mind‑Bending Movies',
+    title: 'Mind-Bending Movies',
     slug: 'mindbending-movies',
     type: 'mood',
     description: 'Films that twist your perception of reality.',
-    rules: { genres: ['Science Fiction', 'Thriller'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '878|53', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Comfort Movies',
     slug: 'comfort-movies',
     type: 'mood',
     description: 'Safe, familiar films that feel like a warm hug.',
-    rules: { genres: ['Comedy', 'Family', 'Animation'] },
-    sort: 'rating',
-    limit: 60,
+    source: 'tmdb',
+    discover: { with_genres: '35|10751|16', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
 
-  // ── Awards ────────────────────────────────────────────────────────────────────
+  // ── Awards ────────────────────────────────────────────────────────────────
   {
     title: 'Oscar Best Picture Winners',
     slug: 'oscar-best-picture-winners',
     type: 'awards',
-    description: 'Academy Award Best Picture winners.',
-    rules: { keywords: ['academy award for best picture'] },
-    sort: 'rating',
-    limit: 100,
+    description: 'Academy Award Best Picture winners — the cream of Hollywood drama.',
+    source: 'tmdb',
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 50000, vote_average_gte: 7.5 },
   },
   {
-    title: 'Oscar Best Animated Feature Winners',
+    title: 'Oscar Best Animated Feature',
     slug: 'oscar-best-animated-feature-winners',
     type: 'awards',
     description: 'Academy Award Best Animated Feature winners.',
-    rules: { keywords: ['academy award for best animated feature film'] },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 16, sort_by: 'vote_average.desc', vote_count_gte: 20000, vote_average_gte: 7.0 },
   },
   {
     title: "Cannes Palme d'Or Winners",
     slug: 'cannes-palme-dor-winners',
     type: 'awards',
     description: "Films that won the Palme d'Or at Cannes.",
-    rules: { keywords: ["palme d'or"] },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 20000, vote_average_gte: 7.5 },
   },
   {
-    title: 'Golden Globe Best Drama Winners',
+    title: 'Golden Globe Best Drama',
     slug: 'golden-globe-best-drama-winners',
     type: 'awards',
     description: 'Golden Globe Award Best Drama Film winners.',
-    rules: { keywords: ['golden globe award for best motion picture drama'] },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 30000, vote_average_gte: 7.5 },
   },
   {
     title: 'BAFTA Best Film Winners',
     slug: 'bafta-best-film-winners',
     type: 'awards',
     description: 'BAFTA Award for Best Film winners.',
-    rules: { keywords: ['bafta award for best film'] },
-    sort: 'rating',
-    limit: 100,
+    source: 'tmdb',
+    discover: { with_genres: 18, sort_by: 'vote_average.desc', vote_count_gte: 30000, vote_average_gte: 7.5 },
   },
 
-  // ── Themes ────────────────────────────────────────────────────────────────────
+  // ── Themes ────────────────────────────────────────────────────────────────
   {
     title: 'Best Time Travel Movies',
     slug: 'best-time-travel-movies',
     type: 'theme',
     description: 'Movies centered around time travel.',
-    rules: { keywords: ['time travel'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '878|53', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Space Movies',
     slug: 'best-space-movies',
     type: 'theme',
     description: 'Epic adventures set in the cosmos.',
-    rules: { keywords: ['space', 'outer space'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '878|12', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best AI Movies',
     slug: 'best-ai-movies',
     type: 'theme',
-    description: 'Films exploring artificial intelligence.',
-    rules: { keywords: ['artificial intelligence', 'robot'] },
-    sort: 'rating',
-    limit: 80,
+    description: 'Films exploring artificial intelligence and technology.',
+    source: 'tmdb',
+    discover: { with_genres: 878, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Hacker Movies',
     slug: 'best-hacker-movies',
     type: 'theme',
     description: 'Cyber-thriller films about hackers and tech.',
-    rules: { keywords: ['hacker', 'computer hacker'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '53|80', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Heist Movies',
     slug: 'best-heist-movies',
     type: 'theme',
     description: 'Slick, clever heist films.',
-    rules: { keywords: ['heist', 'robbery'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '80|53', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Best Zombie Movies',
     slug: 'best-zombie-movies',
     type: 'theme',
     description: 'The undead rise in these horror films.',
-    rules: { keywords: ['zombie', 'undead'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: 27, sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Vampire Movies',
     slug: 'best-vampire-movies',
     type: 'theme',
     description: 'Films featuring the iconic vampire mythos.',
-    rules: { keywords: ['vampire'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '27|14', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
     title: 'Best Dystopian Movies',
     slug: 'best-dystopian-movies',
     type: 'theme',
     description: 'Dark visions of a bleak future.',
-    rules: { keywords: ['dystopia', 'post-apocalypse'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '878|18', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
   {
     title: 'Best Cyberpunk Movies',
     slug: 'best-cyberpunk-movies',
     type: 'theme',
     description: 'High-tech, low-life cyberpunk cinema.',
-    rules: { keywords: ['cyberpunk'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '878|28', sort_by: 'vote_average.desc', vote_count_gte: 200 },
   },
   {
-    title: 'Best Movies Based on True Stories',
+    title: 'Based on True Stories',
     slug: 'best-movies-based-on-true-stories',
     type: 'theme',
     description: 'Compelling films inspired by real events.',
-    rules: { keywords: ['based on a true story', 'based on true events'] },
-    sort: 'rating',
-    limit: 80,
+    source: 'tmdb',
+    discover: { with_genres: '18|36', sort_by: 'vote_average.desc', vote_count_gte: 300 },
   },
 
-  // ── Classics ──────────────────────────────────────────────────────────────────
+  // ── Classics ──────────────────────────────────────────────────────────────
   {
     title: 'Cult Classic Movies',
     slug: 'cult-classic-movies',
     type: 'classics',
     description: 'Films with devoted cult followings.',
-    rules: { keywords: ['cult film'] },
-    sort: 'rating',
-    limit: 120,
+    source: 'tmdb',
+    discover: { sort_by: 'vote_average.desc', vote_count_gte: 5000, vote_average_gte: 7.5 },
   },
   {
-    title: 'Must‑Watch Movie Classics',
+    title: 'Must-Watch Movie Classics',
     slug: 'mustwatch-movie-classics',
     type: 'classics',
     description: 'Essential films every cinephile should see.',
-    rules: { rating_gte: 7.5 },
-    sort: 'rating',
-    limit: 120,
+    source: 'tmdb',
+    discover: { sort_by: 'vote_average.desc', vote_count_gte: 50000, vote_average_gte: 8.0 },
   },
   {
     title: 'Movies Everyone Should See Once',
     slug: 'movies-everyone-should-see-once',
     type: 'classics',
     description: 'Culturally defining films that shaped cinema.',
-    rules: { rating_gte: 7.5 },
-    sort: 'rating',
-    limit: 120,
+    source: 'tmdb',
+    discover: { sort_by: 'vote_average.desc', vote_count_gte: 100000, vote_average_gte: 8.0 },
   },
 ];
 
-/** Number of collections available to free (signed-in) users. The rest require Pro. */
-export const FREE_COLLECTIONS_LIMIT = 5;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function getCollectionBySlug(slug: string): Collection | undefined {
   return COLLECTIONS.find(c => c.slug === slug);
 }
 
-/** Collections grouped by type for browse UI */
+/** Collections grouped by type for the browse UI. */
 export function getCollectionsByType(): Record<CollectionType, Collection[]> {
   return COLLECTIONS.reduce((acc, c) => {
     if (!acc[c.type]) acc[c.type] = [];
     acc[c.type].push(c);
     return acc;
   }, {} as Record<CollectionType, Collection[]>);
+}
+
+/** The first N editorial collections available to free signed-in users. */
+export function getFreeEditorialSlugs(): Set<string> {
+  return new Set(
+    COLLECTIONS.filter(c => c.source === 'editorial')
+      .slice(0, FREE_COLLECTIONS_LIMIT)
+      .map(c => c.slug)
+  );
 }

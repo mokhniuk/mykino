@@ -8,5 +8,5 @@
 
 export { searchMovies, getMovieDetails, getWatchProviders, detectCountry, PROVIDER_LOGO_BASE, getGenres, getCountries, getLanguages, discoverMovies, getRecommendations, getTrending, getSimilar, getNowPlaying, getPopular, getDirectorMovies, fetchCollectionMovies } from './tmdb';
 export type { SearchResult, WatchProviderResult, WatchProvider } from './tmdb';
-export { COLLECTIONS, getCollectionBySlug, getCollectionsByType, FREE_COLLECTIONS_LIMIT } from './collections';
-export type { Collection, CollectionType, CollectionRules } from './collections';
+export { COLLECTIONS, getCollectionBySlug, getCollectionsByType, getFreeEditorialSlugs, FREE_COLLECTIONS_LIMIT } from './collections';
+export type { Collection, CollectionType, CollectionSource, DiscoverParams } from './collections';

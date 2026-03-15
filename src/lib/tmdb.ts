@@ -1,5 +1,5 @@
 import { cacheMovie, getCachedMovie, type MovieData } from './db';
-import type { CollectionRules } from './collections';
+import type { CollectionSource, DiscoverParams } from './collections';
 import { COLLECTION_MOVIES } from './collectionMovies';
 
 const BASE_URL = 'https://api.themoviedb.org/3';
@@ -764,172 +764,84 @@ const MOVIE_GENRE_IDS: Record<string, number> = {
 
 export async function fetchCollectionMovies(
   slug: string,
-  rules: CollectionRules,
-  sort: 'rating' | 'release_date' | 'popularity',
+  source: CollectionSource,
+  discover: DiscoverParams | undefined,
+  tmdbCollectionId: number | number[] | undefined,
   page: number,
   lang: string
 ): Promise<{ movies: MovieData[]; totalPages: number }> {
   if (!API_KEY) return { movies: [], totalPages: 0 };
 
-  // ── Static curated list (if available for this slug) ──────────────────────
-  const staticList = COLLECTION_MOVIES[slug];
-  if (staticList?.length) {
+  // ── Editorial: TMDB Collection API ────────────────────────────────────────
+  if (source === 'editorial' && tmdbCollectionId !== undefined) {
+    try {
+      const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+      const ids = Array.isArray(tmdbCollectionId) ? tmdbCollectionId : [tmdbCollectionId];
+      const seen = new Set<number>();
+      const allParts: { id: number; release_date?: string }[] = [];
+      for (const id of ids) {
+        const data = await tmdbFetch<{ parts: { id: number; release_date?: string }[] }>(
+          `/collection/${id}`, tmdbLang
+        );
+        for (const part of data.parts ?? []) {
+          if (!seen.has(part.id)) { seen.add(part.id); allParts.push(part); }
+        }
+      }
+      allParts.sort((a, b) => (a.release_date ?? '').localeCompare(b.release_date ?? ''));
+      const PAGE_SIZE = 20;
+      const totalPages = Math.ceil(allParts.length / PAGE_SIZE);
+      const pageItems = allParts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+      const results = await Promise.all(pageItems.map(p => getMovieDetails(`m-${p.id}`, lang)));
+      return { movies: results.filter((m): m is MovieData => m !== null), totalPages };
+    } catch {
+      return { movies: [], totalPages: 0 };
+    }
+  }
+
+  // ── Editorial: static curated list fallback (MCU, DC) ─────────────────────
+  if (source === 'editorial') {
+    const staticList = COLLECTION_MOVIES[slug];
+    if (!staticList?.length) return { movies: [], totalPages: 0 };
     const PAGE_SIZE = 20;
     const totalPages = Math.ceil(staticList.length / PAGE_SIZE);
     const pageItems = staticList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     const results = await Promise.all(
       pageItems.map(({ id, tv }) => getMovieDetails(tv ? `tv-${id}` : `m-${id}`, lang))
     );
-    const movies = results.filter((m): m is MovieData => m !== null);
-    return { movies, totalPages };
+    return { movies: results.filter((m): m is MovieData => m !== null), totalPages };
   }
 
-  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
-  const sortBy =
-    sort === 'rating' ? 'vote_average.desc'
-    : sort === 'release_date' ? 'primary_release_date.asc'
-    : 'popularity.desc';
-
-  // Minimum vote count — relax for older films
-  const oldestYear = rules.release_date_gte ?? 2000;
-  const voteCountMin = oldestYear < 1980 ? 100 : oldestYear < 1995 ? 200 : 300;
-
+  // ── TMDB Discover ─────────────────────────────────────────────────────────
   try {
-    // ── Director: use person crew credits ────────────────────────────────────
-    if (rules.director) {
-      const searchRes = await tmdbFetch<{
-        results: Array<{ id: number; name: string; known_for_department: string }>;
-      }>(`/search/person?query=${encodeURIComponent(rules.director)}&include_adult=false`);
-      const person =
-        searchRes.results.find(p => p.known_for_department === 'Directing') ??
-        searchRes.results[0];
-      if (!person) return { movies: [], totalPages: 0 };
+    const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+    const isTV = discover?.media_type === 'tv';
+    const endpoint = isTV ? '/discover/tv' : '/discover/movie';
 
-      const sortByDir = sort === 'release_date' ? 'primary_release_date.asc' : sortBy;
-      const data = await tmdbFetch<{
-        results: TmdbSearchItem[]; total_pages: number;
-      }>(
-        `/discover/movie?with_crew=${person.id}&page=${page}&include_adult=false&sort_by=${sortByDir}&vote_count.gte=50`,
-        tmdbLang
-      );
-      const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie'));
-      for (const m of movies) { if (!await getCachedMovie(m.imdbID)) await cacheMovie({ ...m, _lang: lang }); }
-      return { movies, totalPages: data.total_pages };
-    }
+    const params: Record<string, string> = {
+      page: String(page),
+      include_adult: 'false',
+      sort_by: discover?.sort_by ?? 'vote_average.desc',
+    };
+    if (discover?.with_genres !== undefined)   params.with_genres   = String(discover.with_genres);
+    if (discover?.with_companies !== undefined) params.with_companies = String(discover.with_companies);
+    if (discover?.with_cast !== undefined)      params.with_cast     = String(discover.with_cast);
+    if (discover?.with_crew !== undefined)      params.with_crew     = String(discover.with_crew);
+    if (discover?.with_networks !== undefined)  params.with_networks = String(discover.with_networks);
+    if (discover?.with_type !== undefined)      params.with_type     = String(discover.with_type);
+    if (discover?.vote_count_gte !== undefined) params['vote_count.gte']   = String(discover.vote_count_gte);
+    if (discover?.vote_average_gte !== undefined) params['vote_average.gte'] = String(discover.vote_average_gte);
+    if (discover?.['primary_release_date.gte']) params['primary_release_date.gte'] = discover['primary_release_date.gte'];
+    if (discover?.['primary_release_date.lte']) params['primary_release_date.lte'] = discover['primary_release_date.lte'];
+    if (discover?.['first_air_date.gte'])       params['first_air_date.gte'] = discover['first_air_date.gte'];
+    if (discover?.['first_air_date.lte'])       params['first_air_date.lte'] = discover['first_air_date.lte'];
 
-    // ── Actor: discover with_cast ─────────────────────────────────────────────
-    if (rules.actor) {
-      const searchRes = await tmdbFetch<{
-        results: Array<{ id: number; name: string; known_for_department: string }>;
-      }>(`/search/person?query=${encodeURIComponent(rules.actor)}&include_adult=false`);
-      const person =
-        searchRes.results.find(p => p.known_for_department === 'Acting') ??
-        searchRes.results[0];
-      if (!person) return { movies: [], totalPages: 0 };
-
-      const data = await tmdbFetch<{
-        results: TmdbSearchItem[]; total_pages: number;
-      }>(
-        `/discover/movie?with_cast=${person.id}&page=${page}&include_adult=false&sort_by=${sortBy}&vote_count.gte=200`,
-        tmdbLang
-      );
-      const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie'));
-      for (const m of movies) { if (!await getCachedMovie(m.imdbID)) await cacheMovie({ ...m, _lang: lang }); }
-      return { movies, totalPages: data.total_pages };
-    }
-
-    // ── Studio: discover with_companies ──────────────────────────────────────
-    if (rules.studio) {
-      const searchRes = await tmdbFetch<{
-        results: Array<{ id: number; name: string }>;
-      }>(`/search/company?query=${encodeURIComponent(rules.studio)}`);
-      if (!searchRes.results.length) return { movies: [], totalPages: 0 };
-
-      const needle = rules.studio.toLowerCase();
-      const matching = searchRes.results
-        .filter(c => c.name.toLowerCase().includes(needle) || needle.includes(c.name.toLowerCase()))
-        .slice(0, 3)
-        .map(c => c.id);
-      const companyIds = (matching.length ? matching : [searchRes.results[0].id]).join('|');
-
-      const data = await tmdbFetch<{
-        results: TmdbSearchItem[]; total_pages: number;
-      }>(
-        `/discover/movie?with_companies=${companyIds}&page=${page}&include_adult=false&sort_by=${sortBy}&vote_count.gte=50`,
-        tmdbLang
-      );
-      const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie'));
-      for (const m of movies) { if (!await getCachedMovie(m.imdbID)) await cacheMovie({ ...m, _lang: lang }); }
-      return { movies, totalPages: data.total_pages };
-    }
-
-    // ── Keywords: resolve names → IDs → discover ──────────────────────────────
-    if (rules.keywords?.length) {
-      const keywordResults = await Promise.all(
-        rules.keywords.map(kw =>
-          tmdbFetch<{ results: Array<{ id: number; name: string }> }>(
-            `/search/keyword?query=${encodeURIComponent(kw)}`
-          ).then(r => r.results[0]?.id).catch(() => undefined)
-        )
-      );
-      const keywordIds = keywordResults.filter((id): id is number => id !== undefined);
-      if (!keywordIds.length) return { movies: [], totalPages: 0 };
-
-      const kwParam = keywordIds.join('|');
-      const data = await tmdbFetch<{
-        results: TmdbSearchItem[]; total_pages: number;
-      }>(
-        `/discover/movie?with_keywords=${kwParam}&page=${page}&include_adult=false&sort_by=${sortBy}&vote_count.gte=${voteCountMin}`,
-        tmdbLang
-      );
-      const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie'));
-      for (const m of movies) { if (!await getCachedMovie(m.imdbID)) await cacheMovie({ ...m, _lang: lang }); }
-      return { movies, totalPages: data.total_pages };
-    }
-
-    // ── TV collections ────────────────────────────────────────────────────────
-    if (rules.media_type === 'tv') {
-      let params = `/discover/tv?page=${page}&include_adult=false&sort_by=${sortBy}&vote_count.gte=200`;
-      if (rules.tv_genre_id) params += `&with_genres=${rules.tv_genre_id}`;
-      if (rules.network_id) params += `&with_networks=${rules.network_id}`;
-      if (rules.with_type !== undefined) params += `&with_type=${rules.with_type}`;
-
-      const data = await tmdbFetch<{
-        results: TmdbSearchItem[]; total_pages: number;
-      }>(params, tmdbLang);
-      const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'tv' }, 'tv'));
-      for (const m of movies) { if (!await getCachedMovie(m.imdbID)) await cacheMovie({ ...m, _lang: lang }); }
-      return { movies, totalPages: data.total_pages };
-    }
-
-    // ── Genre(s) / decade / rating-based discover ─────────────────────────────
-    let genreParam = '';
-    if (rules.genre) {
-      const id = MOVIE_GENRE_IDS[rules.genre];
-      if (id) genreParam = `&with_genres=${id}`;
-    } else if (rules.genres?.length) {
-      const ids = rules.genres.map(g => MOVIE_GENRE_IDS[g]).filter(Boolean);
-      if (ids.length) genreParam = `&with_genres=${ids.join('|')}`;
-    }
-
-    let dateParam = '';
-    if (rules.release_date_gte) dateParam += `&primary_release_date.gte=${rules.release_date_gte}-01-01`;
-    if (rules.release_date_lte) dateParam += `&primary_release_date.lte=${rules.release_date_lte}-12-31`;
-
-    const ratingParam = rules.rating_gte !== undefined
-      ? `&vote_average.gte=${rules.rating_gte}`
-      : '';
-
-    const data = await tmdbFetch<{
-      results: TmdbSearchItem[]; total_pages: number;
-    }>(
-      `/discover/movie?page=${page}&include_adult=false&sort_by=${sortBy}&vote_count.gte=${voteCountMin}${genreParam}${dateParam}${ratingParam}`,
-      tmdbLang
+    const type = isTV ? 'tv' : 'movie';
+    const data = await tmdbFetch<{ results: TmdbSearchItem[]; total_pages: number }>(
+      `${endpoint}?${new URLSearchParams(params)}`, tmdbLang
     );
-    const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie'));
+    const movies = data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: type }, type));
     for (const m of movies) { if (!await getCachedMovie(m.imdbID)) await cacheMovie({ ...m, _lang: lang }); }
     return { movies, totalPages: data.total_pages };
-
   } catch {
     return { movies: [], totalPages: 0 };
   }

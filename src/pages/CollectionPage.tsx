@@ -3,11 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Layers, Lock } from 'lucide-react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useI18n } from '@/lib/i18n';
-import { getCollectionBySlug, fetchCollectionMovies } from '@/lib/api';
+import { getCollectionBySlug, fetchCollectionMovies, getFreeEditorialSlugs } from '@/lib/api';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import { config } from '@/lib/config';
-import { COLLECTIONS, FREE_COLLECTIONS_LIMIT } from '@/lib/api';
 import {
   getWatched, getWatchlist, getFavourites,
   addToWatched, removeFromWatched,
@@ -27,26 +26,32 @@ export default function CollectionPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { t, lang } = useI18n();
-  const { user } = useAuth();
-  const { isPro } = useProfile();
+  const { user, loading: authLoading } = useAuth();
+  const { isPro, loading: profileLoading } = useProfile();
   const collection = slug ? getCollectionBySlug(slug) : undefined;
-  const collectionIndex = collection ? COLLECTIONS.findIndex(c => c.slug === collection.slug) : -1;
-  const isFreeCollection = collectionIndex >= 0 && collectionIndex < FREE_COLLECTIONS_LIMIT;
-  const isSignedOut = config.hasSync && !user;
-  const isProLocked = config.hasSync && !!user && !isPro && !isFreeCollection;
-  const maxPages = collection ? Math.ceil(collection.limit / 20) : 1;
+  const freeEditorialSlugs = getFreeEditorialSlugs();
+  const isEditorial = collection?.source === 'editorial';
+
+  // Wait for auth + profile to settle before evaluating access.
+  const accessReady = !authLoading && (!user || !profileLoading);
+  const effectiveUser = accessReady ? user : null;
+  const effectiveIsPro = accessReady ? isPro : false;
+
+  const isCommunityEditorial = !config.hasSync && isEditorial;
+  const isSignedOut = config.hasSync && !effectiveUser && isEditorial;
+  const isProLocked = config.hasSync && !!effectiveUser && !effectiveIsPro && isEditorial && !freeEditorialSlugs.has(slug ?? '');
 
   // ── Collection movies ──────────────────────────────────────────────────────
   const { data, isLoading, isFetching, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey: ['collection', slug, lang],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
-      fetchCollectionMovies(collection!.slug, collection!.rules, collection!.sort, pageParam as number, lang),
+      fetchCollectionMovies(collection!.slug, collection!.source, collection!.discover, collection!.tmdbCollectionId, pageParam as number, lang),
     getNextPageParam: (lastPage, allPages) => {
       const next = allPages.length + 1;
-      return next <= Math.min(lastPage.totalPages, maxPages) ? next : undefined;
+      return next <= lastPage.totalPages ? next : undefined;
     },
-    enabled: !!collection,
+    enabled: !!collection && !isSignedOut && !isProLocked && !isCommunityEditorial,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -110,6 +115,19 @@ export default function CollectionPage() {
             onClick={() => navigate(-1)}
             className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine"
           >
+            <ChevronLeft size={16} />
+          </button>
+        </div>
+        <p className="text-muted-foreground">{t('noResults')}</p>
+      </div>
+    );
+  }
+
+  if (isCommunityEditorial) {
+    return (
+      <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
+        <div className="flex items-center gap-3 pt-6 mb-6">
+          <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
             <ChevronLeft size={16} />
           </button>
         </div>
