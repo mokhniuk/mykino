@@ -13,9 +13,9 @@ const PROVIDERS = [
 
 const COMPOSE = `services:
   mykino:
-    image: ghcr.io/mokhniuk/mykino:latest
+    image: mokhniuk/mykino:latest
     ports:
-      - "8080:8080"
+      - "9999:9999"
     environment:
       # Pick ONE AI provider:
       OPENAI_API_KEY: sk-...
@@ -78,12 +78,13 @@ export default function Community() {
           </p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <a
-              href="https://github.com/mokhniuk/mykino"
+              href="https://hub.docker.com/r/mokhniuk/mykino"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-background font-semibold text-sm hover:opacity-90 transition-opacity"
             >
-              {t('communityGithubBtn')}
+              <Package size={16} />
+              {t('communityDockerHubBtn')}
             </a>
             <button
               onClick={() => navigate('/pricing')}
@@ -145,7 +146,7 @@ export default function Community() {
           {/* Step 3 */}
           <div className="flex items-start gap-2.5">
             <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-            <p className="font-semibold text-foreground">{t('communityStep3Label')} <a href="http://localhost:8080" className="text-primary hover:underline">localhost:8080</a> {t('communityStep3Done')}</p>
+            <p className="font-semibold text-foreground">{t('communityStep3Label')} <a href="http://localhost:9999" className="text-primary hover:underline">localhost:9999</a> {t('communityStep3Done')}</p>
           </div>
         </div>
 
@@ -188,11 +189,12 @@ export default function Community() {
           <h2 className="text-2xl font-bold text-foreground">{t('communityCTATitle')}</h2>
           <p className="text-muted-foreground">{t('communityCTADesc')}</p>
           <a
-            href="https://github.com/mokhniuk/mykino"
+            href="https://hub.docker.com/r/mokhniuk/mykino"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-foreground text-background font-semibold text-sm hover:opacity-90 transition-opacity"
           >
+            <Package size={16} />
             {t('communityCTABtn')}
           </a>
         </div>

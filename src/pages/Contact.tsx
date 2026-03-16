@@ -69,21 +69,6 @@ export default function Contact() {
             <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">↗</span>
           </a>
 
-          <a
-            href="https://github.com/anthropics/claude-code/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-5 p-6 rounded-2xl bg-card border border-border hover:border-primary/40 transition-colors group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Github size={20} className="text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground mb-0.5">{t('contactGithubTitle')}</p>
-              <p className="text-sm text-muted-foreground">{t('contactGithubDesc')}</p>
-            </div>
-            <span className="text-muted-foreground group-hover:text-foreground transition-colors text-sm">↗</span>
-          </a>
 
         </div>
 
