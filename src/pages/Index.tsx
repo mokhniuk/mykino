@@ -109,23 +109,23 @@ function RecoSectionHeader({ section }: { section: RecoSection }) {
 }
 
 const MILESTONE_ICONS: Record<MilestoneId, LucideIcon> = {
-  first_film:       Clapperboard,
-  ten_films:        Film,
-  twenty_five_films:Popcorn,
-  fifty_films:      Star,
-  hundred_films:    Trophy,
-  two_hundred_films:Crown,
-  top_contender:    ListOrdered,
-  classic:          Clock,
-  time_traveller:   Rewind,
-  world_explorer:   Globe,
-  polyglot:         Languages,
-  genre_master:     Layers,
-  decade_hopper:    CalendarDays,
+  first_film: Clapperboard,
+  ten_films: Film,
+  twenty_five_films: Popcorn,
+  fifty_films: Star,
+  hundred_films: Trophy,
+  two_hundred_films: Crown,
+  top_contender: ListOrdered,
+  classic: Clock,
+  time_traveller: Rewind,
+  world_explorer: Globe,
+  polyglot: Languages,
+  genre_master: Layers,
+  decade_hopper: CalendarDays,
   director_devotee: Award,
-  binge_day:        Zap,
-  epic_viewer:      Hourglass,
-  quick_pick:       Timer,
+  binge_day: Zap,
+  epic_viewer: Hourglass,
+  quick_pick: Timer,
 };
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ export default function Index() {
     () => Object.fromEntries(trackingList.map(tr => [tr.tvId, tr])),
     [trackingList],
   );
-  const watchingShows = trackingList.filter(s => s.status === 'watching');
+  const watchingShows = trackingList.filter(s => s.totalEpisodesWatched > 0 && s.status !== 'completed');
   const [watchingMovies, setWatchingMovies] = useState<Map<string, MovieData>>(new Map());
   const [recentSearches, setRecentSearches] = useState<SearchHistoryEntry[]>([]);
   const [upNextMovies, setUpNextMovies] = useState<MovieData[]>([]);
@@ -793,11 +793,10 @@ export default function Index() {
                 <Link
                   key={milestone.id}
                   to="/app/achievements/milestones"
-                  className={`flex-shrink-0 w-28 rounded-xl p-3 glass-card transition-all relative ${
-                    milestone.unlocked
+                  className={`flex-shrink-0 w-28 rounded-xl p-3 glass-card transition-all relative ${milestone.unlocked
                       ? 'ring-1 ring-primary/30 shadow-[0_0_14px_hsl(var(--primary)/0.18)]'
                       : 'opacity-50'
-                  }`}
+                    }`}
                 >
                   {milestone.unlocked && (
                     <div className="absolute top-2 right-2">
