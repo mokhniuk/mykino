@@ -22,7 +22,7 @@ export default function Footer() {
               <button onClick={() => navigate('/contact')} className="hover:text-foreground transition-colors">{t('footerContact')}</button>
             </>
           )}
-          <button onClick={() => navigate('/app')} className="hover:text-foreground transition-colors">{t('pricingFreeBtn')}</button>
+          
         </div>
       </div>
     </footer>
