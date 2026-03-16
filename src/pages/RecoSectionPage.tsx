@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ThumbsUp, Layers, Clapperboard, TrendingUp, Flame, Gem, RefreshCw, ChevronLeft, Loader2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useRecommendations } from '@/hooks/useRecommendations';
@@ -29,6 +29,7 @@ const SECTION_TITLE_KEYS: Record<RecoSection['id'], SectionTitleKey> = {
 
 export default function RecoSectionPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { t, lang } = useI18n();
   const { sections, isLoading, isFetching, refresh } = useRecommendations();
 
@@ -104,9 +105,9 @@ export default function RecoSectionPage() {
     <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-2">
         <div className="flex items-center gap-3">
-          <Link to="/app" className="text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft size={24} />
-          </Link>
+          <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+            <ChevronLeft size={16} />
+          </button>
           {sectionId && SECTION_ICONS[sectionId]}
           <h1 className="text-2xl md:text-3xl text-foreground">{title}</h1>
         </div>

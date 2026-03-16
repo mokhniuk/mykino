@@ -1,14 +1,11 @@
 import { openDB, IDBPDatabase } from 'idb';
 import type { TVSeriesTracking } from './tvTracking';
+import { dispatchSyncEvent } from './sync';
 
 const DB_NAME = 'mykino';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const APP_DATA_VERSION = 5;
 
-// Temporary export for debugging
-if (typeof window !== 'undefined') {
-  (window as any).getCurrentDBName = () => DB_NAME;
-}
 
 export interface MovieData {
   imdbID: string;
@@ -39,6 +36,14 @@ export interface MovieData {
   original_language?: string;
   addedAt?: number;
   [key: string]: unknown;
+}
+
+export interface SearchHistoryEntry {
+  id?: number;
+  query: string;
+  source: 'chip' | 'input';
+  results: (MovieData & { aiReason?: string })[];
+  timestamp: number;
 }
 
 export interface ContentPreferences {
@@ -162,6 +167,9 @@ async function migrateFromOldDatabase() {
         if (oldVersion < 5) {
           db.createObjectStore('metadata', { keyPath: 'key' });
         }
+        if (oldVersion < 6) {
+          db.createObjectStore('search_history', { keyPath: 'id', autoIncrement: true });
+        }
       },
     });
 
@@ -197,31 +205,37 @@ export async function getDB() {
     // Migrate from old database if needed (with 1s timeout for check)
     await migrateFromOldDatabase();
 
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        if (oldVersion < 1) {
-          db.createObjectStore('movies', { keyPath: 'imdbID' });
-          db.createObjectStore('watchlist', { keyPath: 'imdbID' });
-          db.createObjectStore('favourites', { keyPath: 'imdbID' });
-          db.createObjectStore('settings', { keyPath: 'key' });
-        }
-        if (oldVersion < 2) {
-          db.createObjectStore('watched', { keyPath: 'imdbID' });
-        }
-        if (oldVersion < 3) {
-          db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
-        }
-        if (oldVersion < 4) {
-          // Placeholder for version 4 compatibility
-        }
-        if (oldVersion < 5) {
-          db.createObjectStore('metadata', { keyPath: 'key' });
-        }
-      },
-    });
-
-    // Fire migration in background
-    dbPromise.then(safeRunMigration);
+    // Wrap in a single promise so every caller awaits both the open AND the migration.
+    // This prevents a race where early writes happen before the ID-prefix migration completes.
+    dbPromise = (async () => {
+      const db = await openDB(DB_NAME, DB_VERSION, {
+        upgrade(db, oldVersion) {
+          if (oldVersion < 1) {
+            db.createObjectStore('movies', { keyPath: 'imdbID' });
+            db.createObjectStore('watchlist', { keyPath: 'imdbID' });
+            db.createObjectStore('favourites', { keyPath: 'imdbID' });
+            db.createObjectStore('settings', { keyPath: 'key' });
+          }
+          if (oldVersion < 2) {
+            db.createObjectStore('watched', { keyPath: 'imdbID' });
+          }
+          if (oldVersion < 3) {
+            db.createObjectStore('tv_tracking', { keyPath: 'tvId' });
+          }
+          if (oldVersion < 4) {
+            // Placeholder for version 4 compatibility
+          }
+          if (oldVersion < 5) {
+            db.createObjectStore('metadata', { keyPath: 'key' });
+          }
+          if (oldVersion < 6) {
+            db.createObjectStore('search_history', { keyPath: 'id', autoIncrement: true });
+          }
+        },
+      });
+      await safeRunMigration(db);
+      return db;
+    })();
   }
 
   return dbPromise;
@@ -247,12 +261,15 @@ export async function getWatchlist(): Promise<MovieData[]> {
 
 export async function addToWatchlist(movie: MovieData) {
   const db = await getDB();
-  await db.put('watchlist', { ...movie, addedAt: Date.now() });
+  const data = { ...movie, addedAt: Date.now() };
+  await db.put('watchlist', data);
+  dispatchSyncEvent({ store: 'watchlist', action: 'upsert', id: movie.imdbID, data });
 }
 
 export async function removeFromWatchlist(id: string) {
   const db = await getDB();
   await db.delete('watchlist', id);
+  dispatchSyncEvent({ store: 'watchlist', action: 'delete', id });
 }
 
 export async function isInWatchlist(id: string): Promise<boolean> {
@@ -270,11 +287,13 @@ export async function getFavourites(): Promise<MovieData[]> {
 export async function addToFavourites(movie: MovieData) {
   const db = await getDB();
   await db.put('favourites', movie);
+  dispatchSyncEvent({ store: 'favourites', action: 'upsert', id: movie.imdbID, data: movie });
 }
 
 export async function removeFromFavourites(id: string) {
   const db = await getDB();
   await db.delete('favourites', id);
+  dispatchSyncEvent({ store: 'favourites', action: 'delete', id });
 }
 
 export async function isInFavourites(id: string): Promise<boolean> {
@@ -292,12 +311,15 @@ export async function getWatched(): Promise<MovieData[]> {
 
 export async function addToWatched(movie: MovieData) {
   const db = await getDB();
-  await db.put('watched', { ...movie, addedAt: Date.now() });
+  const data = { ...movie, addedAt: Date.now() };
+  await db.put('watched', data);
+  dispatchSyncEvent({ store: 'watched', action: 'upsert', id: movie.imdbID, data });
 }
 
 export async function removeFromWatched(id: string) {
   const db = await getDB();
   await db.delete('watched', id);
+  dispatchSyncEvent({ store: 'watched', action: 'delete', id });
 }
 
 export async function isWatched(id: string): Promise<boolean> {
@@ -327,14 +349,27 @@ export async function importAllData(data: {
   settings?: { key: string; value: string }[];
   tvTracking?: TVSeriesTracking[];
 }) {
+  // Validate structure before touching the DB — reject corrupted files early
+  if (
+    !Array.isArray(data.watchlist ?? []) ||
+    !Array.isArray(data.watched ?? []) ||
+    !Array.isArray(data.favourites ?? []) ||
+    !Array.isArray(data.settings ?? []) ||
+    !Array.isArray(data.tvTracking ?? [])
+  ) {
+    throw new Error('Invalid import data: expected arrays for all collections');
+  }
+
   const db = await getDB();
   const hasTVTracking = (data.tvTracking?.length ?? 0) > 0;
   const stores: string[] = ['watchlist', 'watched', 'favourites', 'settings'];
   if (hasTVTracking) stores.push('tv_tracking');
 
+  // All operations run in a single transaction — if any put() fails the
+  // transaction is aborted and the DB is automatically rolled back to its
+  // previous state (IndexedDB ACID guarantee).
   const tx = db.transaction(stores, 'readwrite');
 
-  // Clear existing data to ensure a clean restore (replacement, not merge)
   for (const store of stores) {
     tx.objectStore(store).clear();
   }
@@ -448,4 +483,46 @@ export async function enrichWatchedMovie(enriched: MovieData) {
   const existing = await db.get('watched', enriched.imdbID);
   if (!existing) return;
   await db.put('watched', { ...existing, ...enriched, addedAt: existing.addedAt });
+}
+
+// Search History
+const SEARCH_HISTORY_MAX = 200;
+
+export async function saveSearchHistory(entry: Omit<SearchHistoryEntry, 'id'>) {
+  const db = await getDB();
+  await db.add('search_history', { ...entry });
+  // Prune oldest entries beyond the cap
+  const all = await db.getAll('search_history');
+  if (all.length > SEARCH_HISTORY_MAX) {
+    all.sort((a, b) => a.timestamp - b.timestamp);
+    const toDelete = all.slice(0, all.length - SEARCH_HISTORY_MAX);
+    const tx = db.transaction('search_history', 'readwrite');
+    for (const entry of toDelete) {
+      if (entry.id != null) tx.objectStore('search_history').delete(entry.id);
+    }
+    await tx.done;
+  }
+}
+
+export async function getSearchHistory(limit = 20, offset = 0): Promise<SearchHistoryEntry[]> {
+  const db = await getDB();
+  const all = await db.getAll('search_history');
+  return all
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(offset, offset + limit);
+}
+
+export async function getSearchHistoryCount(): Promise<number> {
+  const db = await getDB();
+  return db.count('search_history');
+}
+
+export async function deleteSearchHistoryEntry(id: number) {
+  const db = await getDB();
+  await db.delete('search_history', id);
+}
+
+export async function clearSearchHistory() {
+  const db = await getDB();
+  await db.clear('search_history');
 }

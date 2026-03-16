@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Loader2, X, Sparkles, Smile, Ghost, Heart, Brain, Zap, Coffee, Film, Search, Lightbulb, Droplets, Laugh, AlertTriangle, Drama, Rocket, Wand2, Fingerprint, Users, Star, Clock, Gem, CheckCircle2, BookmarkCheck } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Search as SearchIcon, Loader2, X, Sparkles, Search, CheckCircle2, BookmarkCheck, History } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { searchMovies, getGenres, getCountries, discoverMovies } from '@/lib/api';
 import { type MovieData } from '@/lib/db';
-import { getAIRecommendations, isAIEnabled, type AIRecommendation } from '@/lib/ai';
+import { getAIRecommendations, isAIEnabled, getAIUsage, AILimitReachedError, type AIRecommendation } from '@/lib/ai';
+import MoodChips from '@/components/MoodChips';
+import { config } from '@/lib/config';
 import { getOrBuildTasteProfile } from '@/lib/tasteProfile';
-import { getContentPreferences, getFavourites, getWatchlist } from '@/lib/db';
+import { getContentPreferences, getFavourites, getWatchlist, saveSearchHistory } from '@/lib/db';
 import { getMovieDetails } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -34,6 +36,8 @@ interface CachedSearchState {
   aiHasMore: boolean;
   allAiRecommendations: MovieWithReason[];
   useAI: boolean;
+  page: number;
+  hasMore: boolean;
   timestamp: number;
 }
 
@@ -78,6 +82,7 @@ export default function SearchPage() {
   const [searchPending, setSearchPending] = useState(false);
   const [error, setError] = useState('');
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiUsage, setAiUsage] = useState(() => config.hasManagedAI ? getAIUsage() : null);
   const [useAI, setUseAI] = useState(shouldRestoreCache ? cachedState.useAI : false);
   const [aiPage, setAiPage] = useState(shouldRestoreCache ? cachedState.aiPage : 1);
   const [aiHasMore, setAiHasMore] = useState(shouldRestoreCache ? cachedState.aiHasMore : false);
@@ -87,12 +92,13 @@ export default function SearchPage() {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
 
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(shouldRestoreCache ? cachedState.page : 1);
+  const [hasMore, setHasMore] = useState(shouldRestoreCache ? cachedState.hasMore : false);
   const [isDiscovery, setIsDiscovery] = useState(false);
   const [libraryMatch, setLibraryMatch] = useState<{ title: string; status: 'watched' | 'watchlist' } | null>(null);
   const observerRef = useRef<HTMLDivElement>(null);
   const libraryIdsRef = useRef<Set<string>>(new Set());
+  const searchSourceRef = useRef<'chip' | 'input'>('input');
   const { genres: tmdbGenres, countries: tmdbCountries } = useTmdbMetadata();
   const queryClient = useQueryClient();
 
@@ -167,6 +173,15 @@ export default function SearchPage() {
     return () => window.removeEventListener('ai-config-changed', handleAIConfigChange as EventListener);
   }, []);
 
+  // Keep AI usage in sync so the toggle can be disabled when limit is reached
+  useEffect(() => {
+    if (!config.hasManagedAI) return;
+    const refresh = () => setAiUsage(getAIUsage());
+    window.addEventListener('ai-usage-updated', refresh);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    return () => window.removeEventListener('ai-usage-updated', refresh);
+  }, []);
+
   // Save AI toggle state when user manually changes it
   useEffect(() => {
     if (aiEnabled) {
@@ -177,9 +192,9 @@ export default function SearchPage() {
   // Ref updated every render so the observer callback always has fresh state
   const loadMoreRef = useRef<(() => void) | null>(null);
   
-  // Cache search results when they change
+  // Cache search results when they change (both AI and non-AI)
   useEffect(() => {
-    if (results.length > 0 && useAI && query) {
+    if (results.length > 0 && query) {
       const cacheState: CachedSearchState = {
         query,
         results,
@@ -187,11 +202,13 @@ export default function SearchPage() {
         aiHasMore,
         allAiRecommendations,
         useAI,
+        page,
+        hasMore,
         timestamp: Date.now(),
       };
       sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheState));
     }
-  }, [results, query, aiPage, aiHasMore, allAiRecommendations, useAI]);
+  }, [results, query, aiPage, aiHasMore, allAiRecommendations, useAI, page, hasMore]);
 
   // AI search function
   const doAISearch = async (q: string, pageNum: number = 1) => {
@@ -203,17 +220,17 @@ export default function SearchPage() {
       return;
     }
 
-    // Use loadingMore for pagination, loading for initial search
+    // Use loadingMore for pagination, loading for initial search.
+    // Keep stale results visible while loading — clearing them causes a blank flash
+    // and forces every SearchResultCard to remount (re-querying IDB watchlist/watched state).
     if (pageNum === 1) {
       setLoading(true);
-      setResults([]); // Clear results immediately
     } else {
       setLoadingMore(true);
     }
     setError('');
 
     try {
-      console.log('🔍 Starting AI search...');
       const [tasteProfile, contentPreferences, favourites, watchlist, watched] = await Promise.all([
         getOrBuildTasteProfile(),
         getContentPreferences(),
@@ -261,6 +278,8 @@ export default function SearchPage() {
         ? `Find movies and TV series similar to "${pivotTitle}". Do not include "${pivotTitle}" itself. Give diverse, high-quality recommendations.`
         : q;
 
+      const fromChip = searchSourceRef.current === 'chip';
+
       const aiRecommendations = await getAIRecommendations({
         query: aiQuery,
         language: langName,
@@ -269,50 +288,38 @@ export default function SearchPage() {
         contentPreferences,
         favourites: favourites.slice(0, 10).map(m => ({ Title: m.Title, Year: m.Year, Genre: m.Genre })),
         watchlist: watchlist.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })),
-        watched: watched.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })),
+        // Chip searches: tell AI to exclude watched. Input searches: AI may surface them (sorted first client-side).
+        watched: fromChip ? watched.slice(0, 100).map(m => ({ Title: m.Title, Year: m.Year })) : [],
       });
 
-      console.log(`✅ AI returned ${aiRecommendations.length} recommendations`);
-      
       // DEDUPLICATE AI recommendations by title BEFORE fetching movie data
-      const uniqueAiRecs = aiRecommendations.filter((rec, index, self) => 
+      const uniqueAiRecs = aiRecommendations.filter((rec, index, self) =>
         index === self.findIndex(r => r.title.toLowerCase() === rec.title.toLowerCase())
       );
-      
-      console.log(`After deduplication: ${uniqueAiRecs.length} unique titles from ${aiRecommendations.length} total`);
-      
-      if (uniqueAiRecs.length < 10) {
-        console.warn(`⚠️ WARNING: AI only provided ${uniqueAiRecs.length} unique movies out of ${aiRecommendations.length} requested!`);
-      }
 
       // Fetch movie data in parallel
       const movieDataPromises = uniqueAiRecs.map(async (rec, index) => {
         try {
-          console.log(`🔎 Searching for: "${rec.title}" (${rec.year})`);
           const searchResult = await searchMovies(rec.title, 1, lang);
           const movies = searchResult?.Search || [];
-          
-          if (movies.length === 0) {
-            console.warn(`⚠️ NOT FOUND in TMDB: "${rec.title}" (${rec.year})`);
-            return { index, movieData: null, reason: rec.reason };
-          }
-          
+          if (movies.length === 0) return { index, movieData: null, reason: rec.reason };
           const movie = movies[0];
-          console.log(`✓ Found: "${movie.Title}" for search "${rec.title}"`);
           const details = await getMovieDetails(movie.imdbID, lang);
           return { index, movieData: details || movie, reason: rec.reason };
         } catch (e) {
-          console.error(`❌ Error fetching "${rec.title}":`, e);
           return { index, movieData: null, reason: rec.reason };
         }
       });
 
       const movieResults = await Promise.all(movieDataPromises);
 
-      // Filter by disliked countries / languages only
+      // Filter by disliked countries / languages; for chip searches also exclude watched
+      const watchedIds = new Set(watched.map(m => m.imdbID));
       const filteredResults = movieResults.filter(r => {
         if (!r.movieData) return false;
         const movie = r.movieData;
+
+        if (fromChip && watchedIds.has(movie.imdbID)) return false;
 
         if (movie.Country && contentPreferences.disliked_countries.length > 0) {
           const movieCountries = movie.Country.toLowerCase();
@@ -326,18 +333,34 @@ export default function SearchPage() {
 
         return true;
       });
-      
+
       const newResults: MovieWithReason[] = filteredResults
         .map(r => ({ ...r.movieData!, aiReason: r.reason }));
+
+      // For input AI searches, sort already-watched items to the top
+      if (!fromChip && watchedIds.size > 0) {
+        newResults.sort((a, b) =>
+          (watchedIds.has(b.imdbID) ? 1 : 0) - (watchedIds.has(a.imdbID) ? 1 : 0)
+        );
+      }
       
       if (pageNum === 1) {
         // Remove duplicates by imdbID
-        const uniqueResults = newResults.filter((movie, index, self) => 
+        const uniqueResults = newResults.filter((movie, index, self) =>
           index === self.findIndex(m => m.imdbID === movie.imdbID)
         );
         setResults(uniqueResults);
         setAllAiRecommendations(uniqueResults);
         setAiHasMore(uniqueResults.length >= 10);
+        // Save to search history (chip and input AI searches)
+        if (uniqueResults.length > 0) {
+          saveSearchHistory({
+            query: q,
+            source: fromChip ? 'chip' : 'input',
+            results: uniqueResults,
+            timestamp: Date.now(),
+          });
+        }
       } else {
         // Merge with existing results and remove duplicates
         const combined = [...allAiRecommendations, ...newResults];
@@ -349,8 +372,12 @@ export default function SearchPage() {
         setAiHasMore(newResults.length >= 10);
       }
     } catch (error) {
-      console.error('AI search error:', error);
-      toast.error(t('aiError'));
+      if (error instanceof AILimitReachedError) {
+        toast.error(t('aiLimitReached'));
+      } else {
+        console.error('AI search error:', error);
+        toast.error(t('aiError'));
+      }
       setResults([]);
       setAiHasMore(false);
     } finally {
@@ -415,6 +442,15 @@ export default function SearchPage() {
 
       setResults(prev => append ? [...prev, ...items] : items);
       setHasMore(data.Search.length >= 20);
+      // Save to search history on first page of a real query search
+      if (!append && q.trim() && !isDiscMode && items.length > 0) {
+        saveSearchHistory({
+          query: q,
+          source: 'input',
+          results: items,
+          timestamp: Date.now(),
+        });
+      }
     } else {
       if (!append) setResults([]);
       setHasMore(false);
@@ -441,33 +477,34 @@ export default function SearchPage() {
     // Check if we have cached results (only on initial mount when navigating back)
     if (isInitialMount.current && shouldRestoreCache && results.length > 0) {
       // We already have cached results from navigation back, don't search again
-      console.log('📦 Using cached search results');
       isInitialMount.current = false;
       return;
     }
     
     isInitialMount.current = false;
     
-    // Mark search as pending immediately
-    if (query.trim() || hasActiveFilters) {
-      setSearchPending(true);
-    } else {
-      setSearchPending(false);
-    }
-    
+    const hasQuery = query.trim().length > 0;
+    const queryLongEnough = query.trim().length >= 2;
+
+    // Delay the pending indicator so it doesn't flash on every keystroke
+    const pendingTimer = hasQuery ? setTimeout(() => setSearchPending(true), 150) : null;
+
+    const delay = useAI ? 300 : 500;
     const timer = setTimeout(() => {
-      setParams(query ? { q: query } : {}, { replace: true });
+      if (pendingTimer) clearTimeout(pendingTimer);
       setSearchPending(false);
-      
-      // Use AI search if enabled and toggle is on
-      if (useAI && query.trim()) {
+      setParams(query ? { q: query } : {}, { replace: true });
+
+      if (useAI && hasQuery) {
         doAISearch(query, 1);
-      } else {
+      } else if (queryLongEnough || hasActiveFilters) {
         doFetch(query, 1, false);
       }
-    }, 400);
+    }, delay);
+
     return () => {
       clearTimeout(timer);
+      if (pendingTimer) clearTimeout(pendingTimer);
       setSearchPending(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -475,6 +512,7 @@ export default function SearchPage() {
 
   // Handle mood chip clicks
   const handleMoodClick = (mood: string) => {
+    searchSourceRef.current = 'chip';
     setQuery(mood);
   };
 
@@ -512,7 +550,11 @@ export default function SearchPage() {
         {/* Search Input */}
         <form onSubmit={(e) => e.preventDefault()}>
           <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary border border-border focus-within:border-primary/40 transition-colors">
+            <div className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              loading
+                ? 'glass-spin'
+                : 'bg-secondary border border-border focus-within:border-primary/40 glass-shine'
+            }`}>
               {useAI ? (
                 <Sparkles size={18} className="text-primary" />
               ) : (
@@ -521,7 +563,7 @@ export default function SearchPage() {
               <input
                 type="search"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { searchSourceRef.current = 'input'; setQuery(e.target.value); }}
                 placeholder={useAI ? t('aiSearchPlaceholder') : t('typeToSearch')}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 autoFocus
@@ -539,20 +581,40 @@ export default function SearchPage() {
               {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
             </div>
             
-            {aiEnabled && (
-              <button
-                type="button"
-                onClick={() => setUseAI(!useAI)}
-                className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors ${
-                  useAI 
-                    ? 'bg-primary/10 border-primary/40 text-primary' 
-                    : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
-                }`}
-                aria-label={t('aiAdvisor')}
-              >
-                <Sparkles size={18} />
-              </button>
-            )}
+            {aiEnabled && (() => {
+              const limitReached = aiUsage?.remaining === 0;
+              return (
+                <button
+                  type="button"
+                  onClick={() => !limitReached && setUseAI(!useAI)}
+                  disabled={limitReached}
+                  title={limitReached ? t('aiLimitReached') : undefined}
+                  aria-label={t('aiAdvisor')}
+                  className={`flex items-center gap-2 px-3 py-3.5 rounded-xl border transition-colors shrink-0 glass-shine ${
+                    limitReached
+                      ? 'bg-secondary border-border opacity-40 cursor-not-allowed'
+                      : useAI
+                        ? 'bg-primary/10 border-primary/30 text-primary'
+                        : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Sparkles size={14} className={useAI ? 'text-primary' : ''} />
+                  <span className="text-xs font-semibold tracking-wide">AI</span>
+                  {/* Mini switch track */}
+                  <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${useAI && !limitReached ? 'bg-primary' : 'bg-border'}`}>
+                    <div className={`absolute top-0.5 w-3 h-3 rounded-full shadow-sm transition-all duration-200 ${useAI && !limitReached ? 'left-3.5 bg-primary-foreground' : 'left-0.5 bg-muted-foreground/60'}`} />
+                  </div>
+                </button>
+              );
+            })()}
+
+            <Link
+              to="/app/history"
+              aria-label={t('searchHistory')}
+              className="flex items-center justify-center p-3.5 rounded-xl bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors shrink-0 glass-shine"
+            >
+              <History size={16} />
+            </Link>
           </div>
         </form>
 
@@ -612,148 +674,7 @@ export default function SearchPage() {
 
         {/* Mood Chips for AI */}
         {useAI && !query && (
-          <div className="flex flex-wrap justify-center gap-2 py-2">
-            <button
-              onClick={() => handleMoodClick(t('moodFun'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Smile size={14} />
-              {t('moodFun')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodScary'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Ghost size={14} />
-              {t('moodScary')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodRomantic'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Heart size={14} />
-              {t('moodRomantic')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodThinking'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Brain size={14} />
-              {t('moodThinking')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodAction'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Zap size={14} />
-              {t('moodAction')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodChill'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Coffee size={14} />
-              {t('moodChill')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodEpic'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Film size={14} />
-              {t('moodEpic')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodMystery'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Search size={14} />
-              {t('moodMystery')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodInspiring'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Lightbulb size={14} />
-              {t('moodInspiring')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodEmotional'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Droplets size={14} />
-              {t('moodEmotional')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodComedy'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Laugh size={14} />
-              {t('moodComedy')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodThriller'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <AlertTriangle size={14} />
-              {t('moodThriller')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodDrama'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Drama size={14} />
-              {t('moodDrama')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodSci'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Rocket size={14} />
-              {t('moodSci')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodFantasy'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Wand2 size={14} />
-              {t('moodFantasy')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodCrime'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Fingerprint size={14} />
-              {t('moodCrime')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodFamily'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Users size={14} />
-              {t('moodFamily')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodClassic'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Star size={14} />
-              {t('moodClassic')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodRecent'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Clock size={14} />
-              {t('moodRecent')}
-            </button>
-            <button
-              onClick={() => handleMoodClick(t('moodUnderrated'))}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors"
-            >
-              <Gem size={14} />
-              {t('moodUnderrated')}
-            </button>
-          </div>
+          <MoodChips onSelect={handleMoodClick} />
         )}
       </div>
 
@@ -794,7 +715,7 @@ export default function SearchPage() {
               </div>
             ) : (
               <SearchResultCard
-                key={`${movie.imdbID}-${movie.Type}-${index}`}
+                key={`${movie.imdbID}-${movie.Type}`}
                 movie={movie}
                 aiReason={movie.aiReason}
                 onWatchlistChange={() => queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] })}
@@ -815,11 +736,14 @@ export default function SearchPage() {
       {/* Load More button for AI */}
       {useAI && aiHasMore && results.length > 0 && (
         <div className="flex justify-center py-4">
-          <Button
+          <button
             onClick={loadMoreAI}
-            variant="outline"
-            className="gap-2"
             disabled={loadingMore}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              loadingMore
+                ? 'glass-spin text-muted-foreground cursor-not-allowed'
+                : 'bg-secondary border border-border glass-shine text-foreground hover:bg-secondary/70'
+            }`}
           >
             {loadingMore ? (
               <>
@@ -832,12 +756,12 @@ export default function SearchPage() {
                 {t('loadMore')}
               </>
             )}
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* Loading state for AI search - SHOW THIS FIRST */}
-      {(loading || searchPending) && useAI && query ? (
+      {/* Loading state for AI search — only when no prior results to keep visible */}
+      {(loading || searchPending) && useAI && query && results.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <Loader2 size={28} className="text-primary animate-spin" />

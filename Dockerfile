@@ -3,26 +3,33 @@ FROM docker.io/oven/bun:1-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies first (cached layer)
+# Install dependencies for both frontend and server
 COPY package.json bun.lockb* ./
+COPY server/package.json ./server/
 RUN bun install --frozen-lockfile
 
-# Copy source and build (skips interactive version-bump prompt)
+# Copy source and build frontend
 COPY . .
-RUN bun run build:static
+ARG IS_COMMUNITY=false
+RUN VITE_IS_COMMUNITY_BUILD=$IS_COMMUNITY bun run build:static
 
 # ── Serve stage ───────────────────────────────────────────────────────────────
-FROM docker.io/nginx:alpine
+FROM docker.io/oven/bun:1-alpine
 
-# Remove default nginx config
-RUN rm /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Copy built frontend
+COPY --from=builder /app/dist ./dist
 
-EXPOSE 80
+# Copy server code and its node_modules
+COPY --from=builder /app/server ./server
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["nginx", "-g", "daemon off;"]
+# Runtime environment
+ARG IS_COMMUNITY=false
+ENV COMMUNITY_MODE=$IS_COMMUNITY
+ENV PORT=9999
+ENV NODE_ENV=production
+EXPOSE 9999
+
+# Start the unified Bun server
+CMD ["bun", "run", "server/index.ts"]

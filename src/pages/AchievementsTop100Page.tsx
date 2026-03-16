@@ -42,8 +42,8 @@ export default function AchievementsTop100Page() {
     <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3 pt-6 mb-6">
-        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft size={28} />
+        <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+          <ChevronLeft size={16} />
         </button>
         <Trophy size={24} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">{t('achievementsTop100')}</h1>
@@ -109,7 +109,7 @@ export default function AchievementsTop100Page() {
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </>
                 ) : (
-                  <div className="w-full h-full bg-secondary hover:bg-muted transition-colors flex flex-col items-center justify-center gap-1 border border-border/40">
+                  <div className="w-full h-full glass-secondary flex flex-col items-center justify-center gap-1">
                     <span className="text-[11px] font-bold text-muted-foreground/50 tabular-nums leading-none">
                       {index + 1}
                     </span>

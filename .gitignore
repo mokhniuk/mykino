@@ -30,3 +30,6 @@ release
 *.njsproj
 *.sln
 *.sw?
+scripts/deploy-hostinger.sh
+scripts/build-zip.sh
+deploy.zip

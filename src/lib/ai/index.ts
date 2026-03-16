@@ -1,10 +1,136 @@
 import { getSetting, setSetting } from '../db';
+import { config } from '../config';
+import { getSupabase } from '../supabase';
 import type { AIConfig, AIProvider, AIRecommendationRequest, AIRecommendation } from './types';
-import { OpenAIClient } from './clients/openai';
-import { AnthropicClient } from './clients/anthropic';
-import { GeminiClient } from './clients/gemini';
-import { MistralClient } from './clients/mistral';
-import { OllamaClient } from './clients/ollama';
+
+// ─── Typed error for limit exhaustion ────────────────────────────────────────
+
+export class AILimitReachedError extends Error {
+  constructor() { super('AI recommendation limit reached'); this.name = 'AILimitReachedError'; }
+}
+
+// ─── AI usage tracking (for managed proxy mode) ─────────────────────────────
+
+const AI_USAGE_KEY = 'ai_proxy_usage';
+
+interface AIUsageStore {
+  remaining: number;
+  limit: number;
+  periodKey: string; // YYYY-MM-DD for daily, YYYY-MM for monthly
+  period: 'daily' | 'monthly';
+}
+
+function storeAIUsage(remaining: number, limit: number, period: 'daily' | 'monthly') {
+  try {
+    const now = new Date();
+    const periodKey = period === 'daily'
+      ? now.toISOString().slice(0, 10)  // YYYY-MM-DD
+      : now.toISOString().slice(0, 7);  // YYYY-MM
+    const entry: AIUsageStore = { remaining, limit, periodKey, period };
+    localStorage.setItem(AI_USAGE_KEY, JSON.stringify(entry));
+    window.dispatchEvent(new CustomEvent('ai-usage-updated'));
+  } catch { /* ignore */ }
+}
+
+/**
+ * Increments local usage by 1. Called before the real proxy request (after cache miss).
+ * Server headers will overwrite this with authoritative data once the response arrives.
+ * This ensures the counter updates even when headers are missing/unavailable.
+ */
+function incrementAIUsage() {
+  try {
+    const now = new Date();
+    const raw = localStorage.getItem(AI_USAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AIUsageStore>;
+      if (parsed.periodKey && parsed.period && parsed.limit != null && parsed.remaining != null) {
+        const currentKey = parsed.period === 'daily'
+          ? now.toISOString().slice(0, 10)
+          : now.toISOString().slice(0, 7);
+        if (parsed.periodKey === currentKey) {
+          // Same period — just decrement remaining
+          const entry: AIUsageStore = {
+            ...parsed as AIUsageStore,
+            remaining: Math.max(0, parsed.remaining - 1),
+          };
+          localStorage.setItem(AI_USAGE_KEY, JSON.stringify(entry));
+          window.dispatchEvent(new CustomEvent('ai-usage-updated'));
+          return;
+        }
+      }
+    }
+    // No existing entry or period rolled over — start fresh (daily assumption; server will correct)
+    const periodKey = now.toISOString().slice(0, 10);
+    const limit = config.aiProDailyLimit;
+    const entry: AIUsageStore = { remaining: limit - 1, limit, periodKey, period: 'daily' };
+    localStorage.setItem(AI_USAGE_KEY, JSON.stringify(entry));
+    window.dispatchEvent(new CustomEvent('ai-usage-updated'));
+  } catch { /* ignore */ }
+}
+
+export function getAIUsage(): { used: number; remaining: number; limit: number; period: 'daily' | 'monthly' } | null {
+  try {
+    const raw = localStorage.getItem(AI_USAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AIUsageStore>;
+    const { remaining, limit, periodKey, period = 'monthly' } = parsed;
+    if (remaining == null || limit == null || !periodKey) return null;
+    const now = new Date();
+    const currentKey = period === 'daily'
+      ? now.toISOString().slice(0, 10)
+      : now.toISOString().slice(0, 7);
+    if (periodKey !== currentKey) return null;
+    return { used: limit - remaining, remaining, limit, period };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Proxy path (production managed AI) ─────────────────────────────────────
+
+async function getRecommendationsViaProxy(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
+  // Send the Supabase session token so the server can identify Pro users and skip rate limiting.
+  // AbortError can occur when the Web Locks auth token is contested across tabs — treat as no token.
+  const sb = getSupabase();
+  let token: string | undefined;
+  try {
+    token = sb ? (await sb.auth.getSession()).data.session?.access_token : undefined;
+  } catch (e: any) {
+    if (e?.name !== 'AbortError') throw e;
+  }
+
+  const res = await fetch(`${config.aiProxyUrl}/api/ai/recommendations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(request),
+  });
+
+  // Capture rate limit headers — sync authoritative server data to local store
+  const remaining = parseInt(res.headers.get('X-RateLimit-Remaining') ?? '-1');
+  const limit = parseInt(res.headers.get('X-RateLimit-Limit') ?? '-1');
+  const period = (res.headers.get('X-RateLimit-Period') ?? 'daily') as 'daily' | 'monthly';
+  if (remaining >= 0 && limit > 0 && remaining <= limit) storeAIUsage(remaining, limit, period);
+
+  if (res.status === 429) {
+    // Mark local store as exhausted so UI blocks further attempts immediately
+    if (limit > 0) storeAIUsage(0, limit, period);
+    else {
+      // No headers on 429 — mark exhausted using whatever we have stored
+      const cur = getAIUsage();
+      if (cur) storeAIUsage(0, cur.limit, cur.period);
+    }
+    throw new AILimitReachedError();
+  }
+
+  if (!res.ok) {
+    throw new Error('AI service temporarily unavailable. Please try again.');
+  }
+
+  return res.json();
+}
 
 const AI_CONFIG_KEY = 'ai_config';
 const AI_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
@@ -24,36 +150,23 @@ function buildCacheKey(request: AIRecommendationRequest, config: AIConfig): stri
   });
   // btoa keeps the key compact while remaining unique per distinct input set
   const profileHash = btoa(unescape(encodeURIComponent(fingerprint))).slice(0, 24);
-  return `ai_cache:${config.provider}:${model}:${request.language}:${request.count}:${request.watched.length}:${profileHash}:${q}`;
-}
-
-function envDefaults(): Partial<AIConfig> {
-  const e = (window as Record<string, any>).__ENV__;
-  if (!e?.AI_API_KEY) return {};
-
-  const envProvider = e.AI_PROVIDER as string | undefined;
-  const allowedProviders: AIProvider[] = ['openai', 'anthropic', 'gemini', 'mistral', 'ollama'];
-  const provider: AIProvider = envProvider && allowedProviders.includes(envProvider as AIProvider)
-    ? (envProvider as AIProvider)
-    : 'openai';
-
-  return {
-    enabled: true,
-    provider,
-    apiKey: e.AI_API_KEY,
-    model: e.AI_MODEL || undefined,
-    ollamaUrl: e.OLLAMA_URL || undefined,
-  };
+  return `ai_cache:${config.provider}:${model}:${request.language}:${request.count}:${profileHash}:${q}`;
 }
 
 export async function getAIConfig(): Promise<AIConfig> {
   const raw = await getSetting(AI_CONFIG_KEY);
-  const defaults = envDefaults();
-  const base: AIConfig = { enabled: false, provider: 'openai', apiKey: '', ...defaults };
+
+  // Community Docker: AI is managed server-side via the local proxy.
+  // Only the enabled toggle is user-controlled; provider/key are irrelevant to the frontend.
+  if (config.isCommunity) {
+    const stored = raw ? JSON.parse(raw) : {};
+    return { enabled: stored.enabled ?? true, provider: 'openai', apiKey: '' } as AIConfig;
+  }
+
+  const base: AIConfig = { enabled: false, provider: 'openai', apiKey: '' };
   if (!raw) return base;
   try {
-    // Stored config takes priority over env defaults
-    return { ...defaults, ...JSON.parse(raw) };
+    return { ...base, ...JSON.parse(raw) };
   } catch {
     return base;
   }
@@ -64,58 +177,62 @@ export async function setAIConfig(config: AIConfig): Promise<void> {
 }
 
 export async function isAIEnabled(): Promise<boolean> {
-  const config = await getAIConfig();
-  return config.enabled && !!config.apiKey;
+  const aiConfig = await getAIConfig();
+  if (config.hasManagedAI) {
+    if (!aiConfig.enabled) return false;
+    // Community uses the local proxy — no auth required.
+    if (config.isCommunity) return true;
+    const sb = getSupabase();
+    if (!sb) return false;
+    try {
+      const { data } = await sb.auth.getSession();
+      return !!data.session;
+    } catch {
+      return false;
+    }
+  }
+  return aiConfig.enabled && !!aiConfig.apiKey;
 }
 
 export async function getAIRecommendations(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
-  const config = await getAIConfig();
+  // Managed proxy path — production (auth required) or community Docker (no auth, local proxy)
+  if (config.hasManagedAI) {
+    const aiConfig = await getAIConfig();
+    if (!aiConfig.enabled) throw new Error('AI is not enabled');
 
-  if (!config.enabled || !config.apiKey) {
-    throw new Error('AI is not enabled or API key is missing');
-  }
-
-  // Check persistent cache before calling the AI
-  const cacheKey = buildCacheKey(request, config);
-  try {
-    const cached = await getSetting(cacheKey);
-    if (cached) {
-      const { results, cachedAt } = JSON.parse(cached);
-      if (Date.now() - cachedAt < AI_CACHE_TTL) {
-        return results as AIRecommendation[];
-      }
+    // Production requires a Supabase session; community routes to the local server with no auth.
+    if (!config.isCommunity) {
+      const sb = getSupabase();
+      const session = sb ? (await sb.auth.getSession()).data.session : null;
+      if (!session) throw new Error('Sign in to use AI recommendations');
     }
-  } catch { /* ignore cache read errors */ }
 
-  let client;
-  switch (config.provider) {
-    case 'openai':
-      client = new OpenAIClient(config.apiKey, config.model);
-      break;
-    case 'anthropic':
-      client = new AnthropicClient(config.apiKey, config.model);
-      break;
-    case 'gemini':
-      client = new GeminiClient(config.apiKey, config.model);
-      break;
-    case 'mistral':
-      client = new MistralClient(config.apiKey, config.model);
-      break;
-    case 'ollama':
-      client = new OllamaClient(config.apiKey, config.ollamaUrl, config.model);
-      break;
-    default:
-      throw new Error(`Unsupported AI provider: ${config.provider}`);
+    // Check persistent cache before calling the proxy
+    const cacheKey = buildCacheKey(request, { provider: 'managed', apiKey: '', enabled: true } as any);
+    try {
+      const cached = await getSetting(cacheKey);
+      if (cached) {
+        const { results, cachedAt } = JSON.parse(cached);
+        if (Date.now() - cachedAt < AI_CACHE_TTL) return results as AIRecommendation[];
+      }
+    } catch { /* ignore */ }
+
+    // Block immediately if local store already shows limit exhausted
+    const usage = getAIUsage();
+    if (usage && usage.remaining === 0) throw new AILimitReachedError();
+
+    // Optimistically increment local counter; server headers will sync the real value after
+    incrementAIUsage();
+    const results = await getRecommendationsViaProxy(request);
+
+    try {
+      await setSetting(cacheKey, JSON.stringify({ results, cachedAt: Date.now() }));
+    } catch { /* ignore */ }
+
+    return results;
   }
 
-  const results = await client.getRecommendations(request);
-
-  // Persist results for 2 hours
-  try {
-    await setSetting(cacheKey, JSON.stringify({ results, cachedAt: Date.now() }));
-  } catch { /* ignore cache write errors */ }
-
-  return results;
+  throw new Error('AI is not configured');
 }
 
 export type { AIConfig, AIProvider, AIRecommendation };

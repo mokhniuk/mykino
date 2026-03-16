@@ -28,7 +28,9 @@ export default function WatchlistPage() {
       const list = await getWatchlist();
       return Promise.all(list.map(m => getMovieDetails(m.imdbID, lang).then(d => d ?? m)));
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const handleMarkWatched = async (movie: MovieData) => {
@@ -38,20 +40,35 @@ export default function WatchlistPage() {
       (prev ?? []).filter(m => m.imdbID !== movie.imdbID)
     );
     queryClient.invalidateQueries({ queryKey: ['movies', 'watched'] });
-    queryClient.invalidateQueries({ queryKey: ['movies', 'watchlist'] });
   };
 
   const filtered = filter === 'all' ? movies : movies.filter((m) => (m.Type || 'movie') === filter);
 
   return (
-    <div className="px-4 md:px-6 max-w-4xl mx-auto animate-fade-in">
+    <div className="px-4 md:px-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between pt-6 md:pt-10 mb-6">
         <div className="flex items-baseline gap-2">
           <h1 className="text-2xl md:text-3xl text-foreground">{t('watchlist')}</h1>
           {!isLoading && <span className="text-lg font-medium text-muted-foreground">{filtered.length}</span>}
         </div>
+        {/* Tabs on tablet+, select on mobile */}
+        <div className="hidden md:flex items-center gap-0.5 bg-secondary rounded-xl p-1 glass-shine">
+          {(['all', 'movie', 'series'] as Filter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3.5 py-1 rounded-lg text-sm font-medium transition-colors ${
+                filter === f
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {f === 'all' ? t('tabAll') : f === 'movie' ? t('tabMovies') : t('tabSeries')}
+            </button>
+          ))}
+        </div>
         <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-          <SelectTrigger className="w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0">
+          <SelectTrigger className="md:hidden w-auto h-auto px-3.5 py-1.5 text-md gap-2 font-medium bg-secondary border-0 rounded-xl shadow-none focus:ring-0 glass-shine">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -73,7 +90,7 @@ export default function WatchlistPage() {
           ))}
         </div>
       ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 md:gap-4 animate-fade-in">
           {filtered.map((movie) => (
             <MovieCard
               key={movie.imdbID}

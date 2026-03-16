@@ -1,14 +1,23 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles } from 'lucide-react';
+
+// Set to false when Stripe is ready to accept subscriptions.
+const SUBSCRIPTIONS_COMING_SOON = true;
+import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles, Zap, Cloud, CloudOff, CheckCircle2, CreditCard } from 'lucide-react';
+import { config } from '@/lib/config';
+import { getAIUsage } from '@/lib/ai';
+import { useAuth } from '@/contexts/AuthContext';
+import { signInWithEmail, verifyOtp, signOut } from '@/lib/supabase';
+import { getLastSyncTime } from '@/lib/sync';
+import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { useI18n, type Lang } from '@/lib/i18n';
+import { useI18n, formatDate, type Lang } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import { exportAllData, importAllData, getContentPreferences, setContentPreferences, type ContentPreferences, getDBStats, type DBStats, clearAllData } from '@/lib/db';
 import { clearRecommendationsCache } from '@/lib/recommendations';
 import { triggerSWUpdate } from '@/lib/sw-update';
 import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
-import { getAIConfig, setAIConfig, type AIConfig, type AIProvider } from '@/lib/ai';
+import { getAIConfig, setAIConfig, type AIConfig } from '@/lib/ai';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -61,13 +70,13 @@ function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDislik
               {metadataLoading
                 ? liked.map(id => <span key={id} className="h-5 w-14 rounded-full bg-muted animate-pulse inline-block" />)
                 : liked.map(id => (
-                    <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30">
-                      {getLabel(id)}
-                      <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))
+                  <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30">
+                    {getLabel(id)}
+                    <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))
               }
             </div>
           )}
@@ -86,13 +95,13 @@ function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDislik
               {metadataLoading
                 ? disliked.map(id => <span key={id} className="h-5 w-14 rounded-full bg-muted animate-pulse inline-block" />)
                 : disliked.map(id => (
-                    <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
-                      {getLabel(id)}
-                      <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))
+                  <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
+                    {getLabel(id)}
+                    <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))
               }
             </div>
           )}
@@ -109,9 +118,21 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false);
   const [prefs, setPrefs] = useState<ContentPreferences | null>(null);
   const [stats, setStats] = useState<DBStats | null>(null);
-  const [aiConfig, setAiConfigState] = useState<AIConfig | null>(null);
-  const [tempAiConfig, setTempAiConfig] = useState<AIConfig | null>(null);
+  const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [savingAI, setSavingAI] = useState(false);
+  const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number; period: 'daily' | 'monthly' } | null>(null);
+  const { user, accessToken, syncing, triggerSync } = useAuth();
+  const { isPro, cancelAt, refetch: refetchProfile } = useProfile();
+  const [syncEmail, setSyncEmail] = useState('');
+  const [sendingLink, setSendingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+  const [lastSynced, setLastSynced] = useState<number | null>(null);
+
+  const [activatingPlan, setActivatingPlan] = useState(false);
+
+  useEffect(() => {
+    if (config.hasSync) setLastSynced(getLastSyncTime());
+  }, [syncing]);
   const queryClient = useQueryClient();
   const { genres, countries, languages } = useTmdbMetadata();
   const [pendingImport, setPendingImport] = useState<any>(null);
@@ -119,10 +140,16 @@ export default function SettingsPage() {
   useEffect(() => {
     getContentPreferences().then(setPrefs);
     getDBStats().then(setStats);
-    getAIConfig().then(config => {
-      setAiConfigState(config);
-      setTempAiConfig(config);
-    });
+    getAIConfig().then(setAiConfig);
+    if (config.hasManagedAI) setAiUsage(getAIUsage());
+  }, []);
+
+  useEffect(() => {
+    if (!config.hasManagedAI) return;
+    const refresh = () => setAiUsage(getAIUsage());
+    window.addEventListener('ai-usage-updated', refresh);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    return () => window.removeEventListener('ai-usage-updated', refresh);
   }, []);
 
   const updatePrefs = async (newPrefs: ContentPreferences) => {
@@ -132,15 +159,16 @@ export default function SettingsPage() {
     queryClient.removeQueries({ queryKey: ['movies', 'recommendations'] });
   };
 
-  const saveAIConfig = async () => {
-    if (!tempAiConfig) return;
+  const handleAIToggle = async (enabled: boolean) => {
+    if (!aiConfig) return;
+    const newConfig = { ...aiConfig, enabled };
+    setAiConfig(newConfig);
+
     setSavingAI(true);
     try {
-      await setAIConfig(tempAiConfig);
-      setAiConfigState(tempAiConfig);
+      await setAIConfig(newConfig);
       toast.success(t('aiConfigSaved'));
-      // Notify other components that AI config changed
-      window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: tempAiConfig }));
+      window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
     } catch (error) {
       toast.error(t('aiError'));
     } finally {
@@ -148,40 +176,163 @@ export default function SettingsPage() {
     }
   };
 
-  const handleAIToggle = async (enabled: boolean) => {
-    const newConfig = { ...tempAiConfig!, enabled };
-    setTempAiConfig(newConfig);
-    
-    // If disabling, save immediately
-    if (!enabled) {
-      setSavingAI(true);
-      try {
-        await setAIConfig(newConfig);
-        setAiConfigState(newConfig);
-        toast.success(t('aiConfigSaved'));
-        // Notify other components that AI config changed
-        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
-      } catch (error) {
-        toast.error(t('aiError'));
-      } finally {
-        setSavingAI(false);
-      }
+  // Parse URL params once on mount — store intent in state, clear URL immediately
+  const [stripeReturn, setStripeReturn] = useState<'checkout-success' | 'checkout-cancelled' | 'portal' | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    const portal = params.get('portal');
+    if (checkout === 'success') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setStripeReturn('checkout-success');
+    } else if (checkout === 'cancelled') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setStripeReturn('checkout-cancelled');
+    } else if (portal === 'returned') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setStripeReturn('portal');
     }
-    // If enabling and API key already exists, save immediately
-    else if (enabled && newConfig.apiKey) {
-      setSavingAI(true);
-      try {
-        await setAIConfig(newConfig);
-        setAiConfigState(newConfig);
-        toast.success(t('aiConfigSaved'));
-        // Notify other components that AI config changed
-        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
-      } catch (error) {
-        toast.error(t('aiError'));
-      } finally {
-        setSavingAI(false);
-      }
+  }, []);
+
+  // Act on stripe return once accessToken is available
+  useEffect(() => {
+    if (!stripeReturn || !accessToken) return;
+
+    if (stripeReturn === 'checkout-cancelled') {
+      toast.info(t('checkoutCancelled'));
+      setStripeReturn(null);
+      return;
     }
+
+    if (stripeReturn === 'checkout-success') {
+      setStripeReturn(null);
+      setActivatingPlan(true);
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/refresh-plan`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          const data = await res.json();
+          if (data.plan === 'pro') {
+            clearInterval(poll);
+            setActivatingPlan(false);
+            await refetchProfile();
+            toast.success(t('checkoutSuccess'));
+            return;
+          }
+        } catch { /* retry */ }
+        if (attempts >= 10) {
+          clearInterval(poll);
+          setActivatingPlan(false);
+          await refetchProfile();
+        }
+      }, 3000);
+      return;
+    }
+
+    if (stripeReturn === 'portal') {
+      setStripeReturn(null);
+      fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/refresh-plan`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      }).finally(() => refetchProfile());
+    }
+  }, [stripeReturn, accessToken]);
+
+  const handleUpgrade = async (annual: boolean) => {
+    if (!accessToken) { toast.error('Please sign in first.'); return; }
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ annual }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to start checkout. Please try again.'); return; }
+      if (data.url) window.location.href = data.url;
+    } catch {
+      toast.error('Failed to start checkout. Please try again.');
+    }
+  };
+
+  const handleManagePlan = async () => {
+    if (!accessToken) { toast.error('Please sign in first.'); return; }
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_AI_PROXY_URL || ''}/api/stripe/portal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to open billing portal.'); return; }
+      if (data.url) window.location.href = data.url;
+    } catch {
+      toast.error('Failed to open billing portal.');
+    }
+  };
+
+  const handleSendLink = async () => {
+    const email = syncEmail.trim();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+    setSendingLink(true);
+    try {
+      await signInWithEmail(email);
+      setLinkSent(true);
+      toast.success('Code sent! Please check your email.');
+    } catch (error: any) {
+      toast.error(error.message || t('aiError'));
+    } finally {
+      setSendingLink(false);
+    }
+  };
+
+  const [otpCode, setOtpCode] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  const handleVerifyOtp = async () => {
+    const code = otpCode.trim();
+    if (code.length < 8) return;
+
+    setVerifyingOtp(true);
+    try {
+      await verifyOtp(syncEmail.trim(), code);
+      toast.success('Logged in successfully!');
+      setLinkSent(false);
+      setOtpCode('');
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid code. Please try again.');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out');
+  };
+
+  const formatLastSynced = (ts: number | null): string => {
+    if (!ts) return '';
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return t('syncJustNow');
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
   };
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -292,7 +443,7 @@ export default function SettingsPage() {
 
       <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
         {/* Language */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-3">
+        <section className="rounded-xl glass-card p-5 space-y-3">
           <div className="flex items-center gap-2 text-foreground">
             <Globe size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('languageSetting')}</h2>
@@ -310,12 +461,13 @@ export default function SettingsPage() {
               <SelectItem value="pt">Português</SelectItem>
               <SelectItem value="hr">Hrvatski</SelectItem>
               <SelectItem value="it">Italiano</SelectItem>
+              <SelectItem value="es">Español</SelectItem>
             </SelectContent>
           </Select>
         </section>
 
         {/* Theme */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-3">
+        <section className="rounded-xl glass-card p-5 space-y-3">
           <div className="flex items-center gap-2 text-foreground">
             <Palette size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('themeSetting')}</h2>
@@ -338,7 +490,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Content Settings — full width */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+        <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
           <div className="flex items-center gap-2 text-foreground">
             <SlidersHorizontal size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('contentSettings')}</h2>
@@ -430,133 +582,293 @@ export default function SettingsPage() {
           )}
         </section>
 
-        {/* AI Settings — full width */}
-        {tempAiConfig && (
-          <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+        {/* ── PRODUCTION MODE: AI + Account + Sync section ───────────────── */}
+        {!config.isCommunity && aiConfig && (
+          <section className="rounded-xl glass-card p-5 md:col-span-2">
+            {/* AI subsection */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={15} className="text-primary shrink-0" />
+                  <h2 className="text-sm font-semibold text-foreground">{t('aiSettings')}</h2>
+                </div>
+                {!user && (
+                  <p className="text-xs text-muted-foreground pt-0.5">{t('signInToUnlock')}</p>
+                )}
+                {user && aiConfig.enabled && (() => {
+                  const used = aiUsage?.used ?? 0;
+                  const period = aiUsage?.period ?? (isPro ? 'daily' : 'monthly');
+                  const limit = aiUsage?.limit ?? (isPro ? config.aiProDailyLimit : config.aiFreeMonthlyLimit);
+                  const label = period === 'daily' ? t('aiUsageToday') : t('aiDailyUsage');
+                  const pct = Math.min(100, (used / limit) * 100);
+                  return (
+                    <div className="space-y-1 pt-0.5">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{label}</span>
+                        <span className="font-medium text-foreground">{used} / {limit}</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      {aiUsage?.remaining === 0 && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400">{t('aiLimitReached')}</p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+              <Switch checked={aiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI || !user} className="mt-0.5 shrink-0" />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-border my-4" />
+
+            {/* Account & Sync subsection */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Cloud size={15} className="text-primary shrink-0" />
+                <h2 className="text-sm font-semibold text-foreground">{t('accountSection')}</h2>
+              </div>
+
+              {user ? (
+                <>
+                  {/* Email + plan */}
+                  <div className="flex items-center justify-between gap-3 min-w-0">
+                    <div className="flex items-center gap-2 text-sm min-w-0">
+                      <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+                      <span className="text-foreground font-medium truncate">{user.email}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${isPro ? 'bg-primary/15 text-primary' : activatingPlan ? 'bg-amber-500/15 text-amber-600' : 'bg-secondary text-muted-foreground'}`}>
+                        {activatingPlan ? <><Loader2 size={11} className="animate-spin" />Activating…</> : isPro ? t('planPro') : t('planFree')}
+                      </span>
+                      {isPro && cancelAt && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {t('subscriptionCancelsOn')} {formatDate(cancelAt, lang)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {lastSynced && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing} className="flex items-center gap-1.5">
+                      {syncing
+                        ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
+                        : <><RefreshCw size={13} />{t('syncNow')}</>}
+                    </Button>
+                    {SUBSCRIPTIONS_COMING_SOON ? (
+                      <Button size="sm" variant="outline" disabled className="flex items-center gap-1.5 opacity-50 cursor-not-allowed">
+                        <Zap size={13} />
+                        Coming soon
+                      </Button>
+                    ) : isPro ? (
+                      <Button size="sm" variant="outline" onClick={handleManagePlan} className="flex items-center gap-1.5">
+                        <CreditCard size={13} />
+                        {t('managePlan')}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => handleUpgrade(false)} className="flex items-center gap-1.5">
+                        <Zap size={13} />
+                        {t('upgradeToPro')}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground ml-auto">
+                      {t('syncSignOut')}
+                    </Button>
+                  </div>
+                </>
+              ) : linkSent ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+                    <CheckCircle2 size={14} className="text-primary mt-0.5 shrink-0" />
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {t('syncEmailSent')}
+                    </p>
+                  </div>
+                  {isStandalone && (
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={8}
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
+                        placeholder={t('syncEnterOtp')}
+                        className="flex-1 h-9 text-sm text-center tracking-[0.2em] font-mono"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleVerifyOtp}
+                        disabled={verifyingOtp || otpCode.length !== 8}
+                      >
+                        {verifyingOtp ? <Loader2 size={13} className="animate-spin" /> : t('syncVerifyBtn')}
+                      </Button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => { setLinkSent(false); setOtpCode(''); }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors pl-1"
+                  >
+                    {t('syncResend')}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <ul className="text-xs text-muted-foreground space-y-1.5">
+                    <li className="flex items-center gap-1.5">
+                      <Zap size={11} className="text-primary shrink-0" />
+                      {t('freeAiLimit')}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <Cloud size={11} className="text-primary shrink-0" />
+                      {t('proSyncBenefit')}
+                    </li>
+                  </ul>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      value={syncEmail}
+                      onChange={e => setSyncEmail(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSendLink()}
+                      placeholder={t('syncEmailPlaceholder')}
+                      className="flex-1 h-9 text-sm"
+                    />
+                    <Button size="sm" onClick={handleSendLink} disabled={sendingLink || !syncEmail.trim()}>
+                      {sendingLink ? <Loader2 size={13} className="animate-spin" /> : t('syncSendLink')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── COMMUNITY MODE: AI toggle ────────────────────────────────────── */}
+        {config.isCommunity && aiConfig && (
+          <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-foreground">
                 <Sparkles size={16} className="text-primary" />
                 <h2 className="text-sm font-semibold">{t('aiSettings')}</h2>
               </div>
-              <Switch
-                checked={tempAiConfig.enabled}
-                onCheckedChange={handleAIToggle}
-                disabled={savingAI}
-              />
+              <Switch checked={aiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI} />
+            </div>
+          </section>
+        )}
+
+        {/* ── COMMUNITY MODE: Sync section (only if Supabase configured) ───── */}
+        {config.isCommunity && config.hasSync && (
+          <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
+            <div className="flex items-center gap-2 text-foreground">
+              <Cloud size={16} className="text-primary" />
+              <h2 className="text-sm font-semibold">{t('syncSection')}</h2>
             </div>
 
-            {tempAiConfig.enabled && (
+            {user ? (
               <div className="space-y-3">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">{t('aiProvider')}</label>
-                  <Select
-                    value={tempAiConfig.provider}
-                    onValueChange={(provider: AIProvider) => setTempAiConfig({ ...tempAiConfig, provider })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                      <SelectItem value="gemini">Google Gemini</SelectItem>
-                      <SelectItem value="mistral">Mistral AI</SelectItem>
-                      <SelectItem value="ollama">Ollama (Local)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+                  <span className="text-foreground font-medium">{user.email}</span>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">{t('aiApiKey')}</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      value={tempAiConfig.apiKey}
-                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, apiKey: e.target.value })}
-                      placeholder={tempAiConfig.provider === 'ollama' ? t('aiOptional') : t('aiApiKeyPlaceholder')}
-                      className="flex-1"
-                    />
-                    <Button 
-                      onClick={saveAIConfig} 
-                      disabled={savingAI || (!tempAiConfig.apiKey && tempAiConfig.provider !== 'ollama')}
-                      size="sm"
-                    >
-                      {savingAI ? <Loader2 className="animate-spin" size={16} /> : t('save')}
-                    </Button>
-                  </div>
-                </div>
-
-                {tempAiConfig.provider === 'ollama' && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiOllamaUrl')}</label>
-                    <Input
-                      value={tempAiConfig.ollamaUrl || 'http://localhost:11434'}
-                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, ollamaUrl: e.target.value })}
-                      placeholder="http://localhost:11434"
-                    />
-                  </div>
+                {lastSynced && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('syncLastSynced')}: {formatLastSynced(lastSynced)}
+                  </p>
                 )}
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground">{t('aiModel')} ({t('aiOptional')})</label>
-                  <Input
-                    value={tempAiConfig.model || ''}
-                    onChange={(e) => setTempAiConfig({ ...tempAiConfig, model: e.target.value })}
-                    placeholder={
-                      tempAiConfig.provider === 'openai' ? 'gpt-4o-mini' :
-                      tempAiConfig.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
-                      tempAiConfig.provider === 'gemini' ? 'gemini-1.5-flash' :
-                      tempAiConfig.provider === 'mistral' ? 'mistral-small-latest' :
-                      'llama3.2'
-                    }
-                  />
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={triggerSync} disabled={syncing} className="flex items-center gap-1.5">
+                    {syncing
+                      ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
+                      : <><RefreshCw size={13} />{t('syncNow')}</>}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleSignOut} className="text-muted-foreground ml-auto">
+                    {t('syncSignOut')}
+                  </Button>
                 </div>
-
-                <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
+              </div>
+            ) : linkSent ? (
+              <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+                <CheckCircle2 size={14} className="text-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground leading-relaxed">{t('syncEmailSent')}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">{t('syncDescription')}</p>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={syncEmail}
+                    onChange={e => setSyncEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSendLink()}
+                    placeholder={t('syncEmailPlaceholder')}
+                    className="flex-1 h-9 text-sm"
+                  />
+                  <Button size="sm" onClick={handleSendLink} disabled={sendingLink || !syncEmail.trim()}>
+                    {sendingLink ? <Loader2 size={13} className="animate-spin" /> : t('syncSendLink')}
+                  </Button>
+                </div>
               </div>
             )}
           </section>
         )}
 
         {/* Data — full width */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-3 md:col-span-2">
+        <section className="rounded-xl glass-card p-5 space-y-3 md:col-span-2">
           <div className="flex items-center gap-2 text-foreground">
             <Database size={16} className="text-primary" />
             <h2 className="text-sm font-semibold">{t('dataManagement')}</h2>
           </div>
 
-          {/* Browser ↔ PWA transfer tip — only shown in browser, not in standalone */}
-          {!isStandalone && (
-            <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
-              <Smartphone size={14} className="text-primary mt-0.5 shrink-0" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t('pwaTransferTip')}
-              </p>
+
+
+          {!user && (
+
+            <div className="pb-2 border-b border-border/50 flex flex-col gap-2">
+              {/* Browser ↔ PWA transfer tip — only shown in browser, not in standalone */}
+              {!isStandalone && (
+                <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+                  <Smartphone size={14} className="text-primary mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t('pwaTransferTip')}
+                  </p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleExport}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors"
+                >
+                  <Download size={15} />
+                  {t('exportData')}
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Upload size={15} />
+                  {importing ? '…' : t('importData')}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
+
+              <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={handleExport}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors"
-            >
-              <Download size={15} />
-              {t('exportData')}
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/70 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              <Upload size={15} />
-              {importing ? '…' : t('importData')}
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground">{t('exportDesc')} · {t('importDesc')}</p>
-          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-
           {stats && (
-            <div className="pt-2 border-t border-border/50">
+            <div className="pt-2">
               <div className="grid grid-cols-2 gap-y-2 gap-x-4">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">{t('statWatchlist')}</span>
@@ -633,8 +945,9 @@ export default function SettingsPage() {
           </AlertDialogContent>
         </AlertDialog>
 
+
         {/* App Info — full width */}
-        <section className="rounded-xl bg-card border border-border p-5 space-y-4 md:col-span-2">
+        <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-foreground">
               <Info size={16} className="text-primary" />

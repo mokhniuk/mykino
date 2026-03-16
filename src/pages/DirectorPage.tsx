@@ -81,8 +81,8 @@ export default function DirectorPage() {
     return (
       <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
         <div className="flex items-center gap-3 pt-6 mb-6">
-          <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft size={28} />
+          <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+            <ChevronLeft size={16} />
           </button>
           <div className="h-7 w-48 bg-secondary rounded animate-pulse" />
         </div>
@@ -102,8 +102,8 @@ export default function DirectorPage() {
     return (
       <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
         <div className="flex items-center gap-3 pt-6 mb-6">
-          <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronLeft size={28} />
+          <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+            <ChevronLeft size={16} />
           </button>
           <h1 className="text-2xl font-semibold text-foreground">{t('achievementsDirectors')}</h1>
         </div>
@@ -116,13 +116,13 @@ export default function DirectorPage() {
     <div className="px-4 md:px-6 max-w-4xl mx-auto pb-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3 pt-6 mb-1">
-        <button onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft size={28} />
+        <button onClick={() => navigate(-1)} className="flex items-center justify-center w-8 h-8 rounded-xl bg-secondary text-muted-foreground hover:text-foreground transition-colors glass-shine">
+          <ChevronLeft size={16} />
         </button>
         <Video size={24} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">{directorName}</h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-8 ml-14">
+      <p className="text-sm text-muted-foreground mb-8">
         {watchedByDirector.length} {filmsWatchedLabel(watchedByDirector.length)}
         {!tmdbLoading && allTmdbMovies.length > 0 && (
           <> · {allTmdbMovies.length} {t('directorTotal')}</>
