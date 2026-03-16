@@ -97,10 +97,6 @@ app.post('/api/ai/recommendations', async (c) => {
   }
 });
 
-// ─── Static files ────────────────────────────────────────────────────────────
-
-app.use('*', serveStatic({ root: './dist' }));
-
 /** Dynamically inject environment variables into the frontend. */
 app.get('/config.js', (c) => {
   const envVars = {
@@ -120,6 +116,7 @@ app.get('/config.js', (c) => {
   });
 });
 
+app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));
 
 // ─── Stripe (only if configured) ─────────────────────────────────────────────
