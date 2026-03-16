@@ -18,8 +18,8 @@ const DIST_REL = relative(process.cwd(), DIST_PATH);
  
 const PORT = Number(process.env.PORT || 3001);
 const COMMUNITY_MODE = process.env.COMMUNITY_MODE === 'true';
-const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 30);
-const PRO_DAILY_LIMIT = Number(process.env.PRO_DAILY_LIMIT || 50);
+const FREE_MONTHLY_LIMIT = Number(process.env.AI_FREE_MONTHLY_LIMIT || process.env.FREE_MONTHLY_LIMIT || 30);
+const PRO_DAILY_LIMIT = Number(process.env.AI_PRO_DAILY_LIMIT || process.env.PRO_DAILY_LIMIT || 50);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 const STRIPE_ENABLED = !!(process.env.STRIPE_SECRET_KEY && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -51,22 +51,32 @@ app.post('/api/ai/recommendations', async (c) => {
 
   // Determine limit: community → unlimited, pro user → unlimited, free user → capped
   let limit: number;
+  let planType: 'community' | 'pro' | 'free' = 'free';
+
   if (COMMUNITY_MODE) {
     limit = Infinity;
-  } else if (STRIPE_ENABLED) {
+    planType = 'community';
+  } else {
+    // Check if we can verify the user's plan via Supabase
+    const canCheckPlan = !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
     const authHeader = c.req.header('Authorization');
-    if (authHeader?.startsWith('Bearer ')) {
+
+    if (canCheckPlan && authHeader?.startsWith('Bearer ')) {
       try {
-        const { plan } = await getUserPlan(authHeader.slice(7));
+        const { plan, userId } = await getUserPlan(authHeader.slice(7));
+        planType = plan;
         limit = plan === 'pro' ? PRO_DAILY_LIMIT : FREE_MONTHLY_LIMIT;
-      } catch {
+        console.log(`[AI proxy] Verified ${planType} for user ${userId}. Limit: ${limit}`);
+      } catch (e: any) {
+        console.warn(`[AI proxy] User plan check failed: ${e.message}. Using free.`);
         limit = FREE_MONTHLY_LIMIT;
       }
     } else {
+      if (!canCheckPlan && authHeader) {
+        console.warn('[AI proxy] Auth token provided but Supabase keys are missing on server. Defaulting to free.');
+      }
       limit = FREE_MONTHLY_LIMIT;
     }
-  } else {
-    limit = FREE_MONTHLY_LIMIT;
   }
 
   // Pro users: daily reset. Free users: monthly reset.
@@ -111,11 +121,18 @@ app.get('/config.js', (c) => {
     AI_PROXY_URL:          process.env.AI_PROXY_URL || '',
     AI_FREE_MONTHLY_LIMIT: process.env.AI_FREE_MONTHLY_LIMIT || process.env.FREE_MONTHLY_LIMIT || '30',
     AI_PRO_DAILY_LIMIT:    process.env.AI_PRO_DAILY_LIMIT || process.env.PRO_DAILY_LIMIT || '50',
-    TMDB_API_KEY:          process.env.TMDB_API_KEY || '',
-    SUPABASE_URL:          process.env.SUPABASE_URL || '',
-    SUPABASE_ANON_KEY:     process.env.SUPABASE_ANON_KEY || '',
+    TMDB_API_KEY:          process.env.TMDB_API_KEY || process.env.VITE_TMDB_API_KEY || '',
+    SUPABASE_URL:          process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+    SUPABASE_ANON_KEY:     process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
     COMMUNITY_MODE:        String(COMMUNITY_MODE),
   };
+  
+  if (envVars.SUPABASE_URL) {
+    console.log(`[config.js] serving Supabase config for ${envVars.SUPABASE_URL}`);
+  } else {
+    console.warn('[config.js] Supabase URL is missing in environment');
+  }
+
   return c.text(`window.__ENV__ = ${JSON.stringify(envVars)};`, 200, {
     'Content-Type': 'application/javascript',
   });

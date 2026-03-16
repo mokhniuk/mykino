@@ -294,8 +294,8 @@ export default function SettingsPage() {
     try {
       await signInWithEmail(email);
       setLinkSent(true);
-    } catch {
-      toast.error('Failed to send sign-in link. Check your email address.');
+    } catch (error: any) {
+      toast.error(error.message || t('aiError'));
     } finally {
       setSendingLink(false);
     }

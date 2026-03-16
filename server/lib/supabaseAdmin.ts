@@ -20,8 +20,11 @@ function getAdmin(): SupabaseClient {
 export async function getUserPlan(accessToken: string): Promise<{ userId: string; email: string; plan: 'free' | 'pro' }> {
   const admin = getAdmin();
 
-  const { data: { user }, error } = await admin.auth.getUser(accessToken);
-  if (error || !user) return { userId: '', email: '', plan: 'free' };
+  const { data: { user }, error } = await admin.auth.getUser(accessToken.trim());
+  if (error || !user) {
+    if (error) console.error('[getUserPlan] auth error:', error.message);
+    return { userId: '', email: '', plan: 'free' };
+  }
 
   const { data: profile } = await admin
     .from('profiles')
