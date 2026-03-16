@@ -178,12 +178,22 @@ function envDefaults(): Partial<AIConfig> {
 }
 
 export async function getAIConfig(): Promise<AIConfig> {
-  const raw = await getSetting(AI_CONFIG_KEY);
   const defaults = envDefaults();
+  const raw = await getSetting(AI_CONFIG_KEY);
+
+  // In community mode with system keys, we ignore local storage overrides except for 'enabled' status.
+  // This simplifies the UI and prevents users from accidentally breaking a working system config.
+  if (config.isCommunity && config.hasSystemAI) {
+    const stored = raw ? JSON.parse(raw) : {};
+    return {
+      ...defaults,
+      enabled: stored.enabled ?? defaults.enabled ?? false,
+    } as AIConfig;
+  }
+
   const base: AIConfig = { enabled: false, provider: 'openai', apiKey: '', ...defaults };
   if (!raw) return base;
   try {
-    // Stored config takes priority over env defaults
     return { ...defaults, ...JSON.parse(raw) };
   } catch {
     return base;

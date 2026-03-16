@@ -37,7 +37,7 @@ npm run build:community
 
 ## ⚙️ Configuration (Environment Variables)
 
-All configuration is done via environment variables at runtime.
+All configuration is done via environment variables at runtime. In the Community Edition, the UI does not allow manual entry of AI keys; they must be provided here.
 
 | Variable | Description | Example |
 | :--- | :--- | :--- |

@@ -26,6 +26,13 @@ export const config = {
   supabaseUrl: env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '',
   supabaseAnonKey: env.SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '',
 
+  isCommunity: import.meta.env.VITE_IS_COMMUNITY_BUILD === 'true',
+
   get hasManagedAI(): boolean { return !!this.aiProxyUrl; },
   get hasSync(): boolean { return !!(this.supabaseUrl && this.supabaseAnonKey); },
+  get hasSystemAI(): boolean {
+    const e = env as any;
+    return !!(e.AI_API_KEY || e.ai_api_key || e.AI_PROVIDER === 'ollama' || e.ai_provider === 'ollama');
+  },
+  get systemAIProvider(): string | undefined { return env.AI_PROVIDER || env.ai_provider; },
 };

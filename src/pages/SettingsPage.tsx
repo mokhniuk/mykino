@@ -14,7 +14,7 @@ import { exportAllData, importAllData, getContentPreferences, setContentPreferen
 import { clearRecommendationsCache } from '@/lib/recommendations';
 import { triggerSWUpdate } from '@/lib/sw-update';
 import { useTmdbMetadata } from '@/hooks/useTmdbMetadata';
-import { getAIConfig, setAIConfig, type AIConfig, type AIProvider } from '@/lib/ai';
+import { getAIConfig, setAIConfig, type AIConfig } from '@/lib/ai';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -115,8 +115,7 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false);
   const [prefs, setPrefs] = useState<ContentPreferences | null>(null);
   const [stats, setStats] = useState<DBStats | null>(null);
-  const [aiConfig, setAiConfigState] = useState<AIConfig | null>(null);
-  const [tempAiConfig, setTempAiConfig] = useState<AIConfig | null>(null);
+  const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [savingAI, setSavingAI] = useState(false);
   const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number } | null>(null);
   const { user, accessToken, syncing, triggerSync } = useAuth();
@@ -138,10 +137,7 @@ export default function SettingsPage() {
   useEffect(() => {
     getContentPreferences().then(setPrefs);
     getDBStats().then(setStats);
-    getAIConfig().then(cfg => {
-      setAiConfigState(cfg);
-      setTempAiConfig(cfg);
-    });
+    getAIConfig().then(setAiConfig);
     if (config.hasManagedAI) setAiUsage(getAIUsage());
   }, []);
 
@@ -160,55 +156,20 @@ export default function SettingsPage() {
     queryClient.removeQueries({ queryKey: ['movies', 'recommendations'] });
   };
 
-  const saveAIConfig = async () => {
-    if (!tempAiConfig) return;
+  const handleAIToggle = async (enabled: boolean) => {
+    if (!aiConfig) return;
+    const newConfig = { ...aiConfig, enabled };
+    setAiConfig(newConfig);
+
     setSavingAI(true);
     try {
-      await setAIConfig(tempAiConfig);
-      setAiConfigState(tempAiConfig);
+      await setAIConfig(newConfig);
       toast.success(t('aiConfigSaved'));
-      // Notify other components that AI config changed
-      window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: tempAiConfig }));
+      window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
     } catch (error) {
       toast.error(t('aiError'));
     } finally {
       setSavingAI(false);
-    }
-  };
-
-  const handleAIToggle = async (enabled: boolean) => {
-    const newConfig = { ...tempAiConfig!, enabled };
-    setTempAiConfig(newConfig);
-    
-    // If disabling, save immediately
-    if (!enabled) {
-      setSavingAI(true);
-      try {
-        await setAIConfig(newConfig);
-        setAiConfigState(newConfig);
-        toast.success(t('aiConfigSaved'));
-        // Notify other components that AI config changed
-        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
-      } catch (error) {
-        toast.error(t('aiError'));
-      } finally {
-        setSavingAI(false);
-      }
-    }
-    // If enabling and API key already exists, save immediately
-    else if (enabled && newConfig.apiKey) {
-      setSavingAI(true);
-      try {
-        await setAIConfig(newConfig);
-        setAiConfigState(newConfig);
-        toast.success(t('aiConfigSaved'));
-        // Notify other components that AI config changed
-        window.dispatchEvent(new CustomEvent('ai-config-changed', { detail: newConfig }));
-      } catch (error) {
-        toast.error(t('aiError'));
-      } finally {
-        setSavingAI(false);
-      }
     }
   };
 
@@ -598,7 +559,7 @@ export default function SettingsPage() {
         </section>
 
         {/* ── PRODUCTION MODE: AI section ────────────────────────────────── */}
-        {config.hasManagedAI && tempAiConfig && (
+        {config.hasManagedAI && aiConfig && (
           <section className="rounded-xl glass-card p-5 md:col-span-2">
             {/* AI subsection */}
             <div className="flex items-start justify-between gap-4">
@@ -610,7 +571,7 @@ export default function SettingsPage() {
                 {!user && (
                   <p className="text-xs text-muted-foreground pt-0.5">{t('signInToUnlock')}</p>
                 )}
-                {user && tempAiConfig.enabled && (() => {
+                {user && aiConfig.enabled && (() => {
                   const used = aiUsage?.used ?? 0;
                   const period = aiUsage?.period ?? (isPro ? 'daily' : 'monthly');
                   const limit = aiUsage?.limit ?? (isPro ? config.aiProDailyLimit : config.aiFreeMonthlyLimit);
@@ -635,7 +596,7 @@ export default function SettingsPage() {
                   );
                 })()}
               </div>
-              <Switch checked={tempAiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI || !user} className="mt-0.5 shrink-0" />
+              <Switch checked={aiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI || !user} className="mt-0.5 shrink-0" />
             </div>
 
             {/* Divider */}
@@ -732,89 +693,18 @@ export default function SettingsPage() {
           </section>
         )}
 
-        {/* ── COMMUNITY MODE: separate AI section (BYO key) ────────────────── */}
-        {!config.hasManagedAI && tempAiConfig && (
+        {/* ── COMMUNITY MODE: separate AI section (BYO key or System) ────────── */}
+        {!config.hasManagedAI && aiConfig && (config.hasSystemAI || !config.isCommunity) && (
           <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-foreground">
                 <Sparkles size={16} className="text-primary" />
                 <h2 className="text-sm font-semibold">{t('aiSettings')}</h2>
               </div>
-              <Switch checked={tempAiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI} />
+              <Switch checked={aiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI} />
             </div>
 
-            {tempAiConfig.enabled && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiProvider')}</label>
-                    <Select
-                      value={tempAiConfig.provider}
-                      onValueChange={(provider: AIProvider) => setTempAiConfig({ ...tempAiConfig, provider })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="openai">OpenAI</SelectItem>
-                        <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                        <SelectItem value="gemini">Google Gemini</SelectItem>
-                        <SelectItem value="mistral">Mistral AI</SelectItem>
-                        <SelectItem value="ollama">Ollama (Local)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiModel')} ({t('aiOptional')})</label>
-                    <Input
-                      value={tempAiConfig.model || ''}
-                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, model: e.target.value })}
-                      placeholder={
-                        tempAiConfig.provider === 'openai' ? 'gpt-4o-mini' :
-                        tempAiConfig.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' :
-                        tempAiConfig.provider === 'gemini' ? 'gemini-1.5-flash' :
-                        tempAiConfig.provider === 'mistral' ? 'mistral-small-latest' :
-                        'llama3.2'
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">{t('aiApiKey')}</label>
-                  <Input
-                    type="password"
-                    value={tempAiConfig.apiKey}
-                    onChange={(e) => setTempAiConfig({ ...tempAiConfig, apiKey: e.target.value })}
-                    placeholder={tempAiConfig.provider === 'ollama' ? t('aiOptional') : t('aiApiKeyPlaceholder')}
-                  />
-                </div>
-
-                {tempAiConfig.provider === 'ollama' && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">{t('aiOllamaUrl')}</label>
-                    <Input
-                      value={tempAiConfig.ollamaUrl || 'http://localhost:11434'}
-                      onChange={(e) => setTempAiConfig({ ...tempAiConfig, ollamaUrl: e.target.value })}
-                      placeholder="http://localhost:11434"
-                    />
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <p className="text-xs text-muted-foreground">{t('aiDescription')}</p>
-                  <Button
-                    onClick={saveAIConfig}
-                    disabled={savingAI || (!tempAiConfig.apiKey && tempAiConfig.provider !== 'ollama')}
-                    size="sm"
-                    className="shrink-0"
-                  >
-                    {savingAI ? <Loader2 className="animate-spin" size={16} /> : t('save')}
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* AI config is now environment-only. No manual fields rendered. */}
           </section>
         )}
 

@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sb = getSupabase();
     if (!sb) return 'free';
     const { data } = await sb.from('profiles').select('plan').eq('id', userId).single();
-    const plan: 'free' | 'pro' = data?.plan === 'pro' ? 'pro' : 'free';
+    const plan: 'free' | 'pro' = (config.isCommunity || data?.plan === 'pro') ? 'pro' : 'free';
     setCachedPlan(plan);
     return plan;
   }, []);

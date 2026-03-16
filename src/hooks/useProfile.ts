@@ -54,7 +54,7 @@ export function useProfile() {
 
   return {
     profile,
-    isPro: profile?.plan === 'pro',
+    isPro: config.isCommunity || profile?.plan === 'pro',
     cancelAt: profile?.cancelAt ?? null,
     loading: isLoading,
     refetch,
