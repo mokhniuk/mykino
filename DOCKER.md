@@ -14,13 +14,13 @@ The Community Edition is a "clean" version of the app designed specifically for 
 If you are using a pre-built community image:
 
 ```bash
-docker run -d -p 3000:80 \
+docker run -d -p 9999:9999 \
   -e TMDB_API_KEY=your_tmdb_key \
   -e AI_PROVIDER=openai \
   -e AI_API_KEY=your_openai_key \
   mokhniuk/mykino:community
 ```
-Access the app at `http://localhost:3000`.
+Access the app at `http://localhost:9999`.
 
 ## 🛠️ Building the Community Image
 
@@ -59,7 +59,7 @@ services:
   mykino:
     image: mokhniuk/mykino:community
     ports:
-      - "3000:80"
+      - "9999:9999"
     environment:
       - TMDB_API_KEY=your_key
       - AI_PROVIDER=openai
@@ -81,7 +81,7 @@ MyKino is fully compatible with CasaOS. Our `docker-compose.yml` includes `x-cas
 ### Option 2: Manual Setup
 If you are adding the image manually:
 - **Image**: `mokhniuk/mykino:community`
-- **Web Port**: Map host port `3000` to container port `80`.
+- **Web Port**: Map host port `9999` to container port `9999`.
 - **Environment**: Add `TMDB_API_KEY`, `AI_PROVIDER`, and `AI_API_KEY` manually using the "+" button in the Environment section.
 
 ## 🔐 Privacy & Security

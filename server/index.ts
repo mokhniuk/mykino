@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { serveStatic } from 'hono/bun';
 import { checkRateLimit } from './lib/rateLimit';
 import { getRecommendations, detectProvider } from './lib/providers';
 import { getUserPlan } from './lib/supabaseAdmin';
@@ -8,9 +9,9 @@ import { setUserPlan, getStripeCustomerId } from './lib/supabaseAdmin';
 import type { AIRecommendationRequest } from './lib/types';
 
 const app = new Hono();
-
+ 
 const PORT = Number(process.env.PORT || 3001);
-const COMMUNITY_MODE = process.env.COMMUNITY_MODE === 'true';
+const COMMUNITY_MODE = process.env.COMMUNITY_MODE !== 'false';
 const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 30);
 const PRO_DAILY_LIMIT = Number(process.env.PRO_DAILY_LIMIT || 50);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
@@ -95,6 +96,31 @@ app.post('/api/ai/recommendations', async (c) => {
     return c.json({ error: 'AI provider error. Please try again.' }, 502);
   }
 });
+
+// ─── Static files ────────────────────────────────────────────────────────────
+
+app.use('*', serveStatic({ root: './dist' }));
+
+/** Dynamically inject environment variables into the frontend. */
+app.get('/config.js', (c) => {
+  const envVars = {
+    AI_PROXY_URL:       process.env.AI_PROXY_URL || '',
+    AI_PROVIDER:        process.env.AI_PROVIDER || '',
+    AI_MODEL:           process.env.AI_MODEL || '',
+    AI_API_KEY:         process.env.AI_API_KEY || '',
+    AI_FREE_MONTHLY_LIMIT: process.env.AI_FREE_MONTHLY_LIMIT || process.env.FREE_MONTHLY_LIMIT || '30',
+    AI_PRO_DAILY_LIMIT: process.env.AI_PRO_DAILY_LIMIT || process.env.PRO_DAILY_LIMIT || '50',
+    TMDB_API_KEY:       process.env.TMDB_API_KEY || '',
+    OLLAMA_URL:         process.env.OLLAMA_URL || 'http://localhost:11434',
+    SUPABASE_URL:       process.env.SUPABASE_URL || '',
+    SUPABASE_ANON_KEY:  process.env.SUPABASE_ANON_KEY || '',
+  };
+  return c.text(`window.__ENV__ = ${JSON.stringify(envVars)};`, 200, {
+    'Content-Type': 'application/javascript',
+  });
+});
+
+app.get('*', serveStatic({ path: './dist/index.html' }));
 
 // ─── Stripe (only if configured) ─────────────────────────────────────────────
 

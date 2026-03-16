@@ -80,21 +80,21 @@
 
 ## Tech Stack
 
-| Layer                   | Choice                        |
-| ----------------------- | ----------------------------- |
-| Framework               | React 18 + Vite               |
-| Language                | TypeScript                    |
-| Styling                 | Tailwind CSS                  |
-| UI primitives           | Radix UI + Lucide Icons       |
-| Data fetching & caching | TanStack Query (React Query)  |
-| Routing                 | React Router 6                |
-| Local storage           | IndexedDB via `idb`           |
-| Movie / TV data         | TMDB API                      |
-| Auth & sync             | Supabase (optional)           |
-| Payments                | Stripe                        |
-| PWA                     | vite-plugin-pwa (Workbox)     |
-| Analytics               | Umami (self-hosted)           |
-| Build / scripts runtime | Bun                           |
+| Layer                   | Choice                       |
+| ----------------------- | ---------------------------- |
+| Framework               | React 18 + Vite              |
+| Language                | TypeScript                   |
+| Styling                 | Tailwind CSS                 |
+| UI primitives           | Radix UI + Lucide Icons      |
+| Data fetching & caching | TanStack Query (React Query) |
+| Routing                 | React Router 6               |
+| Local storage           | IndexedDB via `idb`          |
+| Movie / TV data         | TMDB API                     |
+| Auth & sync             | Supabase (optional)          |
+| Payments                | Stripe                       |
+| PWA                     | vite-plugin-pwa (Workbox)    |
+| Analytics               | Umami (self-hosted)          |
+| Build / scripts runtime | Bun                          |
 
 ---
 
@@ -142,7 +142,7 @@ The post-build script generates pre-rendered static HTML for all marketing and l
 The easiest way to self-host MyKino is using Docker. We provide a specialized **Community Edition** image that is lightweight, privacy-focused, and ready for deployment.
 
 ```bash
-docker run -d -p 3000:80 -e TMDB_API_KEY=your_key mokhniuk/mykino:community
+docker run -d -p 9999:9999 -e TMDB_API_KEY=your_key mokhniuk/mykino:community
 ```
 
 For detailed instructions on configuration, environment variables, and Docker Compose, please see the **[Docker Guide (DOCKER.md)](DOCKER.md)**.

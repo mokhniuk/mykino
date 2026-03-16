@@ -3,6 +3,7 @@
 ## 1. TMDB (The Movie Database)
 
 ### Overview
+
 - **Purpose:** Movie/TV metadata, search, recommendations
 - **Location:** `lib/tmdb.ts`
 - **Base URL:** `https://api.themoviedb.org/3`
@@ -10,20 +11,22 @@
 - **Rate Limiting:** 40 requests per 10 seconds (not enforced in code)
 
 ### Language Support
+
 ```typescript
 const TMDB_LANG: Record<string, string> = {
-  en: 'en-US',
-  ua: 'uk-UA',
-  de: 'de-DE',
-  cs: 'cs-CZ',
-  pl: 'pl-PL',
-  pt: 'pt-BR',
+  en: "en-US",
+  ua: "uk-UA",
+  de: "de-DE",
+  cs: "cs-CZ",
+  pl: "pl-PL",
+  pt: "pt-BR",
 };
 ```
 
 ### Endpoints Used
 
 #### Search
+
 ```typescript
 // Multi-search (movies, TV, people)
 GET /search/multi?query={query}&page={page}&include_adult=false
@@ -35,6 +38,7 @@ GET /search/person?query={query}&include_adult=false
 ```
 
 #### Details
+
 ```typescript
 // Movie details with credits and videos
 GET /movie/{id}?append_to_response=credits,videos
@@ -47,6 +51,7 @@ GET /find/{imdb_id}?external_source=imdb_id
 ```
 
 #### Recommendations & Similar
+
 ```typescript
 GET /movie/{id}/recommendations?page={page}
 GET /tv/{id}/recommendations?page={page}
@@ -55,6 +60,7 @@ GET /tv/{id}/similar?page={page}
 ```
 
 #### Trending & Popular
+
 ```typescript
 GET /trending/movie/week?page={page}
 GET /trending/tv/week?page={page}
@@ -64,6 +70,7 @@ GET /tv/popular?page={page}
 ```
 
 #### Discovery
+
 ```typescript
 GET /discover/movie?{filters}
 GET /discover/tv?{filters}
@@ -84,27 +91,31 @@ GET /discover/tv?{filters}
 ```
 
 #### Metadata
+
 ```typescript
-GET /genre/movie/list
-GET /genre/tv/list
-GET /configuration/countries
-GET /configuration/languages
+GET / genre / movie / list;
+GET / genre / tv / list;
+GET / configuration / countries;
+GET / configuration / languages;
 ```
 
 #### Watch Providers
+
 ```typescript
-GET /movie/{id}/watch/providers
-GET /tv/{id}/watch/providers
+GET / movie / { id } / watch / providers;
+GET / tv / { id } / watch / providers;
 ```
 
 #### Person Credits
+
 ```typescript
-GET /person/{id}/movie_credits
+GET / person / { id } / movie_credits;
 ```
 
 ### Response Caching
 
 **Service Worker Strategy:**
+
 ```javascript
 // API responses: NetworkFirst with 10s timeout, 24h cache
 {
@@ -131,36 +142,41 @@ GET /person/{id}/movie_credits
 ### Data Mapping
 
 **TMDB → MovieData:**
+
 ```typescript
 function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
   return {
     imdbID: storeId,
     Title: data.title,
-    OriginalTitle: data.original_title !== data.title ? data.original_title : undefined,
-    Year: data.release_date?.slice(0, 4) ?? '',
+    OriginalTitle:
+      data.original_title !== data.title ? data.original_title : undefined,
+    Year: data.release_date?.slice(0, 4) ?? "",
     Poster: posterUrl(data.poster_path),
-    Type: 'movie',
+    Type: "movie",
     Plot: data.overview || undefined,
-    Genre: data.genres?.map(g => g.name).join(', ') || undefined,
+    Genre: data.genres?.map((g) => g.name).join(", ") || undefined,
     Runtime: data.runtime ? `${data.runtime} min` : undefined,
     imdbRating: data.vote_average ? data.vote_average.toFixed(1) : undefined,
     imdbVotes: data.vote_count ? String(data.vote_count) : undefined,
     Director: mapCredits(data.credits).director,
     Writer: mapCredits(data.credits).writer,
     Actors: mapCredits(data.credits).actors,
-    Language: data.spoken_languages?.map(l => l.english_name).join(', ') || undefined,
-    Country: data.production_countries?.map(c => c.name).join(', ') || undefined,
+    Language:
+      data.spoken_languages?.map((l) => l.english_name).join(", ") || undefined,
+    Country:
+      data.production_countries?.map((c) => c.name).join(", ") || undefined,
     Released: data.release_date || undefined,
     BoxOffice: data.revenue ? `${data.revenue.toLocaleString()}` : undefined,
     TrailerKey: getBestTrailer(data.videos),
-    genre_ids: data.genres?.map(g => g.id),
+    genre_ids: data.genres?.map((g) => g.id),
     original_language: data.original_language,
-    origin_country: data.production_countries?.map(c => c.iso_3166_1),
+    origin_country: data.production_countries?.map((c) => c.iso_3166_1),
   };
 }
 ```
 
 ### Error Handling
+
 - Network errors caught and returned as `{ Response: 'False', Error: string }`
 - Fallback to cached data when available
 - Graceful degradation (e.g., no trailer → hide player)
@@ -170,6 +186,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
 ## 2. AI Providers (Optional)
 
 ### Overview
+
 - **Purpose:** Personalized movie recommendations
 - **Location:** `lib/ai/clients/`
 - **Configuration:** Stored in IndexedDB settings
@@ -178,6 +195,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
 ### Supported Providers
 
 #### OpenAI
+
 **File:** `lib/ai/clients/openai.ts`  
 **API:** `https://api.openai.com/v1/chat/completions`  
 **Default Model:** `gpt-4o-mini`  
@@ -196,6 +214,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
 ```
 
 #### Anthropic (Claude)
+
 **File:** `lib/ai/clients/anthropic.ts`  
 **API:** `https://api.anthropic.com/v1/messages`  
 **Default Model:** `claude-3-5-sonnet-20241022`  
@@ -213,6 +232,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
 ```
 
 #### Google Gemini
+
 **File:** `lib/ai/clients/gemini.ts`  
 **API:** `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`  
 **Default Model:** `gemini-1.5-flash`  
@@ -231,6 +251,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
 ```
 
 #### Mistral AI
+
 **File:** `lib/ai/clients/mistral.ts`  
 **API:** `https://api.mistral.ai/v1/chat/completions`  
 **Default Model:** `mistral-small-latest`  
@@ -249,6 +270,7 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
 ```
 
 #### Ollama (Local)
+
 **File:** `lib/ai/clients/ollama.ts`  
 **API:** `http://localhost:11434/api/generate` (configurable)  
 **Default Model:** `llama3.2`  
@@ -270,7 +292,9 @@ function mapMovieDetail(data: TmdbMovieDetail, storeId: string): MovieData {
 
 ```typescript
 interface AIClient {
-  generateRecommendations(params: AIRecommendationParams): Promise<AIRecommendation[]>;
+  generateRecommendations(
+    params: AIRecommendationParams,
+  ): Promise<AIRecommendation[]>;
 }
 
 interface AIRecommendationParams {
@@ -292,8 +316,9 @@ interface AIRecommendation {
 ### Prompt Engineering
 
 **System Prompt:**
+
 ```
-You are a movie recommendation expert. Based on the user's taste profile and preferences, 
+You are a movie recommendation expert. Based on the user's taste profile and preferences,
 recommend movies that match their query. Return ONLY a JSON array of recommendations.
 
 Each recommendation must have:
@@ -313,26 +338,28 @@ IMPORTANT:
 ```
 
 **User Prompt:**
+
 ```
 {query}. Respond in {language}. Give exactly {count} unique high-quality diverse recommendations.
 ```
 
 ### Response Parsing
 
-```typescript
+````typescript
 // Extract JSON from response (handles markdown code blocks)
-const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || 
-                  text.match(/\[[\s\S]*\]/);
+const jsonMatch =
+  text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\[[\s\S]*\]/);
 const recommendations = JSON.parse(jsonMatch[1] || jsonMatch[0]);
 
 // Validate structure
-if (!Array.isArray(recommendations)) throw new Error('Invalid format');
-recommendations.forEach(rec => {
-  if (!rec.title || !rec.year || !rec.reason) throw new Error('Missing fields');
+if (!Array.isArray(recommendations)) throw new Error("Invalid format");
+recommendations.forEach((rec) => {
+  if (!rec.title || !rec.year || !rec.reason) throw new Error("Missing fields");
 });
-```
+````
 
 ### Error Handling
+
 - Network errors caught and logged
 - Invalid JSON responses handled gracefully
 - User-friendly error messages via toast
@@ -343,30 +370,33 @@ recommendations.forEach(rec => {
 ## 3. Country Detection
 
 ### Overview
+
 - **Purpose:** Auto-detect user country for streaming providers
 - **Location:** `lib/tmdb.ts::detectCountry()`
 - **API:** `https://api.country.is/`
 - **Caching:** sessionStorage
 
 ### Usage
+
 ```typescript
 export async function detectCountry(): Promise<string> {
-  const cached = sessionStorage.getItem('detectedCountry');
+  const cached = sessionStorage.getItem("detectedCountry");
   if (cached) return cached;
-  
+
   try {
-    const res = await fetch('https://api.country.is/');
-    const data = await res.json() as { country?: string };
-    const code = data.country ?? 'US';
-    sessionStorage.setItem('detectedCountry', code);
+    const res = await fetch("https://api.country.is/");
+    const data = (await res.json()) as { country?: string };
+    const code = data.country ?? "US";
+    sessionStorage.setItem("detectedCountry", code);
     return code;
   } catch {
-    return 'US';
+    return "US";
   }
 }
 ```
 
 ### Response Format
+
 ```json
 {
   "country": "US",
@@ -379,6 +409,7 @@ export async function detectCountry(): Promise<string> {
 ## 4. Service Worker / PWA
 
 ### Overview
+
 - **Purpose:** Offline support, update management
 - **Location:** `vite-plugin-pwa` config in `vite.config.ts`
 - **Strategy:** Workbox with custom configuration
@@ -398,30 +429,35 @@ VitePWA({
     scope: "/",
     start_url: "/",
     orientation: "any",
-    icons: [/* ... */]
+    icons: [
+      /* ... */
+    ],
   },
   workbox: {
     navigateFallback: "/index.html",
     navigateFallbackAllowlist: [/^\/.*/],
     clientsClaim: true,
     globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
-    runtimeCaching: [/* ... */]
-  }
-})
+    runtimeCaching: [
+      /* ... */
+    ],
+  },
+});
 ```
 
 ### Update Management
 
 **Manual Update Check:**
+
 ```typescript
 // lib/sw-update.ts
 export async function checkAndApplyUpdate() {
-  if ('serviceWorker' in navigator) {
+  if ("serviceWorker" in navigator) {
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration) {
       await registration.update();
       if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
         window.location.reload();
       }
     }
@@ -430,6 +466,7 @@ export async function checkAndApplyUpdate() {
 ```
 
 **Version Checking:**
+
 ```typescript
 // Check for new version
 const res = await fetch(`/version.json?t=${Date.now()}`);
@@ -444,38 +481,42 @@ if (data.version !== __APP_VERSION__) {
 ## API Usage Patterns
 
 ### Parallel Fetching
+
 ```typescript
 // Fetch multiple sources simultaneously
 const [movieData, tvData] = await Promise.all([
-  tmdbFetch('/trending/movie/week'),
-  tmdbFetch('/trending/tv/week')
+  tmdbFetch("/trending/movie/week"),
+  tmdbFetch("/trending/tv/week"),
 ]);
 ```
 
 ### Error Tolerance
+
 ```typescript
 // Use Promise.allSettled for optional data
 const results = await Promise.allSettled([
   getRecommendations(id),
   getSimilar(id),
-  getTrending()
+  getTrending(),
 ]);
 
 const successful = results
-  .filter((r): r is PromiseFulfilledResult<T> => r.status === 'fulfilled')
-  .map(r => r.value);
+  .filter((r): r is PromiseFulfilledResult<T> => r.status === "fulfilled")
+  .map((r) => r.value);
 ```
 
 ### Pagination
+
 ```typescript
 // Fetch multiple pages in parallel
 const pages = Array.from({ length: 5 }, (_, i) => i + 1);
 const results = await Promise.allSettled(
-  pages.map(p => getTrending(lang, p))
+  pages.map((p) => getTrending(lang, p)),
 );
 ```
 
 ### Fallback Strategies
+
 ```typescript
 // Try movie endpoint, fallback to TV
 try {
@@ -490,11 +531,13 @@ try {
 ## Rate Limiting & Best Practices
 
 ### Current Implementation
+
 - No explicit rate limiting
 - Relies on browser connection limits (6 per domain)
 - Service worker caching reduces API calls
 
 ### Recommendations
+
 1. Implement request queuing
 2. Add exponential backoff on errors
 3. Monitor API usage
@@ -506,15 +549,18 @@ try {
 ## Security Considerations
 
 ### API Keys
+
 - TMDB key in environment variable (public in client)
 - AI keys stored in IndexedDB (user-provided)
 - No server-side key storage
 
 ### CORS
+
 - All APIs support CORS
 - No proxy needed
 
 ### Data Privacy
+
 - No user data sent to external APIs (except AI prompts)
 - AI prompts include only titles, not personal info
 - Country detection uses IP (no storage)
@@ -524,6 +570,7 @@ try {
 ## Future API Integrations
 
 ### Potential Additions
+
 1. **OMDb API** - Alternative movie data source
 2. **JustWatch API** - Enhanced streaming availability
 3. **Trakt.tv** - Social features, sync

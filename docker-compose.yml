@@ -11,7 +11,7 @@ services:
     container_name: mykino
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "9999:9999"
     environment:
       # ── AI (choose one provider, leave the rest commented) ──────
       # Your key lives on your server only — never sent anywhere else.
@@ -40,7 +40,7 @@ x-casaos:
   tagline:
     en_us: "Your personal movie tracker"
   icon: "https://mykino.app/apple-touch-icon.png"
-  port_map: "3000"
+  port_map: "9999"
   envs:
     - container: AI_PROVIDER
       description: "AI provider: openai | anthropic | gemini | mistral | ollama"
