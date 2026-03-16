@@ -12,6 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import Footer from '@/components/Footer';
 
+// Set to false when Stripe is ready to accept subscriptions.
+const SUBSCRIPTIONS_COMING_SOON = true;
+
 const MOCK_FILMS = [
   { emoji: '🎭', title: 'The Conversation', meta: 'Coppola · 1974 · Thriller', score: '98%' },
   { emoji: '🌿', title: 'Caché', meta: 'Haneke · 2005 · Drama', score: '95%' },
@@ -156,6 +159,16 @@ export default function Pricing() {
             </p>
           )}
         </div>
+      );
+    }
+    if (SUBSCRIPTIONS_COMING_SOON) {
+      return (
+        <button
+          disabled
+          className="w-full py-2.5 rounded-xl bg-primary/50 text-primary-foreground font-semibold text-sm cursor-not-allowed"
+        >
+          Coming soon
+        </button>
       );
     }
     if (user) {
@@ -538,6 +551,13 @@ export default function Pricing() {
           >
             <CheckCircle2 size={18} />
             {t('youreOnPro')}
+          </button>
+        ) : SUBSCRIPTIONS_COMING_SOON ? (
+          <button
+            disabled
+            className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-primary/50 text-primary-foreground font-semibold text-base cursor-not-allowed"
+          >
+            Coming soon
           </button>
         ) : (
           <button

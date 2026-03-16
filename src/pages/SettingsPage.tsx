@@ -1,4 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
+
+// Set to false when Stripe is ready to accept subscriptions.
+const SUBSCRIPTIONS_COMING_SOON = true;
 import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, RefreshCw, Loader2, Smartphone, SlidersHorizontal, X, Trash2, Sparkles, Zap, Cloud, CloudOff, CheckCircle2, CreditCard } from 'lucide-react';
 import { config } from '@/lib/config';
 import { getAIUsage } from '@/lib/ai';
@@ -641,7 +644,12 @@ export default function SettingsPage() {
                         ? <><Loader2 size={13} className="animate-spin" />{t('syncSyncing')}</>
                         : <><RefreshCw size={13} />{t('syncNow')}</>}
                     </Button>
-                    {isPro ? (
+                    {SUBSCRIPTIONS_COMING_SOON ? (
+                      <Button size="sm" variant="outline" disabled className="flex items-center gap-1.5 opacity-50 cursor-not-allowed">
+                        <Zap size={13} />
+                        Coming soon
+                      </Button>
+                    ) : isPro ? (
                       <Button size="sm" variant="outline" onClick={handleManagePlan} className="flex items-center gap-1.5">
                         <CreditCard size={13} />
                         {t('managePlan')}
