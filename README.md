@@ -139,17 +139,13 @@ The post-build script generates pre-rendered static HTML for all marketing and l
 
 ## Docker
 
-A single image includes the React SPA, an Express AI proxy, and Nginx.
+The easiest way to self-host MyKino is using Docker. We provide a specialized **Community Edition** image that is lightweight, privacy-focused, and ready for deployment.
 
 ```bash
-docker build -t mykino .
-docker run -d -p 8080:80 \
-  -e VITE_TMDB_API_KEY=your_key \
-  mykino
-# → http://localhost:8080
+docker run -d -p 3000:80 -e TMDB_API_KEY=your_key mokhniuk/mykino:community
 ```
 
-See `.env.example` for all available environment variables (AI provider keys, Supabase credentials, etc.).
+For detailed instructions on configuration, environment variables, and Docker Compose, please see the **[Docker Guide (DOCKER.md)](DOCKER.md)**.
 
 ---
 

@@ -3,7 +3,7 @@ version: "3.8"
 # MyKino Community Edition
 # ─────────────────────────────────────────────────────────────────
 # Self-hosted, fully functional. Bring your own AI key and/or Supabase.
-# See docs: https://github.com/your-repo/mykino#self-hosting
+# See docs: DOCKER.md
 
 services:
   mykino:

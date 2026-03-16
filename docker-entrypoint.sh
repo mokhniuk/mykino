@@ -18,6 +18,7 @@ window.__ENV__ = {
   AI_MODEL:           "${AI_MODEL:-}",
   AI_API_KEY:         "${AI_API_KEY:-}",
   AI_FREE_DAILY_LIMIT:"${AI_FREE_DAILY_LIMIT:-3}",
+  TMDB_API_KEY:       "${TMDB_API_KEY:-}",
   OLLAMA_URL:         "${OLLAMA_URL:-http://localhost:11434}",
   SUPABASE_URL:       "${SUPABASE_URL:-}",
   SUPABASE_ANON_KEY:  "${SUPABASE_ANON_KEY:-}"
