@@ -8,20 +8,22 @@ const PROVIDERS = [
   { name: 'Anthropic', env: 'ANTHROPIC_API_KEY', example: 'sk-ant-...' },
   { name: 'Gemini', env: 'GEMINI_API_KEY', example: 'AIza...' },
   { name: 'Mistral', env: 'MISTRAL_API_KEY', example: 'your-key' },
-  { name: 'Ollama (local)', env: 'OLLAMA_BASE_URL', example: 'http://host.docker.internal:11434' },
+  { name: 'Ollama (local)', env: 'OLLAMA_URL', example: 'http://host.docker.internal:11434' },
 ];
 
 const COMPOSE = `services:
   mykino:
-    image: mokhniuk/mykino:latest
+    image: mokhniuk/mykino:community
     ports:
       - "9999:9999"
     environment:
-      # Pick ONE AI provider:
-      OPENAI_API_KEY: sk-...
-      # ANTHROPIC_API_KEY: sk-ant-...
-      # GEMINI_API_KEY: AIza...
-      # MISTRAL_API_KEY: your-key
+      # Required:
+      TMDB_API_KEY: your_tmdb_key
+
+      # AI: Use AI_PROVIDER + AI_API_KEY
+      # or provider-specific keys (OPENAI_API_KEY, etc)
+      AI_PROVIDER: openai
+      AI_API_KEY: sk-...
 
       # Optional: cross-device sync via your own Supabase project
       # SUPABASE_URL: https://xxxx.supabase.co

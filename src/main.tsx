@@ -20,6 +20,14 @@ window.addEventListener('vite:preloadError', () => {
 // Check for a new version on every app start; reloads automatically if found.
 checkAndApplyUpdate();
 
+// ── Privacy & Telemetry ──────────────────────────────────────────────────────
+// Community Edition promise: no telemetry, no tracking.
+// We remove the hardcoded Umami script from index.html if in community mode.
+if (import.meta.env.VITE_IS_COMMUNITY_BUILD === 'true' || (window as any).__ENV__?.COMMUNITY_MODE === 'true') {
+  const scripts = document.querySelectorAll('script[src*="umami"]');
+  scripts.forEach(s => s.remove());
+}
+
 // ── Setup handoff ────────────────────────────────────────────────────────────
 // When navigating from the landing page to /app, all setup data is encoded in
 // a ?_s= URL parameter. We read it here — before React mounts — so that
