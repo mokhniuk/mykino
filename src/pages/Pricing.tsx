@@ -79,7 +79,7 @@ export default function Pricing() {
   };
 
   const demoFeatures = ['pricingDF1', 'pricingDF2', 'pricingDF3', 'pricingDF4'] as const;
-  const freeFeatures = ['pricingFF1', 'pricingFF2', 'pricingFF3', 'pricingFF4'] as const;
+  const freeFeatures = ['pricingFF1', 'pricingFF2', 'pricingFF3', 'pricingFF4', 'pricingCollectionsTitle'] as const;
   const proFeatures = ['pricingPF1', 'pricingPF2', 'pricingPF3', 'pricingPF4', 'pricingPF5', 'pricingPF6'] as const;
   const communityFeatures = ['pricingCF1', 'pricingCF2', 'pricingCF3'] as const;
 
@@ -289,10 +289,6 @@ export default function Pricing() {
                 <li className="flex items-start gap-3 text-sm">
                   <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
                   <span className="text-muted-foreground">{t('pricingDemoNoSync')}</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm">
-                  <Minus size={14} className="text-muted-foreground/40 flex-shrink-0 mt-0.5" strokeWidth={2} />
-                  <span className="text-muted-foreground">{t('pricingDemoNoCollections')}</span>
                 </li>
               </ul>
             </div>

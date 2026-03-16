@@ -839,7 +839,7 @@ export default function Landing() {
                   {t('landingProSubtitle')}
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-12 text-left">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-12 text-left">
                   <div className="rounded-2xl bg-background/60 border border-border/60 backdrop-blur-sm p-7">
                     <div className="text-5xl font-bold text-primary tracking-tight mb-3">50</div>
                     <p className="font-semibold text-foreground text-sm mb-2">{t('landingProFeature1Title')}</p>
@@ -858,11 +858,6 @@ export default function Landing() {
                     </div>
                     <p className="font-semibold text-foreground text-sm mb-2">{t('landingProFeature3Title')}</p>
                     <p className="text-sm text-muted-foreground leading-relaxed">{t('landingProFeature3Desc')}</p>
-                  </div>
-                  <div className="rounded-2xl bg-background/60 border border-border/60 backdrop-blur-sm p-7">
-                    <div className="text-5xl font-bold text-primary tracking-tight mb-3">95+</div>
-                    <p className="font-semibold text-foreground text-sm mb-2">{t('editorialCollections')}</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{t('editorialCollectionsDesc')}</p>
                   </div>
                 </div>
 
