@@ -84,8 +84,21 @@ If you are adding the image manually:
 - **Web Port**: Map host port `9999` to container port `9999`.
 - **Environment**: Add `TMDB_API_KEY`, `AI_PROVIDER`, and `AI_API_KEY` manually using the "+" button in the Environment section.
 
-## 🔐 Privacy & Security
-
-- **Your Keys, Your Infrastructure**: API keys are injected into the frontend at runtime via a generated `config.js`. They are stored in your container environment and never sent to any third-party "Managed AI" proxy.
-- **No Analytics**: The community image does not include tracking or telemetry.
 - **Offline First**: Once loaded, the app shell is cached via Service Workers and works offline.
+
+## 🔄 Data Sync & Persistence
+
+MyKino is primarily a **Local-First** app. Your data (watched movies, watchlist, etc.) is stored in your browser's IndexedDB.
+
+### Local-to-Cloud Merge
+When you sign in for the first time (if you have configured Supabase):
+1. The app checks your local library.
+2. It compares it with your cloud library.
+3. **It merges them**: Any movies you added locally while offline or signed out will be uploaded to your cloud account. Nothing is deleted.
+4. From then on, changes are synchronized across all your devices in real-time.
+
+### Docker Persistence
+If you are self-hosting Supabase or using the Community Edition with local storage:
+- Data stays in the browser.
+- If you use the **Sync** feature, data is persisted in your Supabase database.
+- The Docker image itself is stateless (no internal database). Everything is either in your browser or your Supabase instance.

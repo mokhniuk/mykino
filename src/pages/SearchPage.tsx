@@ -581,7 +581,7 @@ export default function SearchPage() {
               {loading && <Loader2 size={16} className="text-muted-foreground animate-spin" />}
             </div>
             
-            {(aiEnabled || config.hasManagedAI) && (() => {
+            {aiEnabled && (() => {
               const limitReached = aiUsage?.remaining === 0;
               return (
                 <button

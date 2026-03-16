@@ -328,43 +328,74 @@ export async function getMovieDetails(id: string, lang = 'en'): Promise<MovieDat
 
   try {
     if (id.startsWith('tt')) {
-      // IMDb ID → resolve via TMDB /find endpoint, keep original id as the cache key
-      const found = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`, tmdbLang);
+      // IMDb ID → resolve via TMDB /find endpoint.
+      // NOTE: We always find the ID using English FIRST to ensure we get a TMDB ID mapping,
+      // as some movies might not be mapped in all regional TMDB indices.
+      let found: TmdbFindResult;
+      try {
+        found = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`, tmdbLang);
+        if (found.movie_results.length === 0 && found.tv_results.length === 0 && lang !== 'en') {
+          // Fallback to English find if localized find fails
+          found = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`, 'en-US');
+        }
+      } catch (e) {
+        if (lang !== 'en') {
+          found = await tmdbFetch<TmdbFindResult>(`/find/${id}?external_source=imdb_id`, 'en-US');
+        } else throw e;
+      }
 
-      if (found.movie_results.length > 0) {
-        const tmdbId = String(found.movie_results[0].id);
+      const movieItem = found.movie_results[0];
+      const tvItem = found.tv_results[0];
+
+      if (movieItem) {
+        const tmdbId = String(movieItem.id);
         const detail = await tmdbFetch<TmdbMovieDetail>(`/movie/${tmdbId}?append_to_response=credits,videos`, tmdbLang);
         let movie = mapMovieDetail(detail, id);
         movie._full = true;
+
+        // Fallback for metadata/posters
+        if (lang !== 'en' && (!movie.Plot || movie.Poster === 'N/A')) {
+          try {
+            const original = await tmdbFetch<TmdbMovieDetail>(`/movie/${tmdbId}`, 'en-US');
+            if (!movie.Plot) movie.Plot = original.overview;
+            if (movie.Poster === 'N/A') movie.Poster = posterUrl(original.poster_path);
+          } catch { /* ignore fallback error */ }
+        }
 
         // Fallback for trailers
         if (!movie.TrailerKey && lang !== 'en') {
           try {
             const originalDetail = await tmdbFetch<TmdbMovieDetail>(`/movie/${tmdbId}?append_to_response=videos`, 'en-US');
             const originalTrailer = getBestTrailer(originalDetail.videos);
-            if (originalTrailer) {
-              movie = { ...movie, TrailerKey: originalTrailer };
-            }
+            if (originalTrailer) movie.TrailerKey = originalTrailer;
           } catch { /* ignore fallback error */ }
         }
 
         await cacheMovie({ ...movie, _lang: lang });
         return movie;
       }
-      if (found.tv_results.length > 0) {
-        const tmdbId = String(found.tv_results[0].id);
+
+      if (tvItem) {
+        const tmdbId = String(tvItem.id);
         const detail = await tmdbFetch<TmdbTVDetail>(`/tv/${tmdbId}?append_to_response=credits,videos`, tmdbLang);
         let movie = mapTVDetail(detail, id);
         movie._full = true;
+
+        // Fallback for metadata/posters
+        if (lang !== 'en' && (!movie.Plot || movie.Poster === 'N/A')) {
+          try {
+            const original = await tmdbFetch<TmdbTVDetail>(`/tv/${tmdbId}`, 'en-US');
+            if (!movie.Plot) movie.Plot = original.overview;
+            if (movie.Poster === 'N/A') movie.Poster = posterUrl(original.poster_path);
+          } catch { /* ignore fallback error */ }
+        }
 
         // Fallback for trailers
         if (!movie.TrailerKey && lang !== 'en') {
           try {
             const originalDetail = await tmdbFetch<TmdbTVDetail>(`/tv/${tmdbId}?append_to_response=videos`, 'en-US');
             const originalTrailer = getBestTrailer(originalDetail.videos);
-            if (originalTrailer) {
-              movie = { ...movie, TrailerKey: originalTrailer };
-            }
+            if (originalTrailer) movie.TrailerKey = originalTrailer;
           } catch { /* ignore fallback error */ }
         }
 
