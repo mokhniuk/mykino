@@ -395,7 +395,7 @@ export const hr = {
   pricingCommunityName: 'Community',
   pricingCommunityDesc: 'Pokrenite na vlastitoj infrastrukturi. Vaš AI ključ i Supabase instanca.',
   pricingCommunityFree: 'besplatno & open source',
-  pricingCommunityBtn: 'GitHub & Docker →',
+  pricingCommunityBtn: 'Self-hosting →',
   pricingWhatsIncluded: 'Što je uključeno',
   pricingProDesc: '50 AI preporuka/dan, sinkronizacija na svim uređajima i svaka nova značajka prva.',
   pricingProMonthly: 'mjesečno, naplata svaki mjesec',

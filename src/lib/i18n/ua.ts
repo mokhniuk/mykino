@@ -400,7 +400,7 @@ export const ua = {
   pricingCommunityName: 'Community',
   pricingCommunityDesc: 'Запустіть на власній інфраструктурі. Свій ключ ШІ та екземпляр Supabase.',
   pricingCommunityFree: 'безкоштовно та з відкритим кодом',
-  pricingCommunityBtn: 'GitHub & Docker →',
+  pricingCommunityBtn: 'Self-hosting →',
   pricingWhatsIncluded: 'Що включено',
   pricingProDesc: '50 рекомендацій ШІ/день, синхронізація на всіх пристроях і кожна нова функція першою.',
   pricingProMonthly: 'на місяць, оплата щомісяця',

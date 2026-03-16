@@ -400,7 +400,7 @@ export const de = {
   pricingCommunityName: 'Community',
   pricingCommunityDesc: 'Lauf auf deiner eigenen Infrastruktur. Eigener KI-Schlüssel und Supabase-Instanz.',
   pricingCommunityFree: 'kostenlos & Open Source',
-  pricingCommunityBtn: 'GitHub & Docker →',
+  pricingCommunityBtn: 'Self-hosting →',
   pricingWhatsIncluded: 'Was enthalten ist',
   pricingProDesc: '50 KI-Empfehlungen/Tag, Synchronisierung auf allen Geräten und jedes neue Feature zuerst.',
   pricingProMonthly: 'pro Monat, monatlich abgerechnet',

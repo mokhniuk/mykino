@@ -395,7 +395,7 @@ export const es = {
   pricingCommunityName: 'Community',
   pricingCommunityDesc: 'Ejecuta en tu propia infraestructura. Tu propia clave de IA e instancia de Supabase.',
   pricingCommunityFree: 'gratis & open source',
-  pricingCommunityBtn: 'GitHub & Docker →',
+  pricingCommunityBtn: 'Self-hosting →',
   pricingWhatsIncluded: 'Qué está incluido',
   pricingProDesc: '50 llamadas de IA/día, sincronización en todos los dispositivos y cada nueva función primero.',
   pricingProMonthly: 'al mes, facturado mensualmente',

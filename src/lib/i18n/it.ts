@@ -395,7 +395,7 @@ export const it = {
   pricingCommunityName: 'Community',
   pricingCommunityDesc: 'Esegui sulla tua infrastruttura. Chiave AI e istanza Supabase proprie.',
   pricingCommunityFree: 'gratuito & open source',
-  pricingCommunityBtn: 'GitHub & Docker →',
+  pricingCommunityBtn: 'Self-hosting →',
   pricingWhatsIncluded: 'Cosa è incluso',
   pricingProDesc: '50 chiamate AI/giorno, sincronizzazione su tutti i dispositivi e ogni nuova funzione per prima.',
   pricingProMonthly: 'al mese, fatturato mensilmente',

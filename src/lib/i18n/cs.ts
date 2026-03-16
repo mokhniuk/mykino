@@ -398,7 +398,7 @@ export const cs = {
   pricingCommunityName: 'Community',
   pricingCommunityDesc: 'Spusťte na vlastní infrastruktuře. Váš vlastní klíč AI a instance Supabase.',
   pricingCommunityFree: 'zdarma & open source',
-  pricingCommunityBtn: 'GitHub & Docker →',
+  pricingCommunityBtn: 'Self-hosting →',
   pricingWhatsIncluded: 'Co je zahrnuto',
   pricingProDesc: '50 AI doporučení/den, synchronizace na všech zařízeních a každá nová funkce jako první.',
   pricingProMonthly: 'za měsíc, měsíční platby',

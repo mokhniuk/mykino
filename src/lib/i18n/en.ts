@@ -422,7 +422,7 @@ export const en = {
   pricingCommunityName: 'Community',
   pricingCommunityDesc: 'Run on your own infra. BYO AI key and Supabase instance.',
   pricingCommunityFree: 'free & open source',
-  pricingCommunityBtn: 'GitHub & Docker →',
+  pricingCommunityBtn: 'Self-hosting →',
   pricingWhatsIncluded: "What's included",
   pricingProDesc: '50 AI calls/day, sync across all devices, and every new feature first.',
   pricingProMonthly: 'per month, billed monthly',
