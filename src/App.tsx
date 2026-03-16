@@ -59,8 +59,8 @@ const App = () => (
                   {/* For community build, redirect root to app */}
                   <Route path="/" element={IS_COMMUNITY ? <Navigate to="/app" replace /> : <Landing />} />
                   
-                  {/* Only show these if managed service or not community build */}
-                  {config.hasManagedAI && (
+                  {/* Only show these for the hosted managed service */}
+                  {config.hasManagedAI && !config.isCommunity && (
                     <>
                       <Route path="/pricing" element={<Pricing />} />
                       <Route path="/privacy" element={<Privacy />} />

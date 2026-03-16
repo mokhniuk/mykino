@@ -97,19 +97,16 @@ app.post('/api/ai/recommendations', async (c) => {
   }
 });
 
-/** Dynamically inject environment variables into the frontend. */
+/** Dynamically inject environment variables into the frontend.
+ * AI_API_KEY is intentionally excluded — it stays server-side only. */
 app.get('/config.js', (c) => {
   const envVars = {
-    AI_PROXY_URL:       process.env.AI_PROXY_URL || '',
-    AI_PROVIDER:        process.env.AI_PROVIDER || '',
-    AI_MODEL:           process.env.AI_MODEL || '',
-    AI_API_KEY:         process.env.AI_API_KEY || '',
+    AI_PROXY_URL:          process.env.AI_PROXY_URL || '',
     AI_FREE_MONTHLY_LIMIT: process.env.AI_FREE_MONTHLY_LIMIT || process.env.FREE_MONTHLY_LIMIT || '30',
-    AI_PRO_DAILY_LIMIT: process.env.AI_PRO_DAILY_LIMIT || process.env.PRO_DAILY_LIMIT || '50',
-    TMDB_API_KEY:       process.env.TMDB_API_KEY || '',
-    OLLAMA_URL:         process.env.OLLAMA_URL || 'http://localhost:11434',
-    SUPABASE_URL:       process.env.SUPABASE_URL || '',
-    SUPABASE_ANON_KEY:  process.env.SUPABASE_ANON_KEY || '',
+    AI_PRO_DAILY_LIMIT:    process.env.AI_PRO_DAILY_LIMIT || process.env.PRO_DAILY_LIMIT || '50',
+    TMDB_API_KEY:          process.env.TMDB_API_KEY || '',
+    SUPABASE_URL:          process.env.SUPABASE_URL || '',
+    SUPABASE_ANON_KEY:     process.env.SUPABASE_ANON_KEY || '',
   };
   return c.text(`window.__ENV__ = ${JSON.stringify(envVars)};`, 200, {
     'Content-Type': 'application/javascript',

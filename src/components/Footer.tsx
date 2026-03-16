@@ -14,7 +14,7 @@ export default function Footer() {
           <span className="opacity-40 ml-2">v{__APP_VERSION__}</span>
         </span>
         <div className="flex gap-6">
-          {config.hasManagedAI && (
+          {config.hasManagedAI && !config.isCommunity && (
             <>
               <button onClick={() => navigate('/pricing')} className="hover:text-foreground transition-colors">{t('footerPricing')}</button>
               <button onClick={() => navigate('/privacy')} className="hover:text-foreground transition-colors">{t('footerPrivacy')}</button>

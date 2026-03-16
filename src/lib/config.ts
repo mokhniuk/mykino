@@ -28,11 +28,7 @@ export const config = {
 
   isCommunity: import.meta.env.VITE_IS_COMMUNITY_BUILD === 'true',
 
-  get hasManagedAI(): boolean { return !!this.aiProxyUrl; },
+  /** True when AI calls should go through the proxy (production or community Docker). */
+  get hasManagedAI(): boolean { return !!this.aiProxyUrl || this.isCommunity; },
   get hasSync(): boolean { return !!(this.supabaseUrl && this.supabaseAnonKey); },
-  get hasSystemAI(): boolean {
-    const e = env as any;
-    return !!(e.AI_API_KEY || e.ai_api_key || e.AI_PROVIDER === 'ollama' || e.ai_provider === 'ollama');
-  },
-  get systemAIProvider(): string | undefined { return env.AI_PROVIDER || env.ai_provider; },
 };

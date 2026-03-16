@@ -558,8 +558,8 @@ export default function SettingsPage() {
           )}
         </section>
 
-        {/* ── PRODUCTION MODE: AI section ────────────────────────────────── */}
-        {config.hasManagedAI && aiConfig && (
+        {/* ── PRODUCTION MODE: AI + Account + Sync section ───────────────── */}
+        {config.hasManagedAI && !config.isCommunity && aiConfig && (
           <section className="rounded-xl glass-card p-5 md:col-span-2">
             {/* AI subsection */}
             <div className="flex items-start justify-between gap-4">
@@ -693,8 +693,8 @@ export default function SettingsPage() {
           </section>
         )}
 
-        {/* ── COMMUNITY MODE: separate AI section (BYO key or System) ────────── */}
-        {!config.hasManagedAI && aiConfig && (config.hasSystemAI || !config.isCommunity) && (
+        {/* ── COMMUNITY MODE: AI toggle ────────────────────────────────────── */}
+        {config.isCommunity && aiConfig && (
           <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-foreground">
@@ -703,13 +703,11 @@ export default function SettingsPage() {
               </div>
               <Switch checked={aiConfig.enabled} onCheckedChange={handleAIToggle} disabled={savingAI} />
             </div>
-
-            {/* AI config is now environment-only. No manual fields rendered. */}
           </section>
         )}
 
         {/* ── COMMUNITY MODE: Sync section (only if Supabase configured) ───── */}
-        {!config.hasManagedAI && config.hasSync && (
+        {config.isCommunity && config.hasSync && (
           <section className="rounded-xl glass-card p-5 space-y-4 md:col-span-2">
             <div className="flex items-center gap-2 text-foreground">
               <Cloud size={16} className="text-primary" />

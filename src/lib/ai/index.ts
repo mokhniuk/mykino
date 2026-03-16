@@ -2,11 +2,6 @@ import { getSetting, setSetting } from '../db';
 import { config } from '../config';
 import { getSupabase } from '../supabase';
 import type { AIConfig, AIProvider, AIRecommendationRequest, AIRecommendation } from './types';
-import { OpenAIClient } from './clients/openai';
-import { AnthropicClient } from './clients/anthropic';
-import { GeminiClient } from './clients/gemini';
-import { MistralClient } from './clients/mistral';
-import { OllamaClient } from './clients/ollama';
 
 // ─── Typed error for limit exhaustion ────────────────────────────────────────
 
@@ -158,43 +153,20 @@ function buildCacheKey(request: AIRecommendationRequest, config: AIConfig): stri
   return `ai_cache:${config.provider}:${model}:${request.language}:${request.count}:${profileHash}:${q}`;
 }
 
-function envDefaults(): Partial<AIConfig> {
-  const e = (window as Record<string, any>).__ENV__;
-  if (!e?.AI_API_KEY) return {};
-
-  const envProvider = e.AI_PROVIDER as string | undefined;
-  const allowedProviders: AIProvider[] = ['openai', 'anthropic', 'gemini', 'mistral', 'ollama'];
-  const provider: AIProvider = envProvider && allowedProviders.includes(envProvider as AIProvider)
-    ? (envProvider as AIProvider)
-    : 'openai';
-
-  return {
-    enabled: true,
-    provider,
-    apiKey: e.AI_API_KEY,
-    model: e.AI_MODEL || undefined,
-    ollamaUrl: e.OLLAMA_URL || undefined,
-  };
-}
-
 export async function getAIConfig(): Promise<AIConfig> {
-  const defaults = envDefaults();
   const raw = await getSetting(AI_CONFIG_KEY);
 
-  // In community mode with system keys, we ignore local storage overrides except for 'enabled' status.
-  // This simplifies the UI and prevents users from accidentally breaking a working system config.
-  if (config.isCommunity && config.hasSystemAI) {
+  // Community Docker: AI is managed server-side via the local proxy.
+  // Only the enabled toggle is user-controlled; provider/key are irrelevant to the frontend.
+  if (config.isCommunity) {
     const stored = raw ? JSON.parse(raw) : {};
-    return {
-      ...defaults,
-      enabled: stored.enabled ?? defaults.enabled ?? false,
-    } as AIConfig;
+    return { enabled: stored.enabled ?? true, provider: 'openai', apiKey: '' } as AIConfig;
   }
 
-  const base: AIConfig = { enabled: false, provider: 'openai', apiKey: '', ...defaults };
+  const base: AIConfig = { enabled: false, provider: 'openai', apiKey: '' };
   if (!raw) return base;
   try {
-    return { ...defaults, ...JSON.parse(raw) };
+    return { ...base, ...JSON.parse(raw) };
   } catch {
     return base;
   }
@@ -208,6 +180,8 @@ export async function isAIEnabled(): Promise<boolean> {
   const aiConfig = await getAIConfig();
   if (config.hasManagedAI) {
     if (!aiConfig.enabled) return false;
+    // Community uses the local proxy — no auth required.
+    if (config.isCommunity) return true;
     const sb = getSupabase();
     if (!sb) return false;
     try {
@@ -221,15 +195,17 @@ export async function isAIEnabled(): Promise<boolean> {
 }
 
 export async function getAIRecommendations(request: AIRecommendationRequest): Promise<AIRecommendation[]> {
-  // Managed proxy path — production hosted version
+  // Managed proxy path — production (auth required) or community Docker (no auth, local proxy)
   if (config.hasManagedAI) {
     const aiConfig = await getAIConfig();
     if (!aiConfig.enabled) throw new Error('AI is not enabled');
 
-    // Require authentication for managed AI
-    const sb = getSupabase();
-    const session = sb ? (await sb.auth.getSession()).data.session : null;
-    if (!session) throw new Error('Sign in to use AI recommendations');
+    // Production requires a Supabase session; community routes to the local server with no auth.
+    if (!config.isCommunity) {
+      const sb = getSupabase();
+      const session = sb ? (await sb.auth.getSession()).data.session : null;
+      if (!session) throw new Error('Sign in to use AI recommendations');
+    }
 
     // Check persistent cache before calling the proxy
     const cacheKey = buildCacheKey(request, { provider: 'managed', apiKey: '', enabled: true } as any);
@@ -256,54 +232,7 @@ export async function getAIRecommendations(request: AIRecommendationRequest): Pr
     return results;
   }
 
-  // BYO-key path — community / dev
-  const aiConfig = await getAIConfig();
-
-  if (!aiConfig.enabled || !aiConfig.apiKey) {
-    throw new Error('AI is not enabled or API key is missing');
-  }
-
-  // Check persistent cache before calling the AI
-  const cacheKey = buildCacheKey(request, aiConfig);
-  try {
-    const cached = await getSetting(cacheKey);
-    if (cached) {
-      const { results, cachedAt } = JSON.parse(cached);
-      if (Date.now() - cachedAt < AI_CACHE_TTL) {
-        return results as AIRecommendation[];
-      }
-    }
-  } catch { /* ignore cache read errors */ }
-
-  let client;
-  switch (aiConfig.provider) {
-    case 'openai':
-      client = new OpenAIClient(aiConfig.apiKey, aiConfig.model);
-      break;
-    case 'anthropic':
-      client = new AnthropicClient(aiConfig.apiKey, aiConfig.model);
-      break;
-    case 'gemini':
-      client = new GeminiClient(aiConfig.apiKey, aiConfig.model);
-      break;
-    case 'mistral':
-      client = new MistralClient(aiConfig.apiKey, aiConfig.model);
-      break;
-    case 'ollama':
-      client = new OllamaClient(aiConfig.apiKey, aiConfig.ollamaUrl, aiConfig.model);
-      break;
-    default:
-      throw new Error(`Unsupported AI provider: ${aiConfig.provider}`);
-  }
-
-  const results = await client.getRecommendations(request);
-
-  // Persist results for 2 hours
-  try {
-    await setSetting(cacheKey, JSON.stringify({ results, cachedAt: Date.now() }));
-  } catch { /* ignore cache write errors */ }
-
-  return results;
+  throw new Error('AI is not configured');
 }
 
 export type { AIConfig, AIProvider, AIRecommendation };
