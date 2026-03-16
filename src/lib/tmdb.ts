@@ -649,6 +649,30 @@ export async function getPopular(lang = 'en', page = 1): Promise<MovieData[]> {
   }
 }
 
+export async function getTopRated(type: 'movie' | 'tv' | 'both' = 'both', lang = 'en', page = 1): Promise<MovieData[]> {
+  const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
+  try {
+    if (type === 'movie') {
+      const data = await tmdbFetch<{ results: TmdbSearchItem[] }>(`/movie/top_rated?page=${page}`, tmdbLang);
+      return data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie'));
+    }
+    if (type === 'tv') {
+      const data = await tmdbFetch<{ results: TmdbSearchItem[] }>(`/tv/top_rated?page=${page}`, tmdbLang);
+      return data.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'tv' }, 'tv'));
+    }
+    const [movieData, tvData] = await Promise.all([
+      tmdbFetch<{ results: TmdbSearchItem[] }>(`/movie/top_rated?page=${page}`, tmdbLang),
+      tmdbFetch<{ results: TmdbSearchItem[] }>(`/tv/top_rated?page=${page}`, tmdbLang),
+    ]);
+    return [
+      ...movieData.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'movie' }, 'movie')),
+      ...tvData.results.map(r => mapTmdbItemToMovieData({ ...r, media_type: 'tv' }, 'tv')),
+    ];
+  } catch {
+    return [];
+  }
+}
+
 export async function getDirectorMovies(directorName: string, lang = 'en'): Promise<MovieData[]> {
   const tmdbLang = TMDB_LANG[lang] ?? 'en-US';
   try {

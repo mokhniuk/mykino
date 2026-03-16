@@ -21,7 +21,7 @@ import type { Lang } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 import type { ThemePreference } from '@/lib/theme';
 import { addToWatched, setContentPreferences, type MovieData } from '@/lib/db';
-import { searchMovies, getPopular, getMovieDetails } from '@/lib/api';
+import { searchMovies, getTopRated, getTrending, getMovieDetails } from '@/lib/api';
 import { TOP_100_MOVIES } from '@/lib/top100';
 import type { TopMovie } from '@/lib/top100';
 
@@ -69,7 +69,6 @@ const LANG_OPTIONS: { value: Lang; label: string; Flag: FlagComponent }[] = [
 const POSTER_W  = 0.18; // width  in sphere-radius units
 const POSTER_H  = 0.27; // height (2:3 portrait ratio)
 const GAP       = 0.07; // physical gap between covers on sphere surface
-const MAX_PAGES = 7;    // pages to load progressively
 
 /**
  * Latitude-band tiling: divides the sphere into horizontal rings sized so every
@@ -109,33 +108,48 @@ function FloatingPosters({ lang }: { lang: Lang }) {
   const imgsRef   = useRef<({ img: HTMLImageElement; loadedAt: number } | null)[]>([]);
   const [ready, setReady] = useState(false);
 
-  // Load pages one-by-one; images start painting in as soon as each page arrives.
+  // Load top-rated movies, trending (movies+TV), and top-rated series in parallel.
+  // Images start painting in as soon as each batch arrives.
   useEffect(() => {
     let cancelled = false;
     imgsRef.current = [];
     setReady(false);
     let isReady = false;
 
-    (async () => {
-      for (let page = 1; page <= MAX_PAGES; page++) {
-        if (cancelled) break;
-        try {
-          const movies = await getPopular(lang, page);
-          if (cancelled) break;
-          for (const m of movies) {
-            if (!m.Poster || m.Poster === 'N/A') continue;
-            const idx = imgsRef.current.length;
-            imgsRef.current.push(null);
-            const img = new Image();
-            img.onload = () => { imgsRef.current[idx] = { img, loadedAt: performance.now() }; };
-            img.src = m.Poster;
-          }
-          if (!isReady && imgsRef.current.length >= 9) {
-            isReady = true;
-            if (!cancelled) setReady(true);
-          }
-        } catch { /* network errors are non-fatal */ }
+    const addPosters = (movies: { Poster?: string }[]) => {
+      for (const m of movies) {
+        if (!m.Poster || m.Poster === 'N/A') continue;
+        const idx = imgsRef.current.length;
+        imgsRef.current.push(null);
+        const img = new Image();
+        img.onload = () => { imgsRef.current[idx] = { img, loadedAt: performance.now() }; };
+        img.src = m.Poster;
       }
+      if (!isReady && imgsRef.current.length >= 9) {
+        isReady = true;
+        if (!cancelled) setReady(true);
+      }
+    };
+
+    (async () => {
+      // Fetch in three parallel batches; each batch covers multiple pages.
+      const topRatedMoviePages = [1, 2, 3, 4, 5];
+      const trendingPages = [1, 2, 3];
+      const topRatedTVPages = [1, 2, 3, 4];
+
+      const batches: Promise<void>[] = [
+        ...topRatedMoviePages.map(page =>
+          getTopRated('movie', lang, page).then(r => { if (!cancelled) addPosters(r); }).catch(() => {})
+        ),
+        ...trendingPages.map(page =>
+          getTrending(lang, page).then(r => { if (!cancelled) addPosters(r); }).catch(() => {})
+        ),
+        ...topRatedTVPages.map(page =>
+          getTopRated('tv', lang, page).then(r => { if (!cancelled) addPosters(r); }).catch(() => {})
+        ),
+      ];
+
+      await Promise.all(batches);
     })();
 
     return () => { cancelled = true; };
