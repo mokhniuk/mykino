@@ -18,7 +18,7 @@ export function getSupabase(): SupabaseClient | null {
           let chain = Promise.resolve();
           return <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
             const result = chain.then(() => fn());
-            chain = result.then(() => {}, () => {});
+            chain = result.then(() => { }, () => { });
             return result;
           };
         })(),
@@ -41,6 +41,17 @@ export async function signInWithEmail(email: string): Promise<void> {
   const { error } = await sb.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: `${window.location.origin}/app/settings` },
+  });
+  if (error) throw error;
+}
+
+export async function verifyOtp(email: string, token: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) throw new Error('Sync not configured');
+  const { error } = await sb.auth.verifyOtp({
+    email,
+    token,
+    type: 'magiclink',
   });
   if (error) throw error;
 }

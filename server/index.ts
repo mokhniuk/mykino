@@ -1,7 +1,13 @@
+import { config } from 'dotenv';
+config();
+
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { serveStatic } from 'hono/bun';
+import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { existsSync } from 'fs';
+
 import { join, relative } from 'path';
 import { checkRateLimit } from './lib/rateLimit';
 import { getRecommendations, detectProvider } from './lib/providers';
@@ -10,12 +16,19 @@ import { createCheckoutSession, createPortalSession, handleWebhookEvent, getStri
 import { setUserPlan, getStripeCustomerId } from './lib/supabaseAdmin';
 import type { AIRecommendationRequest } from './lib/types';
 
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = join(__filename, '..');
+
 const app = new Hono();
 
-// DIST_PATH is absolute; DIST_REL is relative to CWD for serveStatic (hono/bun requires relative root)
-const DIST_PATH = join(import.meta.dir, '../dist');
+// DIST_PATH is absolute; DIST_REL is relative to CWD for serveStatic (hono/node-server requires relative root)
+// Check both root and one level up for the dist folder
+const DIST_PATH = existsSync(join(__dirname, 'dist'))
+  ? join(__dirname, 'dist')
+  : join(__dirname, '../../dist');
 const DIST_REL = relative(process.cwd(), DIST_PATH);
- 
+
 const PORT = Number(process.env.PORT || 3001);
 const COMMUNITY_MODE = process.env.COMMUNITY_MODE === 'true';
 const FREE_MONTHLY_LIMIT = Number(process.env.AI_FREE_MONTHLY_LIMIT || process.env.FREE_MONTHLY_LIMIT || 30);
@@ -118,15 +131,15 @@ app.post('/api/ai/recommendations', async (c) => {
  * AI_API_KEY is intentionally excluded — it stays server-side only. */
 app.get('/config.js', (c) => {
   const envVars = {
-    AI_PROXY_URL:          process.env.AI_PROXY_URL || '',
+    AI_PROXY_URL: process.env.AI_PROXY_URL || '',
     AI_FREE_MONTHLY_LIMIT: process.env.AI_FREE_MONTHLY_LIMIT || process.env.FREE_MONTHLY_LIMIT || '30',
-    AI_PRO_DAILY_LIMIT:    process.env.AI_PRO_DAILY_LIMIT || process.env.PRO_DAILY_LIMIT || '50',
-    TMDB_API_KEY:          process.env.TMDB_API_KEY || process.env.VITE_TMDB_API_KEY || '',
-    SUPABASE_URL:          process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-    SUPABASE_ANON_KEY:     process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
-    COMMUNITY_MODE:        String(COMMUNITY_MODE),
+    AI_PRO_DAILY_LIMIT: process.env.AI_PRO_DAILY_LIMIT || process.env.PRO_DAILY_LIMIT || '50',
+    TMDB_API_KEY: process.env.TMDB_API_KEY || process.env.VITE_TMDB_API_KEY || '',
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+    COMMUNITY_MODE: String(COMMUNITY_MODE),
   };
-  
+
   if (envVars.SUPABASE_URL) {
     console.log(`[config.js] serving Supabase config for ${envVars.SUPABASE_URL}`);
   } else {
@@ -146,10 +159,11 @@ if (COMMUNITY_MODE) {
   });
 }
 
-// Serve static files — root must be relative to CWD for hono/bun's serveStatic
+// Serve static files
 app.use('*', serveStatic({ root: DIST_REL }));
 // SPA fallback: all unmatched routes serve index.html
 app.get('*', serveStatic({ path: join(DIST_REL, 'index.html') }));
+
 
 // ─── Stripe (only if configured) ─────────────────────────────────────────────
 
@@ -200,7 +214,7 @@ app.post('/api/stripe/checkout', async (c) => {
   // Build redirect URLs server-side to prevent open-redirect attacks
   const origin = appOrigin();
   const successUrl = `${origin}/app/settings?checkout=success`;
-  const cancelUrl  = `${origin}/app/settings?checkout=cancelled`;
+  const cancelUrl = `${origin}/app/settings?checkout=cancelled`;
 
   try {
     const url = await createCheckoutSession({ userId, email, priceId, successUrl, cancelUrl });
@@ -313,9 +327,10 @@ console.log(`   Current directory: ${process.cwd()}`);
 console.log(`   Internal DIST_PATH: ${DIST_PATH}`);
 
 // Diagnostics: check if dist exists
-const indexFile = Bun.file(join(DIST_PATH, 'index.html'));
-const exists = await indexFile.exists();
+const indexPath = join(DIST_PATH, 'index.html');
+const exists = existsSync(indexPath);
 console.log(`   Static assets status: ${exists ? '✅ index.html found' : '❌ index.html MISSING'}`);
+
 
 if (!exists) {
   console.warn('   ⚠️  WARNING: Static assets not found in DIST_PATH. Server may only respond to API calls.');
@@ -341,4 +356,8 @@ if (STRIPE_ENABLED && ALLOWED_ORIGIN === '*') {
   console.warn('⚠️  ALLOWED_ORIGIN is not set — Stripe success/cancel URLs will point to localhost:8080');
 }
 
-export default { port: PORT, fetch: app.fetch };
+serve({
+  fetch: app.fetch,
+  port: PORT
+});
+

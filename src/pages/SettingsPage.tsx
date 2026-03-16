@@ -6,7 +6,7 @@ import { Globe, Palette, Info, Sun, Moon, Monitor, Database, Download, Upload, R
 import { config } from '@/lib/config';
 import { getAIUsage } from '@/lib/ai';
 import { useAuth } from '@/contexts/AuthContext';
-import { signInWithEmail, signOut } from '@/lib/supabase';
+import { signInWithEmail, verifyOtp, signOut } from '@/lib/supabase';
 import { getLastSyncTime } from '@/lib/sync';
 import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
@@ -70,13 +70,13 @@ function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDislik
               {metadataLoading
                 ? liked.map(id => <span key={id} className="h-5 w-14 rounded-full bg-muted animate-pulse inline-block" />)
                 : liked.map(id => (
-                    <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30">
-                      {getLabel(id)}
-                      <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))
+                  <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30">
+                    {getLabel(id)}
+                    <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))
               }
             </div>
           )}
@@ -95,13 +95,13 @@ function CategoryPicker({ label, items, liked, disliked, onAddLiked, onAddDislik
               {metadataLoading
                 ? disliked.map(id => <span key={id} className="h-5 w-14 rounded-full bg-muted animate-pulse inline-block" />)
                 : disliked.map(id => (
-                    <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
-                      {getLabel(id)}
-                      <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))
+                  <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
+                    {getLabel(id)}
+                    <button onClick={() => onRemove(id)} className="hover:opacity-70 transition-opacity ml-0.5" aria-label="Remove">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))
               }
             </div>
           )}
@@ -120,7 +120,7 @@ export default function SettingsPage() {
   const [stats, setStats] = useState<DBStats | null>(null);
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [savingAI, setSavingAI] = useState(false);
-  const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number } | null>(null);
+  const [aiUsage, setAiUsage] = useState<{ used: number; remaining: number; limit: number; period: 'daily' | 'monthly' } | null>(null);
   const { user, accessToken, syncing, triggerSync } = useAuth();
   const { isPro, cancelAt, refetch: refetchProfile } = useProfile();
   const [syncEmail, setSyncEmail] = useState('');
@@ -294,10 +294,31 @@ export default function SettingsPage() {
     try {
       await signInWithEmail(email);
       setLinkSent(true);
+      toast.success('Code sent! Please check your email.');
     } catch (error: any) {
       toast.error(error.message || t('aiError'));
     } finally {
       setSendingLink(false);
+    }
+  };
+
+  const [otpCode, setOtpCode] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  const handleVerifyOtp = async () => {
+    const code = otpCode.trim();
+    if (code.length < 8) return;
+
+    setVerifyingOtp(true);
+    try {
+      await verifyOtp(syncEmail.trim(), code);
+      toast.success('Logged in successfully!');
+      setLinkSent(false);
+      setOtpCode('');
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid code. Please try again.');
+    } finally {
+      setVerifyingOtp(false);
     }
   };
 
@@ -666,9 +687,41 @@ export default function SettingsPage() {
                   </div>
                 </>
               ) : linkSent ? (
-                <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
-                  <CheckCircle2 size={14} className="text-primary mt-0.5 shrink-0" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">{t('syncEmailSent')}</p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2.5 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5">
+                    <CheckCircle2 size={14} className="text-primary mt-0.5 shrink-0" />
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {t('syncEmailSent')}
+                    </p>
+                  </div>
+                  {isStandalone && (
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={8}
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
+                        placeholder={t('syncEnterOtp')}
+                        className="flex-1 h-9 text-sm text-center tracking-[0.2em] font-mono"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleVerifyOtp}
+                        disabled={verifyingOtp || otpCode.length !== 8}
+                      >
+                        {verifyingOtp ? <Loader2 size={13} className="animate-spin" /> : t('syncVerifyBtn')}
+                      </Button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => { setLinkSent(false); setOtpCode(''); }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors pl-1"
+                  >
+                    {t('syncResend')}
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -777,10 +830,10 @@ export default function SettingsPage() {
             <h2 className="text-sm font-semibold">{t('dataManagement')}</h2>
           </div>
 
-          
+
 
           {!user && (
-            
+
             <div className="pb-2 border-b border-border/50 flex flex-col gap-2">
               {/* Browser ↔ PWA transfer tip — only shown in browser, not in standalone */}
               {!isStandalone && (
