@@ -8,10 +8,10 @@ interface Props {
 const FADE = '2.5rem';
 
 const masks = {
-  none:  'none',
+  none: 'none',
   right: `linear-gradient(to right, black calc(100% - ${FADE}), transparent 100%)`,
-  left:  `linear-gradient(to right, transparent 0%, black ${FADE})`,
-  both:  `linear-gradient(to right, transparent 0%, black ${FADE}, black calc(100% - ${FADE}), transparent 100%)`,
+  left: `linear-gradient(to right, transparent 0%, black ${FADE})`,
+  both: `linear-gradient(to right, transparent 0%, black ${FADE}, black calc(100% - ${FADE}), transparent 100%)`,
 };
 
 export default function HorizontalScroll({ children, className = '' }: Props) {
@@ -21,18 +21,18 @@ export default function HorizontalScroll({ children, className = '' }: Props) {
     const el = ref.current;
     if (!el) return;
     const atStart = el.scrollLeft <= 4;
-    const atEnd   = el.scrollLeft >= el.scrollWidth - el.clientWidth - 4;
+    const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 4;
     const mask = atStart && atEnd ? masks.none
-               : atStart          ? masks.right
-               : atEnd            ? masks.left
-               :                    masks.both;
+      : atStart ? masks.right
+        : atEnd ? masks.left
+          : masks.both;
     el.style.maskImage = mask;
     el.style.webkitMaskImage = mask;
   };
 
   // Drag-to-scroll (desktop)
-  const dragging  = useRef(false);
-  const startX    = useRef(0);
+  const dragging = useRef(false);
+  const startX = useRef(0);
   const scrollOrigin = useRef(0);
 
   const onMouseDown = (e: React.MouseEvent) => {
@@ -77,7 +77,7 @@ export default function HorizontalScroll({ children, className = '' }: Props) {
     <div
       ref={ref}
       onMouseDown={onMouseDown}
-      className={`flex gap-3 overflow-x-auto -mx-4 px-4 pb-2 scrollbar-custom cursor-grab ${className}`}
+      className={`flex items-start gap-3 overflow-x-auto -mx-4 px-4 pb-2 scrollbar-custom cursor-grab ${className}`}
     >
       {children}
     </div>

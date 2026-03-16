@@ -44,7 +44,6 @@ function MovieCard({
   return (
     <div
       className={`${widthClass} flex-shrink-0 group animate-fade-in`}
-      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 280px' }}
     >
       <Link to={movie.Type === 'series' ? `/app/tv/${movie.imdbID}` : `/app/movie/${movie.imdbID}`} className="block">
         <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-secondary mb-2">
@@ -102,9 +101,8 @@ function MovieCard({
             {onToggleWatched && (
               <button
                 onClick={(e) => { e.preventDefault(); onToggleWatched(); }}
-                className={`p-1.5 rounded transition-colors ${
-                  isWatched ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`p-1.5 rounded transition-colors ${isWatched ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <CheckCircle2 size={18} fill={isWatched ? 'currentColor' : 'none'} />
               </button>
@@ -112,9 +110,8 @@ function MovieCard({
             {onToggleWatchlist && (
               <button
                 onClick={(e) => { e.preventDefault(); onToggleWatchlist(); }}
-                className={`p-1 rounded transition-colors ${
-                  inWatchlist ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`p-1 rounded transition-colors ${inWatchlist ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 {inWatchlist ? <BookmarkCheck size={14} /> : <BookmarkPlus size={14} />}
               </button>
@@ -122,9 +119,8 @@ function MovieCard({
             {onToggleFavourite && (
               <button
                 onClick={(e) => { e.preventDefault(); onToggleFavourite(); }}
-                className={`p-1 rounded transition-colors ${
-                  inFavourites ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`p-1 rounded transition-colors ${inFavourites ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <Heart size={14} fill={inFavourites ? 'currentColor' : 'none'} />
               </button>
