@@ -10,7 +10,7 @@ RUN bun install --frozen-lockfile
 
 # Copy source and build frontend
 COPY . .
-ARG IS_COMMUNITY=true
+ARG IS_COMMUNITY=false
 RUN VITE_IS_COMMUNITY_BUILD=$IS_COMMUNITY bun run build:static
 
 # ── Serve stage ───────────────────────────────────────────────────────────────
@@ -24,7 +24,9 @@ COPY --from=builder /app/dist ./dist
 # Copy server code and its node_modules
 COPY --from=builder /app/server ./server
 
-# Runtime environment (internal port)
+# Runtime environment
+ARG IS_COMMUNITY=false
+ENV COMMUNITY_MODE=$IS_COMMUNITY
 ENV PORT=9999
 ENV NODE_ENV=production
 EXPOSE 9999

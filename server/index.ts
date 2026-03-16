@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
 import { serveStatic } from 'hono/bun';
+import { join, relative } from 'path';
 import { checkRateLimit } from './lib/rateLimit';
 import { getRecommendations, detectProvider } from './lib/providers';
 import { getUserPlan } from './lib/supabaseAdmin';
@@ -9,9 +11,13 @@ import { setUserPlan, getStripeCustomerId } from './lib/supabaseAdmin';
 import type { AIRecommendationRequest } from './lib/types';
 
 const app = new Hono();
+
+// DIST_PATH is absolute; DIST_REL is relative to CWD for serveStatic (hono/bun requires relative root)
+const DIST_PATH = join(import.meta.dir, '../dist');
+const DIST_REL = relative(process.cwd(), DIST_PATH);
  
 const PORT = Number(process.env.PORT || 3001);
-const COMMUNITY_MODE = process.env.COMMUNITY_MODE !== 'false';
+const COMMUNITY_MODE = process.env.COMMUNITY_MODE === 'true';
 const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 30);
 const PRO_DAILY_LIMIT = Number(process.env.PRO_DAILY_LIMIT || 50);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
@@ -22,6 +28,7 @@ function appOrigin(): string {
   return ALLOWED_ORIGIN !== '*' ? ALLOWED_ORIGIN : 'http://localhost:8080';
 }
 
+app.use('*', logger());
 app.use('*', cors({ origin: ALLOWED_ORIGIN }));
 
 // ─── Health ───────────────────────────────────────────────────────────────────
@@ -107,14 +114,25 @@ app.get('/config.js', (c) => {
     TMDB_API_KEY:          process.env.TMDB_API_KEY || '',
     SUPABASE_URL:          process.env.SUPABASE_URL || '',
     SUPABASE_ANON_KEY:     process.env.SUPABASE_ANON_KEY || '',
+    COMMUNITY_MODE:        String(COMMUNITY_MODE),
   };
   return c.text(`window.__ENV__ = ${JSON.stringify(envVars)};`, 200, {
     'Content-Type': 'application/javascript',
   });
 });
 
-app.use('*', serveStatic({ root: './dist' }));
-app.get('*', serveStatic({ path: './dist/index.html' }));
+// Redirect marketing pages in community mode
+if (COMMUNITY_MODE) {
+  ['/pricing', '/community', '/privacy', '/terms', '/contact'].forEach(path => {
+    app.get(path, (c) => c.redirect('/app'));
+    app.get(`${path}/`, (c) => c.redirect('/app'));
+  });
+}
+
+// Serve static files — root must be relative to CWD for hono/bun's serveStatic
+app.use('*', serveStatic({ root: DIST_REL }));
+// SPA fallback: all unmatched routes serve index.html
+app.get('*', serveStatic({ path: join(DIST_REL, 'index.html') }));
 
 // ─── Stripe (only if configured) ─────────────────────────────────────────────
 
@@ -272,9 +290,19 @@ app.post('/api/stripe/portal', async (c) => {
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 console.log(`🎬 MyKino AI proxy starting on port ${PORT}`);
-console.log(`   Community mode: ${COMMUNITY_MODE}`);
+console.log(`   Community mode: ${COMMUNITY_MODE} (via process.env.COMMUNITY_MODE)`);
 console.log(`   Stripe: ${STRIPE_ENABLED ? 'enabled' : 'disabled'}`);
-if (!COMMUNITY_MODE) console.log(`   Free monthly limit: ${FREE_MONTHLY_LIMIT} | Pro daily limit: ${PRO_DAILY_LIMIT}`);
+console.log(`   Current directory: ${process.cwd()}`);
+console.log(`   Internal DIST_PATH: ${DIST_PATH}`);
+
+// Diagnostics: check if dist exists
+const indexFile = Bun.file(join(DIST_PATH, 'index.html'));
+const exists = await indexFile.exists();
+console.log(`   Static assets status: ${exists ? '✅ index.html found' : '❌ index.html MISSING'}`);
+
+if (!exists) {
+  console.warn('   ⚠️  WARNING: Static assets not found in DIST_PATH. Server may only respond to API calls.');
+}
 
 try {
   detectProvider();

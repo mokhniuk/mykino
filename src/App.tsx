@@ -39,7 +39,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Contact = lazy(() => import("./pages/Contact"));
 
-const IS_COMMUNITY = import.meta.env.VITE_IS_COMMUNITY_BUILD === 'true';
+// Community mode detection moved to config.ts
 
 const queryClient = new QueryClient();
 
@@ -57,7 +57,7 @@ const App = () => (
               <Suspense fallback={<div className="min-h-screen bg-background" />}>
                 <Routes>
                   {/* For community build, redirect root to app */}
-                  <Route path="/" element={IS_COMMUNITY ? <Navigate to="/app" replace /> : <Landing />} />
+                  <Route path="/" element={config.isCommunity ? <Navigate to="/app" replace /> : <Landing />} />
                   
                   {/* Only show these for the hosted managed service */}
                   {config.hasManagedAI && !config.isCommunity && (

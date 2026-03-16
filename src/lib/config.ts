@@ -26,9 +26,9 @@ export const config = {
   supabaseUrl: env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '',
   supabaseAnonKey: env.SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '',
 
-  isCommunity: import.meta.env.VITE_IS_COMMUNITY_BUILD === 'true',
+  isCommunity: env.COMMUNITY_MODE === 'true' || import.meta.env.VITE_IS_COMMUNITY_BUILD === 'true',
 
   /** True when AI calls should go through the proxy (production or community Docker). */
-  get hasManagedAI(): boolean { return !!this.aiProxyUrl || this.isCommunity; },
+  get hasManagedAI(): boolean { return !this.isCommunity || !!this.aiProxyUrl; },
   get hasSync(): boolean { return !!(this.supabaseUrl && this.supabaseAnonKey); },
 };

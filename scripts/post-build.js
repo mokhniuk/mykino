@@ -56,8 +56,7 @@ let ssgRoutes = [
 const IS_COMMUNITY = process.env.VITE_IS_COMMUNITY_BUILD === 'true';
 
 if (IS_COMMUNITY) {
-  console.log('🏗️ Community build detected. Filtering ssgRoutes...');
-  ssgRoutes = ssgRoutes.filter(r => r.template === 'community');
+  console.log('🏗️ Community build detected. Including all SSG pages (runtime will handle visibility).');
 }
 
 console.log('📄 Creating static HTML files for SPA routes...');

@@ -562,7 +562,7 @@ export default function SettingsPage() {
         </section>
 
         {/* ── PRODUCTION MODE: AI + Account + Sync section ───────────────── */}
-        {config.hasManagedAI && !config.isCommunity && aiConfig && (
+        {!config.isCommunity && aiConfig && (
           <section className="rounded-xl glass-card p-5 md:col-span-2">
             {/* AI subsection */}
             <div className="flex items-start justify-between gap-4">
