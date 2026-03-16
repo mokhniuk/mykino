@@ -203,7 +203,9 @@ export default function Index() {
     const slice = unwatchedTop100.filter(m => !skip.has(m.imdbID)).slice(0, 10);
     Promise.all(slice.map(async m => {
       const cached = await getCachedMovie(m.imdbID);
-      return cached ?? { imdbID: m.imdbID, Title: m.Title, Year: m.Year, Poster: 'N/A', Type: 'movie' as const };
+      if (cached && cached.Poster !== 'N/A') return cached;
+      const details = await getMovieDetails(m.imdbID, lang);
+      return details ?? { imdbID: m.imdbID, Title: m.Title, Year: m.Year, Poster: 'N/A', Type: 'movie' as const };
     })).then(setUpNextMovies);
   }, [unwatchedTop100, dailyPickMovie?.imdbID]);
 
